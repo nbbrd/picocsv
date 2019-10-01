@@ -37,7 +37,7 @@ import java.util.function.IntConsumer;
  *
  * @author Philippe Charles
  */
-public final class CsvReader implements Closeable {
+public final class CsvReader implements Closeable, CharSequence {
 
     /**
      * Creates a new instance from a file.
@@ -122,7 +122,8 @@ public final class CsvReader implements Closeable {
     private final int quote;
     private final int delimiter;
     private final EndOfLineReader endOfLine;
-    private final ReusableField field;
+    private char[] fieldChars;
+    private int fieldLength;
     private State state;
     private boolean parsedByLine;
 
@@ -131,7 +132,8 @@ public final class CsvReader implements Closeable {
         this.quote = quote;
         this.delimiter = delimiter;
         this.endOfLine = endOfLine;
-        this.field = new ReusableField();
+        this.fieldChars = new char[64];
+        this.fieldLength = 0;
         this.state = State.READY;
         this.parsedByLine = false;
     }
@@ -195,16 +197,6 @@ public final class CsvReader implements Closeable {
         }
     }
 
-    /**
-     * Gets the current field.
-     *
-     * @return a non-null field
-     * @throws IOException if an I/O error occurs
-     */
-    public CharSequence getField() throws IOException {
-        return field;
-    }
-
     @Override
     public void close() throws IOException {
         input.close();
@@ -212,11 +204,11 @@ public final class CsvReader implements Closeable {
 
     private State parseNextField(boolean skip) throws IOException {
         int val;
-        field.reset();
+        resetField();
 
         IntConsumer fieldBuilder = skip
-                ? field::swallow
-                : field::append;
+                ? this::swallow
+                : this::append;
 
         // first char        
         boolean quoted = false;
@@ -272,7 +264,46 @@ public final class CsvReader implements Closeable {
             }
         }
 
-        return field.length() > 0 ? State.LAST : State.DONE;
+        return fieldLength > 0 ? State.LAST : State.DONE;
+    }
+
+    private void ensureFieldSize() {
+        if (fieldLength == fieldChars.length) {
+            fieldChars = Arrays.copyOf(fieldChars, fieldLength * 2);
+        }
+    }
+
+    public void resetField() {
+        fieldLength = 0;
+    }
+
+    public void swallow(int c) {
+        // do nothing
+    }
+
+    public void append(int c) {
+        ensureFieldSize();
+        fieldChars[fieldLength++] = (char) c;
+    }
+
+    @Override
+    public String toString() {
+        return fieldLength == 0 ? "" : new String(fieldChars, 0, fieldLength);
+    }
+
+    @Override
+    public int length() {
+        return fieldLength;
+    }
+
+    @Override
+    public char charAt(int index) {
+        return fieldChars[index];
+    }
+
+    @Override
+    public CharSequence subSequence(int start, int end) {
+        return new String(fieldChars, start, end - start);
     }
 
     private static Input inputOf(Reader reader, OptionalInt charBufferSize, NewLine newLine) {
@@ -365,51 +396,6 @@ public final class CsvReader implements Closeable {
                 default:
                     throw new RuntimeException();
             }
-        }
-    }
-
-    private static final class ReusableField implements CharSequence {
-
-        private char[] data = new char[64];
-        private int length = 0;
-
-        private void ensureSize() {
-            if (length == data.length) {
-                data = Arrays.copyOf(data, length * 2);
-            }
-        }
-
-        public void reset() {
-            length = 0;
-        }
-
-        public void swallow(int c) {
-            // do nothing
-        }
-
-        public void append(int c) {
-            ensureSize();
-            data[length++] = (char) c;
-        }
-
-        @Override
-        public String toString() {
-            return length == 0 ? "" : new String(data, 0, length);
-        }
-
-        @Override
-        public int length() {
-            return length;
-        }
-
-        @Override
-        public char charAt(int index) {
-            return data[index];
-        }
-
-        @Override
-        public CharSequence subSequence(int start, int end) {
-            return new String(data, start, end - start);
         }
     }
 

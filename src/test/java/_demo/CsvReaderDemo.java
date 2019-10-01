@@ -34,7 +34,7 @@ public class CsvReaderDemo {
                 while (reader.readLine()) {
                     System.out.print(" | ");
                     while (reader.readField()) {
-                        System.out.print(reader.getField() + " | ");
+                        System.out.print(reader + " | ");
                     }
                     System.out.println("");
                 }

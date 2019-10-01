@@ -41,7 +41,7 @@ public final class Row {
         while (reader.readLine()) {
             List<String> fields = new ArrayList<>();
             while (reader.readField()) {
-                fields.add(reader.getField().toString());
+                fields.add(reader.toString());
             }
             result.add(new Row(fields));
         }

@@ -69,7 +69,7 @@ public class CsvStreamBenchmark {
     public void readLine(ReadState state, Blackhole blackhole) throws IOException {
         if (state.input.readLine()) {
             while (state.input.readField()) {
-                blackhole.consume(state.input.getField().toString());
+                blackhole.consume(state.input.toString());
             }
         }
     }
