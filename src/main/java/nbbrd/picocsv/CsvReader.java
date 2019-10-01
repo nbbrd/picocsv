@@ -274,15 +274,15 @@ public final class CsvReader implements Closeable, CharSequence {
         }
     }
 
-    public void resetField() {
+    private void resetField() {
         fieldLength = 0;
     }
 
-    public void swallow(int c) {
+    private void swallow(int c) {
         // do nothing
     }
 
-    public void append(int c) {
+    private void append(int c) {
         ensureFieldSize();
         fieldChars[fieldLength++] = (char) c;
     }
