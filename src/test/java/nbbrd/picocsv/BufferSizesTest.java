@@ -18,15 +18,11 @@ package nbbrd.picocsv;
 
 import static _test.QuickReader.newInputFile;
 import static _test.QuickReader.newInputStream;
-import static _test.QuickReader.newReader;
 import static _test.QuickWriter.newOutputFile;
 import static _test.QuickWriter.newOutputStream;
-import static _test.QuickWriter.newWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Reader;
-import java.io.Writer;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import static java.nio.charset.StandardCharsets.UTF_16;
@@ -45,12 +41,6 @@ public class BufferSizesTest {
 
     @Test
     public void testFactories() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of((Reader) null));
-
-        assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of((Writer) null));
-
         assertThatNullPointerException()
                 .isThrownBy(() -> BufferSizes.of((InputStream) null, UTF_8.newDecoder()));
 
@@ -78,9 +68,6 @@ public class BufferSizesTest {
 
     @Test
     public void testInput() throws IOException {
-        assertThat(BufferSizes.of(newReader("abc")))
-                .isEqualToComparingFieldByField(BufferSizes.EMPTY);
-
         assertThat(BufferSizes.of(newInputStream("abc", UTF_8), UTF_8.newDecoder()))
                 .isEqualToComparingFieldByField(new BufferSizes(
                         OptionalInt.of(3),
@@ -112,9 +99,6 @@ public class BufferSizesTest {
 
     @Test
     public void testOutput() throws IOException {
-        assertThat(BufferSizes.of(newWriter()))
-                .isEqualToComparingFieldByField(BufferSizes.EMPTY);
-
         assertThat(BufferSizes.of(newOutputStream(), UTF_8.newEncoder()))
                 .isEqualToComparingFieldByField(BufferSizes.EMPTY);
 
@@ -134,5 +118,13 @@ public class BufferSizesTest {
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE * 64),
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE * 64 / 2))
                 );
+    }
+
+    @Test
+    public void testGetSize() throws IOException {
+        assertThat(BufferSizes.getSize(OptionalInt.empty(), 123)).isEqualTo(123);
+        assertThat(BufferSizes.getSize(OptionalInt.of(-1), 123)).isEqualTo(123);
+        assertThat(BufferSizes.getSize(OptionalInt.of(0), 123)).isEqualTo(123);
+        assertThat(BufferSizes.getSize(OptionalInt.of(1), 123)).isEqualTo(1);
     }
 }

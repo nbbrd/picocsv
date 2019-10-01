@@ -105,13 +105,14 @@ public final class CsvWriter implements Closeable {
             throw new IllegalArgumentException("format");
         }
 
-        BufferSizes sizes = BufferSizes.of(writer);
+        BufferSizes sizes = BufferSizes.EMPTY;
         return make(format, sizes.chars, writer);
     }
 
     private static CsvWriter make(CsvFormat format, OptionalInt charBufferSize, Writer writer) {
+        int size = BufferSizes.getSize(charBufferSize, BufferSizes.DEFAULT_CHAR_BUFFER_SIZE);
         return new CsvWriter(
-                Output.of(writer, charBufferSize),
+                new Output(writer, size),
                 format.getQuote(), format.getDelimiter(),
                 EndOfLineWriter.of(format.getSeparator())
         );
@@ -209,10 +210,6 @@ public final class CsvWriter implements Closeable {
     }
 
     private static final class Output implements Closeable {
-
-        static Output of(Writer writer, OptionalInt bufferSize) {
-            return new Output(writer, bufferSize.orElse(BufferSizes.DEFAULT_CHAR_BUFFER_SIZE));
-        }
 
         private final Writer writer;
         private final char[] buffer;

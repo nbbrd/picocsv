@@ -20,8 +20,6 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Reader;
-import java.io.Writer;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.file.Path;
@@ -55,16 +53,6 @@ final class BufferSizes {
     static BufferSizes of(OutputStream stream, CharsetEncoder encoder) throws IOException {
         Objects.requireNonNull(stream);
         return make(getBlockSize(stream), 1f / encoder.averageBytesPerChar());
-    }
-
-    static BufferSizes of(Reader reader) throws IOException {
-        Objects.requireNonNull(reader);
-        return EMPTY;
-    }
-
-    static BufferSizes of(Writer writer) throws IOException {
-        Objects.requireNonNull(writer);
-        return EMPTY;
     }
 
     private static BufferSizes make(OptionalInt byteBlockSize, float averageCharsPerByte) {
@@ -116,5 +104,13 @@ final class BufferSizes {
             return OptionalInt.of(DEFAULT_BUFFER_OUTPUT_STREAM_SIZE);
         }
         return OptionalInt.empty();
+    }
+    
+    static int getSize(OptionalInt value, int defaultValue) {
+        if (value.isPresent()) {
+            int result = value.getAsInt();
+            return result > 0 ? result : defaultValue;
+        }
+        return defaultValue;
     }
 }

@@ -107,13 +107,14 @@ public final class CsvReader implements Closeable, CharSequence {
             throw new IllegalArgumentException("format");
         }
 
-        BufferSizes sizes = BufferSizes.of(reader);
+        BufferSizes sizes = BufferSizes.EMPTY;
         return make(format, sizes.chars, reader);
     }
 
     private static CsvReader make(CsvFormat format, OptionalInt charBufferSize, Reader reader) {
+        int size = BufferSizes.getSize(charBufferSize, BufferSizes.DEFAULT_CHAR_BUFFER_SIZE);
         return new CsvReader(
-                inputOf(reader, charBufferSize, format.getSeparator()),
+                format.getSeparator() == NewLine.WINDOWS ? new ReadAheadInput(reader, size) : new Input(reader, size),
                 format.getQuote(), format.getDelimiter(),
                 EndOfLineReader.of(format.getSeparator()));
     }
@@ -304,12 +305,6 @@ public final class CsvReader implements Closeable, CharSequence {
     @Override
     public CharSequence subSequence(int start, int end) {
         return new String(fieldChars, start, end - start);
-    }
-
-    private static Input inputOf(Reader reader, OptionalInt charBufferSize, NewLine newLine) {
-        return newLine == NewLine.WINDOWS
-                ? new ReadAheadInput(reader, charBufferSize.orElse(BufferSizes.DEFAULT_CHAR_BUFFER_SIZE))
-                : new Input(reader, charBufferSize.orElse(BufferSizes.DEFAULT_CHAR_BUFFER_SIZE));
     }
 
     private static class Input implements Closeable {
