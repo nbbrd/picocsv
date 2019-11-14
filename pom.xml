@@ -83,7 +83,7 @@
                 </property>
             </activation>
             <properties>
-                <lombok.version>1.18.8</lombok.version>
+                <lombok.version>1.18.10</lombok.version>
                 <jmh.version>1.21</jmh.version>
             </properties>
             <dependencyManagement>
