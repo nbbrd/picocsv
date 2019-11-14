@@ -7,6 +7,21 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
+    <name>picocsv</name>
+    <description>Lightweight CSV library for Java</description>
+    <url>https://github.com/nbbrd/picocsv</url>
+
+    <organization>
+        <name>National Bank of Belgium</name>
+    </organization>
+    
+    <licenses>
+        <license>
+            <name>European Union Public Licence (EUPL)</name>
+            <url>https://joinup.ec.europa.eu/page/eupl-text-11-12</url>
+        </license>
+    </licenses>
+
     <dependencies>
         <!-- test only -->
         <dependency>
