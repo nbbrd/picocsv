@@ -367,13 +367,13 @@ public final class Csv {
                 case LAST:
                     if (parsedByLine) {
                         parsedByLine = false;
-                        return true;
+                        return fieldLength > 0;
                     }
                     return false;
                 case NOT_LAST:
                     if (parsedByLine) {
                         parsedByLine = false;
-                        return true;
+                        return fieldLength > 0;
                     }
                     state = parseNextField(false);
                     return state != State.DONE;

@@ -24,6 +24,7 @@ import _test.Sample;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.Charset;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.nio.file.Path;
@@ -175,6 +176,19 @@ public class CsvReaderTest {
         for (QuickReader type : QuickReader.values()) {
             assertThat(type.readValue(Row::read, UTF_8, overflow.getFormat(), overflow.getContent()))
                     .containsExactlyElementsOf(overflow.getRows());
+        }
+    }
+
+    @Test
+    public void testEmptyLine() throws IOException {
+        try (Reader object = new StringReader(Sample.EMPTY_LINES.getContent())) {
+            try (Csv.Reader reader = Csv.Reader.of(object, Sample.EMPTY_LINES.getFormat())) {
+                assertThat(reader.readLine()).isTrue();
+                assertThat(reader.readField()).isFalse();
+                assertThat(reader.readLine()).isTrue();
+                assertThat(reader.readField()).isFalse();
+                assertThat(reader.readLine()).isFalse();
+            }
         }
     }
 

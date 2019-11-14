@@ -141,8 +141,8 @@ public class Sample {
             .name("Empty lines")
             .format(Csv.Format.RFC4180)
             .content("\r\n\r\n")
-            .row(Row.of(""))
-            .row(Row.of(""))
+            .row(Row.of())
+            .row(Row.of())
             .build();
 
     private static final char[] SPECIAL_CHARS = {',', '\t', ';', '\r', '\n', '\'', '"'};
