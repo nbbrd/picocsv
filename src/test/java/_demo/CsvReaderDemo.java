@@ -19,8 +19,7 @@ package _demo;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import nbbrd.picocsv.CsvFormat;
-import nbbrd.picocsv.CsvReader;
+import nbbrd.picocsv.Csv;
 
 /**
  *
@@ -30,7 +29,7 @@ public class CsvReaderDemo {
 
     public static void main(String[] args) throws IOException {
         try (InputStream stream = CsvReaderDemo.class.getResourceAsStream("/Top5-Grid-Monthly.csv")) {
-            try (CsvReader reader = CsvReader.of(stream, Charset.forName("windows-1252"), CsvFormat.EXCEL)) {
+            try (Csv.Reader reader = Csv.Reader.of(stream, Charset.forName("windows-1252"), Csv.Format.EXCEL)) {
                 while (reader.readLine()) {
                     System.out.print(" | ");
                     while (reader.readField()) {

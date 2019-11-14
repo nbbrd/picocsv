@@ -27,9 +27,9 @@ import java.nio.charset.Charset;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.nio.file.Path;
 import java.util.function.Function;
-import static nbbrd.picocsv.BufferSizes.DEFAULT_CHAR_BUFFER_SIZE;
+import static nbbrd.picocsv.Csv.BufferSizes.DEFAULT_CHAR_BUFFER_SIZE;
 import org.junit.Test;
-import static nbbrd.picocsv.CsvFormat.RFC4180;
+import static nbbrd.picocsv.Csv.Format.RFC4180;
 import static org.assertj.core.api.Assertions.*;
 
 /**
@@ -41,53 +41,53 @@ public class CsvWriterTest {
     @Test
     public void testPathFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvWriter.of((Path) null, UTF_8, RFC4180))
+                .isThrownBy(() -> Csv.Writer.of((Path) null, UTF_8, RFC4180))
                 .withMessageContaining("file");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvWriter.of(QuickWriter.newOutputFile(), null, RFC4180))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), null, RFC4180))
                 .withMessageContaining("encoding");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvWriter.of(QuickWriter.newOutputFile(), UTF_8, null))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), UTF_8, null))
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> CsvWriter.of(QuickWriter.newOutputFile(), UTF_8, illegalFormat))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), UTF_8, illegalFormat))
                 .withMessageContaining("format");
     }
 
     @Test
     public void testStreamFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvWriter.of((OutputStream) null, UTF_8, RFC4180))
+                .isThrownBy(() -> Csv.Writer.of((OutputStream) null, UTF_8, RFC4180))
                 .withMessageContaining("stream");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvWriter.of(QuickWriter.newOutputStream(), null, RFC4180))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), null, RFC4180))
                 .withMessageContaining("encoding");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvWriter.of(QuickWriter.newOutputStream(), UTF_8, null))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), UTF_8, null))
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> CsvWriter.of(QuickWriter.newOutputStream(), UTF_8, illegalFormat))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), UTF_8, illegalFormat))
                 .withMessageContaining("format");
     }
 
     @Test
     public void testWriterFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvWriter.of((Writer) null, RFC4180))
-                .withMessageContaining("writer");
+                .isThrownBy(() -> Csv.Writer.of((Writer) null, RFC4180))
+                .withMessageContaining("charWriter");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvWriter.of(QuickWriter.newWriter(), null))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newWriter(), null))
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> CsvWriter.of(QuickWriter.newWriter(), illegalFormat))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newWriter(), illegalFormat))
                 .withMessageContaining("format");
     }
 
@@ -125,7 +125,7 @@ public class CsvWriterTest {
     @Test
     public void testWriteField() throws IOException {
         StringWriter result = new StringWriter();
-        try (CsvWriter writer = CsvWriter.of(result, CsvFormat.RFC4180)) {
+        try (Csv.Writer writer = Csv.Writer.of(result, Csv.Format.RFC4180)) {
             writer.writeField(new StringBuilder().append("hello"));
         }
         assertThat(result.toString()).isEqualTo("hello");
@@ -137,7 +137,7 @@ public class CsvWriterTest {
                 = fields -> Sample
                         .builder()
                         .name("overflow")
-                        .format(CsvFormat.RFC4180)
+                        .format(Csv.Format.RFC4180)
                         .content(String.join(",", fields).replace("\"", "\"\"\"\"") + "\r\n")
                         .row(Row.of(fields))
                         .build();
@@ -175,7 +175,7 @@ public class CsvWriterTest {
         return sample.getContent().endsWith(eol) ? length : length + eol.length();
     }
 
-    private static String getEolString(NewLine newLine) {
+    private static String getEolString(Csv.NewLine newLine) {
         switch (newLine) {
             case MACINTOSH:
                 return "\r";
@@ -188,5 +188,5 @@ public class CsvWriterTest {
         }
     }
 
-    private final CsvFormat illegalFormat = CsvFormat.DEFAULT.toBuilder().delimiter(':').quote(':').build();
+    private final Csv.Format illegalFormat = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
 }

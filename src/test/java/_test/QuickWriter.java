@@ -16,7 +16,6 @@
  */
 package _test;
 
-import nbbrd.picocsv.CsvWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -26,7 +25,7 @@ import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import nbbrd.picocsv.CsvFormat;
+import nbbrd.picocsv.Csv;
 
 /**
  *
@@ -37,9 +36,9 @@ public enum QuickWriter {
 
     BYTE_ARRAY(StreamType.STREAM) {
         @Override
-        public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, CsvFormat format) throws IOException {
+        public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, Csv.Format format) throws IOException {
             ByteArrayOutputStream result = new ByteArrayOutputStream();
-            try (CsvWriter writer = CsvWriter.of(result, encoding, format)) {
+            try (Csv.Writer writer = Csv.Writer.of(result, encoding, format)) {
                 formatter.accept(value, writer);
             }
             return result.toString(encoding.name());
@@ -47,9 +46,9 @@ public enum QuickWriter {
     },
     FILE(StreamType.FILE) {
         @Override
-        public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, CsvFormat format) throws IOException {
+        public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, Csv.Format format) throws IOException {
             Path file = newOutputFile();
-            try (CsvWriter writer = CsvWriter.of(file, encoding, format)) {
+            try (Csv.Writer writer = Csv.Writer.of(file, encoding, format)) {
                 formatter.accept(value, writer);
             }
             return readFile(file, encoding);
@@ -57,10 +56,10 @@ public enum QuickWriter {
     },
     FILE_STREAM(StreamType.STREAM) {
         @Override
-        public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, CsvFormat format) throws IOException {
+        public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, Csv.Format format) throws IOException {
             Path file = newOutputFile();
             try (OutputStream stream = Files.newOutputStream(file)) {
-                try (CsvWriter writer = CsvWriter.of(stream, encoding, format)) {
+                try (Csv.Writer writer = Csv.Writer.of(stream, encoding, format)) {
                     formatter.accept(value, writer);
                 }
                 return readFile(file, encoding);
@@ -69,9 +68,9 @@ public enum QuickWriter {
     },
     WRITER(StreamType.OBJECT) {
         @Override
-        public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, CsvFormat format) throws IOException {
+        public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, Csv.Format format) throws IOException {
             try (Writer result = newWriter()) {
-                try (CsvWriter writer = CsvWriter.of(result, format)) {
+                try (Csv.Writer writer = Csv.Writer.of(result, format)) {
                     formatter.accept(value, writer);
                 }
                 return result.toString();
@@ -82,20 +81,20 @@ public enum QuickWriter {
     @lombok.Getter
     private final StreamType type;
 
-    abstract public <T> String writeValue(T value, Formatter<T> formatter, Charset encoding, CsvFormat format) throws IOException;
+    abstract public <T> String writeValue(T value, Formatter<T> formatter, Charset encoding, Csv.Format format) throws IOException;
 
-    public String write(VoidFormatter formatter, Charset encoding, CsvFormat format) throws IOException {
+    public String write(VoidFormatter formatter, Charset encoding, Csv.Format format) throws IOException {
         return writeValue(null, (value, stream) -> formatter.accept(stream), encoding, format);
     }
 
     public interface Formatter<T> {
 
-        void accept(T value, CsvWriter writer) throws IOException;
+        void accept(T value, Csv.Writer writer) throws IOException;
     }
 
     public interface VoidFormatter {
 
-        void accept(CsvWriter writer) throws IOException;
+        void accept(Csv.Writer writer) throws IOException;
     }
 
     public static Path newOutputFile() throws IOException {

@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import static nbbrd.picocsv.CsvFormat.RFC4180;
+import static nbbrd.picocsv.Csv.Format.RFC4180;
 import static org.assertj.core.api.Assertions.*;
 import org.junit.Test;
 
@@ -44,53 +44,53 @@ public class CsvReaderTest {
     @Test
     public void testPathFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvReader.of((Path) null, UTF_8, RFC4180))
+                .isThrownBy(() -> Csv.Reader.of((Path) null, UTF_8, RFC4180))
                 .withMessageContaining("file");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvReader.of(QuickReader.newInputFile("", UTF_8), null, RFC4180))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), null, RFC4180))
                 .withMessageContaining("encoding");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvReader.of(QuickReader.newInputFile("", UTF_8), UTF_8, null))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), UTF_8, null))
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> CsvReader.of(QuickReader.newInputFile("", UTF_8), UTF_8, illegalFormat))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), UTF_8, illegalFormat))
                 .withMessageContaining("format");
     }
 
     @Test
     public void testStreamFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvReader.of((InputStream) null, UTF_8, RFC4180))
+                .isThrownBy(() -> Csv.Reader.of((InputStream) null, UTF_8, RFC4180))
                 .withMessageContaining("stream");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvReader.of(QuickReader.newInputStream("", UTF_8), null, RFC4180))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), null, RFC4180))
                 .withMessageContaining("encoding");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvReader.of(QuickReader.newInputStream("", UTF_8), UTF_8, null))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), UTF_8, null))
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> CsvReader.of(QuickReader.newInputStream("", UTF_8), UTF_8, illegalFormat))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), UTF_8, illegalFormat))
                 .withMessageContaining("format");
     }
 
     @Test
     public void testReaderFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvReader.of((Reader) null, RFC4180))
-                .withMessageContaining("reader");
+                .isThrownBy(() -> Csv.Reader.of((Reader) null, RFC4180))
+                .withMessageContaining("charReader");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvReader.of(QuickReader.newReader(""), null))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newReader(""), null))
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> CsvReader.of(QuickReader.newReader(""), illegalFormat))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newReader(""), illegalFormat))
                 .withMessageContaining("format");
     }
 
@@ -136,7 +136,7 @@ public class CsvReaderTest {
 
     @Test
     public void testReadFieldBeforeLine() throws IOException {
-        VoidParser readFieldBeforeLine = CsvReader::readField;
+        VoidParser readFieldBeforeLine = Csv.Reader::readField;
 
         forEach((type, encoding, sample) -> {
             assertThatIllegalStateException()
@@ -149,7 +149,7 @@ public class CsvReaderTest {
         Sample invalidButStillOk = Sample
                 .builder()
                 .name("Invalid but still ok")
-                .format(CsvFormat.RFC4180)
+                .format(Csv.Format.RFC4180)
                 .content("\r\r\n")
                 .row(Row.of("\r"))
                 .build();
@@ -167,7 +167,7 @@ public class CsvReaderTest {
         Sample overflow = Sample
                 .builder()
                 .name("overflow")
-                .format(CsvFormat.RFC4180)
+                .format(Csv.Format.RFC4180)
                 .content(field1 + "," + field2)
                 .row(Row.of(field1, field2))
                 .build();
@@ -210,5 +210,5 @@ public class CsvReaderTest {
         void apply(QuickReader type, Charset encoding, Sample sample) throws IOException;
     }
 
-    private final CsvFormat illegalFormat = CsvFormat.DEFAULT.toBuilder().delimiter(':').quote(':').build();
+    private final Csv.Format illegalFormat = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
 }

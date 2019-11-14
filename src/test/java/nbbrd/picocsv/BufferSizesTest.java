@@ -29,7 +29,7 @@ import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.nio.file.Path;
 import java.util.OptionalInt;
-import static nbbrd.picocsv.BufferSizes.DEFAULT_BLOCK_BUFFER_SIZE;
+import static nbbrd.picocsv.Csv.BufferSizes.DEFAULT_BLOCK_BUFFER_SIZE;
 import static org.assertj.core.api.Assertions.*;
 import org.junit.Test;
 
@@ -42,55 +42,55 @@ public class BufferSizesTest {
     @Test
     public void testFactories() {
         assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of((InputStream) null, UTF_8.newDecoder()));
+                .isThrownBy(() -> Csv.BufferSizes.of((InputStream) null, UTF_8.newDecoder()));
 
         assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of(newInputStream("", UTF_8), null));
+                .isThrownBy(() -> Csv.BufferSizes.of(newInputStream("", UTF_8), null));
 
         assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of((OutputStream) null, UTF_8.newEncoder()));
+                .isThrownBy(() -> Csv.BufferSizes.of((OutputStream) null, UTF_8.newEncoder()));
 
         assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of(newOutputStream(), null));
+                .isThrownBy(() -> Csv.BufferSizes.of(newOutputStream(), null));
 
         assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of((Path) null, UTF_8.newDecoder()));
+                .isThrownBy(() -> Csv.BufferSizes.of((Path) null, UTF_8.newDecoder()));
 
         assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of(newInputFile("", UTF_8), (CharsetDecoder) null));
+                .isThrownBy(() -> Csv.BufferSizes.of(newInputFile("", UTF_8), (CharsetDecoder) null));
 
         assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of((Path) null, UTF_8.newEncoder()));
+                .isThrownBy(() -> Csv.BufferSizes.of((Path) null, UTF_8.newEncoder()));
 
         assertThatNullPointerException()
-                .isThrownBy(() -> BufferSizes.of(newOutputFile(), (CharsetEncoder) null));
+                .isThrownBy(() -> Csv.BufferSizes.of(newOutputFile(), (CharsetEncoder) null));
     }
 
     @Test
     public void testInput() throws IOException {
-        assertThat(BufferSizes.of(newInputStream("abc", UTF_8), UTF_8.newDecoder()))
-                .isEqualToComparingFieldByField(new BufferSizes(
+        assertThat(Csv.BufferSizes.of(newInputStream("abc", UTF_8), UTF_8.newDecoder()))
+                .isEqualToComparingFieldByField(new Csv.BufferSizes(
                         OptionalInt.of(3),
                         OptionalInt.of(3),
                         OptionalInt.of(3))
                 );
 
-        assertThat(BufferSizes.of(newInputStream("abc", UTF_16), UTF_16.newDecoder()))
-                .isEqualToComparingFieldByField(new BufferSizes(
+        assertThat(Csv.BufferSizes.of(newInputStream("abc", UTF_16), UTF_16.newDecoder()))
+                .isEqualToComparingFieldByField(new Csv.BufferSizes(
                         OptionalInt.of(8),
                         OptionalInt.of(8 * 64),
                         OptionalInt.of(8 * 64 / 2))
                 );
 
-        assertThat(BufferSizes.of(newInputFile("abc", UTF_8), UTF_8.newDecoder()))
-                .isEqualToComparingFieldByField(new BufferSizes(
+        assertThat(Csv.BufferSizes.of(newInputFile("abc", UTF_8), UTF_8.newDecoder()))
+                .isEqualToComparingFieldByField(new Csv.BufferSizes(
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE),
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE * 64),
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE * 64))
                 );
 
-        assertThat(BufferSizes.of(newInputFile("abc", UTF_16), UTF_16.newDecoder()))
-                .isEqualToComparingFieldByField(new BufferSizes(
+        assertThat(Csv.BufferSizes.of(newInputFile("abc", UTF_16), UTF_16.newDecoder()))
+                .isEqualToComparingFieldByField(new Csv.BufferSizes(
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE),
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE * 64),
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE * 64 / 2))
@@ -99,21 +99,21 @@ public class BufferSizesTest {
 
     @Test
     public void testOutput() throws IOException {
-        assertThat(BufferSizes.of(newOutputStream(), UTF_8.newEncoder()))
-                .isEqualToComparingFieldByField(BufferSizes.EMPTY);
+        assertThat(Csv.BufferSizes.of(newOutputStream(), UTF_8.newEncoder()))
+                .isEqualToComparingFieldByField(Csv.BufferSizes.EMPTY);
 
-        assertThat(BufferSizes.of(newOutputStream(), UTF_16.newEncoder()))
-                .isEqualToComparingFieldByField(BufferSizes.EMPTY);
+        assertThat(Csv.BufferSizes.of(newOutputStream(), UTF_16.newEncoder()))
+                .isEqualToComparingFieldByField(Csv.BufferSizes.EMPTY);
 
-        assertThat(BufferSizes.of(newOutputFile(), UTF_8.newEncoder()))
-                .isEqualToComparingFieldByField(new BufferSizes(
+        assertThat(Csv.BufferSizes.of(newOutputFile(), UTF_8.newEncoder()))
+                .isEqualToComparingFieldByField(new Csv.BufferSizes(
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE),
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE * 64),
                         OptionalInt.of((int) (DEFAULT_BLOCK_BUFFER_SIZE * 64 / 1.1)))
                 );
 
-        assertThat(BufferSizes.of(newOutputFile(), UTF_16.newEncoder()))
-                .isEqualToComparingFieldByField(new BufferSizes(
+        assertThat(Csv.BufferSizes.of(newOutputFile(), UTF_16.newEncoder()))
+                .isEqualToComparingFieldByField(new Csv.BufferSizes(
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE),
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE * 64),
                         OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE * 64 / 2))
@@ -122,9 +122,9 @@ public class BufferSizesTest {
 
     @Test
     public void testGetSize() throws IOException {
-        assertThat(BufferSizes.getSize(OptionalInt.empty(), 123)).isEqualTo(123);
-        assertThat(BufferSizes.getSize(OptionalInt.of(-1), 123)).isEqualTo(123);
-        assertThat(BufferSizes.getSize(OptionalInt.of(0), 123)).isEqualTo(123);
-        assertThat(BufferSizes.getSize(OptionalInt.of(1), 123)).isEqualTo(1);
+        assertThat(Csv.BufferSizes.getSize(OptionalInt.empty(), 123)).isEqualTo(123);
+        assertThat(Csv.BufferSizes.getSize(OptionalInt.of(-1), 123)).isEqualTo(123);
+        assertThat(Csv.BufferSizes.getSize(OptionalInt.of(0), 123)).isEqualTo(123);
+        assertThat(Csv.BufferSizes.getSize(OptionalInt.of(1), 123)).isEqualTo(1);
     }
 }

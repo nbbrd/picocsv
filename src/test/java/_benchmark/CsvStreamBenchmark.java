@@ -18,7 +18,7 @@ package _benchmark;
 
 import _benchmark.de.siegmar.csvbenchmark.Constant;
 import _benchmark.de.siegmar.csvbenchmark.util.InfiniteDataReader;
-import nbbrd.picocsv.CsvReader;
+import nbbrd.picocsv.Csv;
 import java.io.IOException;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -30,8 +30,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
-import nbbrd.picocsv.CsvFormat;
-import nbbrd.picocsv.NewLine;
+import nbbrd.picocsv.Csv;
 
 /**
  *
@@ -45,18 +44,18 @@ public class CsvStreamBenchmark {
     @State(Scope.Benchmark)
     public static class ReadState {
 
-        CsvReader input;
+        Csv.Reader input;
 
         @Setup
         public void setup() throws IOException {
-            CsvFormat format = CsvFormat.DEFAULT
+            Csv.Format format = Csv.Format.DEFAULT
                     .toBuilder()
                     .delimiter(Constant.SEPARATOR)
-                    .separator(NewLine.UNIX)
+                    .separator(Csv.NewLine.UNIX)
                     .quote(Constant.DELIMITER)
                     .build();
 
-            input = CsvReader.of(new InfiniteDataReader(Constant.data), format);
+            input = Csv.Reader.of(new InfiniteDataReader(Constant.data), format);
         }
 
         @TearDown

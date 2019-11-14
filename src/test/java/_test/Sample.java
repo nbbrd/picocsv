@@ -25,9 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import nbbrd.picocsv.CsvFormat;
-import nbbrd.picocsv.CsvWriter;
-import nbbrd.picocsv.NewLine;
+import nbbrd.picocsv.Csv;
 
 /**
  *
@@ -42,7 +40,7 @@ public class Sample {
     private String name;
 
     @lombok.NonNull
-    private CsvFormat format;
+    private Csv.Format format;
 
     @lombok.NonNull
     private String content;
@@ -51,7 +49,7 @@ public class Sample {
     @lombok.Singular
     private List<Row> rows;
 
-    private static Sample of(CsvFormat format, Row... rows) {
+    private static Sample of(Csv.Format format, Row... rows) {
         return Sample.builder()
                 .content(toString(format, rows))
                 .format(format)
@@ -63,14 +61,14 @@ public class Sample {
     public static final Sample EMPTY = Sample
             .builder()
             .name("Empty")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("")
             .build();
 
     public static final Sample BLANK = Sample
             .builder()
             .name("Blank")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("A1,,C1\r\n")
             .row(Row.of("A1", "", "C1"))
             .build();
@@ -78,7 +76,7 @@ public class Sample {
     public static final Sample SIMPLE = Sample
             .builder()
             .name("Simple")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("A1,B1\r\nA2,B2\r\n")
             .row(Row.of("A1", "B1"))
             .row(Row.of("A2", "B2"))
@@ -87,7 +85,7 @@ public class Sample {
     public static final Sample SIMPLE_WITHOUT_LAST_EOL = Sample
             .builder()
             .name("Simple without last end-of-line")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("A1,B1\r\nA2,B2")
             .row(Row.of("A1", "B1"))
             .row(Row.of("A2", "B2"))
@@ -96,7 +94,7 @@ public class Sample {
     public static final Sample ESCAPED_QUOTES = Sample
             .builder()
             .name("Escaped quotes")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("A1,\"B\"\"1\"\"\"\r\nA2,B2\r\n")
             .row(Row.of("A1", "B\"1\""))
             .row(Row.of("A2", "B2"))
@@ -105,7 +103,7 @@ public class Sample {
     public static final Sample NEW_LINES = Sample
             .builder()
             .name("New lines")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("A1,\"B\r\n1\",C1\r\nA2,B2,C2\r\n")
             .row(Row.of("A1", "B\r\n1", "C1"))
             .row(Row.of("A2", "B2", "C2"))
@@ -114,7 +112,7 @@ public class Sample {
     public static final Sample COMMA_IN_QUOTES = Sample
             .builder()
             .name("Comma in quotes")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("A1,\"B,1\",C1\r\nA2,B2,C2\r\n")
             .row(Row.of("A1", "B,1", "C1"))
             .row(Row.of("A2", "B2", "C2"))
@@ -123,7 +121,7 @@ public class Sample {
     public static final Sample ESCAPED_QUOTES_AND_NEW_LINES = Sample
             .builder()
             .name("Escaped quotes and new lines")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("A1,\"B\r\n\"\"1\"\"\"\r\nA2,\"B\"\"\r\n2\"\"\"\r\n")
             .row(Row.of("A1", "B\r\n\"1\""))
             .row(Row.of("A2", "B\"\r\n2\""))
@@ -132,7 +130,7 @@ public class Sample {
     public static final Sample SINGLE_FIELD = Sample
             .builder()
             .name("Single field")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("A1\r\nA2")
             .row(Row.of("A1"))
             .row(Row.of("A2"))
@@ -141,7 +139,7 @@ public class Sample {
     public static final Sample EMPTY_LINES = Sample
             .builder()
             .name("Empty lines")
-            .format(CsvFormat.RFC4180)
+            .format(Csv.Format.RFC4180)
             .content("\r\n\r\n")
             .row(Row.of(""))
             .row(Row.of(""))
@@ -149,12 +147,12 @@ public class Sample {
 
     private static final char[] SPECIAL_CHARS = {',', '\t', ';', '\r', '\n', '\'', '"'};
 
-    private static List<CsvFormat> generateFormats() {
-        List<CsvFormat> result = new ArrayList<>();
-        for (NewLine newLine : NewLine.values()) {
+    private static List<Csv.Format> generateFormats() {
+        List<Csv.Format> result = new ArrayList<>();
+        for (Csv.NewLine newLine : Csv.NewLine.values()) {
             for (char delimiter : SPECIAL_CHARS) {
                 for (char quote : SPECIAL_CHARS) {
-                    result.add(CsvFormat
+                    result.add(Csv.Format
                             .builder()
                             .separator(newLine)
                             .delimiter(delimiter)
@@ -180,9 +178,9 @@ public class Sample {
                 .toArray(String[]::new));
     }
 
-    private static String toString(CsvFormat format, Row... rows) {
+    private static String toString(Csv.Format format, Row... rows) {
         StringWriter result = new StringWriter();
-        try (CsvWriter writer = CsvWriter.of(result, format)) {
+        try (Csv.Writer writer = Csv.Writer.of(result, format)) {
             Row.write(Arrays.asList(rows), writer);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -194,7 +192,7 @@ public class Sample {
         Row row = generateRow();
         return generateFormats()
                 .stream()
-                .filter(CsvFormat::isValid)
+                .filter(Csv.Format::isValid)
                 .map(format -> of(format, row, row))
                 .collect(Collectors.toList());
     }

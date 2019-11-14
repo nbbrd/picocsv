@@ -16,8 +16,7 @@
  */
 package _test;
 
-import nbbrd.picocsv.CsvReader;
-import nbbrd.picocsv.CsvWriter;
+import nbbrd.picocsv.Csv;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,7 +35,7 @@ public final class Row {
 
     private final List<String> fields;
 
-    public static List<Row> read(CsvReader reader) throws IOException {
+    public static List<Row> read(Csv.Reader reader) throws IOException {
         List<Row> result = new ArrayList<>();
         while (reader.readLine()) {
             List<String> fields = new ArrayList<>();
@@ -48,7 +47,7 @@ public final class Row {
         return result;
     }
 
-    public static void write(List<Row> rows, CsvWriter writer) throws IOException {
+    public static void write(List<Row> rows, Csv.Writer writer) throws IOException {
         for (Row row : rows) {
             for (String field : row.getFields()) {
                 writer.writeField(field);

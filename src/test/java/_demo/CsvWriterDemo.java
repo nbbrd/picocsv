@@ -18,8 +18,7 @@ package _demo;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import nbbrd.picocsv.CsvFormat;
-import nbbrd.picocsv.CsvWriter;
+import nbbrd.picocsv.Csv;
 
 /**
  *
@@ -29,7 +28,7 @@ public class CsvWriterDemo {
 
     public static void main(String[] args) throws IOException {
         StringWriter result = new StringWriter();
-        try (CsvWriter writer = CsvWriter.of(result, CsvFormat.RFC4180)) {
+        try (Csv.Writer writer = Csv.Writer.of(result, Csv.Format.RFC4180)) {
             writer.writeField("hello");
             writer.writeField("wo\"rld");
             writer.writeEndOfLine();

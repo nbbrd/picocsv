@@ -29,31 +29,31 @@ public class CsvFormatTest {
     @Test
     public void testFactories() {
         assertThatNullPointerException()
-                .isThrownBy(() -> CsvFormat.builder().build())
+                .isThrownBy(() -> Csv.Format.builder().build())
                 .withMessageContaining("separator");
     }
 
     @Test
     public void testToBuilder() {
-        assertThat(CsvFormat.DEFAULT.toBuilder().build())
-                .isEqualTo(CsvFormat.DEFAULT);
+        assertThat(Csv.Format.DEFAULT.toBuilder().build())
+                .isEqualTo(Csv.Format.DEFAULT);
 
-        assertThat(CsvFormat.EXCEL.toBuilder().build())
-                .isEqualTo(CsvFormat.EXCEL);
+        assertThat(Csv.Format.EXCEL.toBuilder().build())
+                .isEqualTo(Csv.Format.EXCEL);
     }
 
     @Test
     public void testEqualsAndHashcode() {
-        assertThat(CsvFormat.DEFAULT)
-                .isEqualTo(CsvFormat.DEFAULT)
-                .hasSameHashCodeAs(CsvFormat.DEFAULT)
-                .isNotEqualTo(CsvFormat.EXCEL);
+        assertThat(Csv.Format.DEFAULT)
+                .isEqualTo(Csv.Format.DEFAULT)
+                .hasSameHashCodeAs(Csv.Format.DEFAULT)
+                .isNotEqualTo(Csv.Format.EXCEL);
     }
 
     @Test
     public void testToString() {
-        assertThat(CsvFormat.DEFAULT.toString())
-                .isEqualTo(CsvFormat.DEFAULT.toString())
-                .isNotEqualTo(CsvFormat.EXCEL.toString());
+        assertThat(Csv.Format.DEFAULT.toString())
+                .isEqualTo(Csv.Format.DEFAULT.toString())
+                .isNotEqualTo(Csv.Format.EXCEL.toString());
     }
 }

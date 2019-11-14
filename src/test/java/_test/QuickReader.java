@@ -16,7 +16,6 @@
  */
 package _test;
 
-import nbbrd.picocsv.CsvReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -26,7 +25,7 @@ import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import nbbrd.picocsv.CsvFormat;
+import nbbrd.picocsv.Csv;
 
 /**
  *
@@ -37,9 +36,9 @@ public enum QuickReader {
 
     BYTE_ARRAY(StreamType.STREAM) {
         @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, CsvFormat format, String input) throws IOException {
+        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException {
             try (InputStream stream = newInputStream(input, encoding)) {
-                try (CsvReader reader = CsvReader.of(stream, encoding, format)) {
+                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format)) {
                     return parser.accept(reader);
                 }
             }
@@ -47,19 +46,19 @@ public enum QuickReader {
     },
     FILE(StreamType.FILE) {
         @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, CsvFormat format, String input) throws IOException {
+        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException {
             Path file = newInputFile(input, encoding);
-            try (CsvReader reader = CsvReader.of(file, encoding, format)) {
+            try (Csv.Reader reader = Csv.Reader.of(file, encoding, format)) {
                 return parser.accept(reader);
             }
         }
     },
     FILE_STREAM(StreamType.STREAM) {
         @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, CsvFormat format, String input) throws IOException {
+        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException {
             Path file = newInputFile(input, encoding);
             try (InputStream stream = Files.newInputStream(file)) {
-                try (CsvReader reader = CsvReader.of(stream, encoding, format)) {
+                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format)) {
                     return parser.accept(reader);
                 }
             }
@@ -67,9 +66,9 @@ public enum QuickReader {
     },
     READER(StreamType.OBJECT) {
         @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, CsvFormat format, String input) throws IOException {
+        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException {
             try (Reader object = newReader(input)) {
-                try (CsvReader reader = CsvReader.of(object, format)) {
+                try (Csv.Reader reader = Csv.Reader.of(object, format)) {
                     return parser.accept(reader);
                 }
             }
@@ -79,9 +78,9 @@ public enum QuickReader {
     @lombok.Getter
     private final StreamType type;
 
-    abstract public <T> T readValue(Parser<T> parser, Charset encoding, CsvFormat format, String input) throws IOException;
+    abstract public <T> T readValue(Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException;
 
-    public void read(VoidParser parser, Charset encoding, CsvFormat format, String input) throws IOException {
+    public void read(VoidParser parser, Charset encoding, Csv.Format format, String input) throws IOException {
         readValue(stream -> {
             parser.accept(stream);
             return null;
@@ -90,12 +89,12 @@ public enum QuickReader {
 
     public interface Parser<T> {
 
-        T accept(CsvReader reader) throws IOException;
+        T accept(Csv.Reader reader) throws IOException;
     }
 
     public interface VoidParser {
 
-        void accept(CsvReader reader) throws IOException;
+        void accept(Csv.Reader reader) throws IOException;
     }
 
     public static Path newInputFile(String content, Charset charset) throws IOException {
