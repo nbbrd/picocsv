@@ -192,6 +192,23 @@ public class CsvReaderTest {
         }
     }
 
+    @Test
+    public void testEmptyFirstField() throws IOException {
+        Sample emptyFirstField = Sample
+                .builder()
+                .name("Empty first field")
+                .format(Csv.Format.RFC4180)
+                .content(",B1\r\nA2,B2\r\n")
+                .row(Row.of("", "B1"))
+                .row(Row.of("A2", "B2"))
+                .build();
+
+        for (QuickReader type : QuickReader.values()) {
+            assertThat(type.readValue(Row::read, UTF_8, emptyFirstField.getFormat(), emptyFirstField.getContent()))
+                    .containsExactlyElementsOf(emptyFirstField.getRows());
+        }
+    }
+
     @lombok.Value
     private static final class Tuple {
 
