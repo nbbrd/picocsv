@@ -676,14 +676,14 @@ public final class Csv {
         private final char quote;
         private final char delimiter;
         private final EndOfLineWriter endOfLine;
-        private boolean requiresDelimiter;
+        private State state;
 
         private Writer(Output output, char quote, char delimiter, EndOfLineWriter endOfLine) {
             this.output = output;
             this.quote = quote;
             this.delimiter = delimiter;
             this.endOfLine = endOfLine;
-            this.requiresDelimiter = false;
+            this.state = State.NO_FIELD;
         }
 
         /**
@@ -693,14 +693,52 @@ public final class Csv {
          * @throws IOException if an I/O error occurs
          */
         public void writeField(CharSequence field) throws IOException {
-            if (pushFields()) {
-                output.write(delimiter);
+            switch (state) {
+                case NO_FIELD:
+                    if (!isNullOrEmpty(field)) {
+                        state = State.MULTI_FIELD;
+                        writeNonEmptyField(field);
+                    } else {
+                        state = State.SINGLE_EMPTY_FIELD;
+                    }
+                    break;
+                case SINGLE_EMPTY_FIELD:
+                    state = State.MULTI_FIELD;
+                    output.write(delimiter);
+                    if (!isNullOrEmpty(field)) {
+                        writeNonEmptyField(field);
+                    }
+                    break;
+                case MULTI_FIELD:
+                    output.write(delimiter);
+                    if (!isNullOrEmpty(field)) {
+                        writeNonEmptyField(field);
+                    }
+                    break;
             }
+        }
 
-            if (field == null) {
-                return;
-            }
+        /**
+         * Writes an end of line.
+         *
+         * @throws IOException if an I/O error occurs
+         */
+        public void writeEndOfLine() throws IOException {
+            flushField();
+            endOfLine.write(output);
+        }
 
+        @Override
+        public void close() throws IOException {
+            flushField();
+            output.close();
+        }
+
+        private boolean isNullOrEmpty(CharSequence field) {
+            return field == null || field.length() == 0;
+        }
+
+        private void writeNonEmptyField(CharSequence field) throws IOException {
             switch (getQuoting(field)) {
                 case NONE:
                     output.write(field);
@@ -724,29 +762,12 @@ public final class Csv {
             }
         }
 
-        /**
-         * Writes an end of line.
-         *
-         * @throws IOException if an I/O error occurs
-         */
-        public void writeEndOfLine() throws IOException {
-            endOfLine.write(output);
-            resetFields();
-        }
-
-        @Override
-        public void close() throws IOException {
-            output.close();
-        }
-
-        private boolean pushFields() {
-            boolean result = requiresDelimiter;
-            requiresDelimiter = true;
-            return result;
-        }
-
-        private void resetFields() {
-            requiresDelimiter = false;
+        private void flushField() throws IOException {
+            if (state == State.SINGLE_EMPTY_FIELD) {
+                output.write(quote);
+                output.write(quote);
+            }
+            state = State.NO_FIELD;
         }
 
         private Quoting getQuoting(CharSequence field) {
@@ -765,6 +786,10 @@ public final class Csv {
 
         private enum Quoting {
             NONE, PARTIAL, FULL
+        }
+
+        private enum State {
+            NO_FIELD, SINGLE_EMPTY_FIELD, MULTI_FIELD
         }
 
         private static final class Output implements Closeable {

@@ -126,13 +126,25 @@ public class CsvWriterTest {
         CharSequence chars = new StringBuilder().append("hello");
 
         assertThat(writeToString(w -> {
-            w.writeField(null);
         })).isEqualTo("");
+
+        assertThat(writeToString(w -> {
+            w.writeEndOfLine();
+        })).isEqualTo("\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeField(null);
+        })).isEqualTo("\"\"");
 
         assertThat(writeToString(w -> {
             w.writeField(null);
             w.writeEndOfLine();
-        })).isEqualTo("\r\n");
+        })).isEqualTo("\"\"\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeEndOfLine();
+            w.writeField(null);
+        })).isEqualTo("\r\n\"\"");
 
         assertThat(writeToString(w -> {
             w.writeField(chars);
@@ -144,6 +156,12 @@ public class CsvWriterTest {
             w.writeField(null);
             w.writeEndOfLine();
         })).isEqualTo("hello,\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeEndOfLine();
+            w.writeField(chars);
+            w.writeField(null);
+        })).isEqualTo("\r\nhello,");
 
         assertThat(writeToString(w -> {
             w.writeField(null);
