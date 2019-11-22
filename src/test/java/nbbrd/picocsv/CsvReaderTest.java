@@ -21,6 +21,7 @@ import _test.QuickReader.Parser;
 import _test.QuickReader.VoidParser;
 import _test.Row;
 import _test.Sample;
+import static _test.Sample.ILLEGAL_FORMAT;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -56,7 +57,7 @@ public class CsvReaderTest {
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), UTF_8, illegalFormat))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), UTF_8, ILLEGAL_FORMAT))
                 .withMessageContaining("format");
     }
 
@@ -75,7 +76,7 @@ public class CsvReaderTest {
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), UTF_8, illegalFormat))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), UTF_8, ILLEGAL_FORMAT))
                 .withMessageContaining("format");
     }
 
@@ -90,7 +91,7 @@ public class CsvReaderTest {
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Reader.of(QuickReader.newCharReader(""), illegalFormat))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newCharReader(""), ILLEGAL_FORMAT))
                 .withMessageContaining("format");
     }
 
@@ -207,52 +208,7 @@ public class CsvReaderTest {
     public void testSingleEmptyField() throws IOException {
         assertValid(Sample
                 .builder()
-                .name("Single empty field & Line")
-                .format(Csv.Format.RFC4180)
-                .content("\r\nA2\r\n")
-                .rowOf()
-                .rowOf("A2")
-                .build());
-
-        assertValid(Sample
-                .builder()
-                .name("Quoted single empty field & Line")
-                .format(Csv.Format.RFC4180)
-                .content("\"\"\r\nA2\r\n")
-                .rowOf("")
-                .rowOf("A2")
-                .build());
-
-        assertValid(Sample
-                .builder()
-                .name("Line & Single empty field")
-                .format(Csv.Format.RFC4180)
-                .content("A1\r\n\r\n")
-                .rowOf("A1")
-                .rowOf()
-                .build());
-
-        assertValid(Sample
-                .builder()
-                .name("Line & Quoted single empty field")
-                .format(Csv.Format.RFC4180)
-                .content("A1\r\n\"\"\r\n")
-                .rowOf("A1")
-                .rowOf("")
-                .build());
-
-        assertValid(Sample
-                .builder()
-                .name("Single empty field")
-                .format(Csv.Format.RFC4180)
-                .content("")
-                //FIXME?
-                //                .rowOf()
-                .build());
-
-        assertValid(Sample
-                .builder()
-                .name("Quoted single empty field")
+                .name("Quoted single empty field without NewLine")
                 .format(Csv.Format.RFC4180)
                 .content("\"\"")
                 //FIXME?
@@ -269,6 +225,4 @@ public class CsvReaderTest {
                 .describedAs("Reading '%s' with '%s'", sample.getName(), r)
                 .containsExactlyElementsOf(sample.getRows());
     }
-
-    private final Csv.Format illegalFormat = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
 }

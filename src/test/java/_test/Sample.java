@@ -77,7 +77,7 @@ public class Sample {
             .name("Blank")
             .format(Csv.Format.RFC4180)
             .content("A1,,C1\r\n")
-            .row(Row.of("A1", "", "C1"))
+            .rowOf("A1", "", "C1")
             .build();
 
     public static final Sample SIMPLE = Sample
@@ -85,8 +85,8 @@ public class Sample {
             .name("Simple")
             .format(Csv.Format.RFC4180)
             .content("A1,B1\r\nA2,B2\r\n")
-            .row(Row.of("A1", "B1"))
-            .row(Row.of("A2", "B2"))
+            .rowOf("A1", "B1")
+            .rowOf("A2", "B2")
             .build();
 
     public static final Sample SIMPLE_WITHOUT_LAST_EOL = Sample
@@ -94,8 +94,8 @@ public class Sample {
             .name("Simple without last end-of-line")
             .format(Csv.Format.RFC4180)
             .content("A1,B1\r\nA2,B2")
-            .row(Row.of("A1", "B1"))
-            .row(Row.of("A2", "B2"))
+            .rowOf("A1", "B1")
+            .rowOf("A2", "B2")
             .build();
 
     public static final Sample ESCAPED_QUOTES = Sample
@@ -103,8 +103,8 @@ public class Sample {
             .name("Escaped quotes")
             .format(Csv.Format.RFC4180)
             .content("A1,\"B\"\"1\"\"\"\r\nA2,B2\r\n")
-            .row(Row.of("A1", "B\"1\""))
-            .row(Row.of("A2", "B2"))
+            .rowOf("A1", "B\"1\"")
+            .rowOf("A2", "B2")
             .build();
 
     public static final Sample NEW_LINES = Sample
@@ -112,8 +112,8 @@ public class Sample {
             .name("New lines")
             .format(Csv.Format.RFC4180)
             .content("A1,\"B\r\n1\",C1\r\nA2,B2,C2\r\n")
-            .row(Row.of("A1", "B\r\n1", "C1"))
-            .row(Row.of("A2", "B2", "C2"))
+            .rowOf("A1", "B\r\n1", "C1")
+            .rowOf("A2", "B2", "C2")
             .build();
 
     public static final Sample COMMA_IN_QUOTES = Sample
@@ -121,8 +121,8 @@ public class Sample {
             .name("Comma in quotes")
             .format(Csv.Format.RFC4180)
             .content("A1,\"B,1\",C1\r\nA2,B2,C2\r\n")
-            .row(Row.of("A1", "B,1", "C1"))
-            .row(Row.of("A2", "B2", "C2"))
+            .rowOf("A1", "B,1", "C1")
+            .rowOf("A2", "B2", "C2")
             .build();
 
     public static final Sample ESCAPED_QUOTES_AND_NEW_LINES = Sample
@@ -130,8 +130,8 @@ public class Sample {
             .name("Escaped quotes and new lines")
             .format(Csv.Format.RFC4180)
             .content("A1,\"B\r\n\"\"1\"\"\"\r\nA2,\"B\"\"\r\n2\"\"\"\r\n")
-            .row(Row.of("A1", "B\r\n\"1\""))
-            .row(Row.of("A2", "B\"\r\n2\""))
+            .rowOf("A1", "B\r\n\"1\"")
+            .rowOf("A2", "B\"\r\n2\"")
             .build();
 
     public static final Sample SINGLE_FIELD = Sample
@@ -139,8 +139,8 @@ public class Sample {
             .name("Single field")
             .format(Csv.Format.RFC4180)
             .content("A1\r\nA2")
-            .row(Row.of("A1"))
-            .row(Row.of("A2"))
+            .rowOf("A1")
+            .rowOf("A2")
             .build();
 
     public static final Sample EMPTY_LINES = Sample
@@ -148,8 +148,60 @@ public class Sample {
             .name("Empty lines")
             .format(Csv.Format.RFC4180)
             .content("\r\n\r\n")
-            .row(Row.of())
-            .row(Row.of())
+            .rowOf()
+            .rowOf()
+            .build();
+
+    public static final Sample UNQUOTED_EMPTY_THEN_LINE = Sample
+            .builder()
+            .name("Single empty field & Line")
+            .format(Csv.Format.RFC4180)
+            .content("\r\nA2\r\n")
+            .rowOf()
+            .rowOf("A2")
+            .build();
+
+    public static final Sample QUOTED_EMPTY_THEN_LINE = Sample
+            .builder()
+            .name("Quoted single empty field & Line")
+            .format(Csv.Format.RFC4180)
+            .content("\"\"\r\nA2\r\n")
+            .rowOf("")
+            .rowOf("A2")
+            .build();
+
+    public static final Sample LINE_THEN_UNQUOTED_EMPTY = Sample
+            .builder()
+            .name("Line & Single empty field")
+            .format(Csv.Format.RFC4180)
+            .content("A1\r\n\r\n")
+            .rowOf("A1")
+            .rowOf()
+            .build();
+
+    public static final Sample LINE_THEN_QUOTED_EMPTY = Sample
+            .builder()
+            .name("Line & Quoted single empty field")
+            .format(Csv.Format.RFC4180)
+            .content("A1\r\n\"\"\r\n")
+            .rowOf("A1")
+            .rowOf("")
+            .build();
+
+    public static final Sample UNQUOTED_EMPTY = Sample
+            .builder()
+            .name("Single empty field")
+            .format(Csv.Format.RFC4180)
+            .content("\r\n")
+            .rowOf()
+            .build();
+
+    public static final Sample QUOTED_EMPTY = Sample
+            .builder()
+            .name("Quoted single empty field")
+            .format(Csv.Format.RFC4180)
+            .content("\"\"\r\n")
+            .rowOf("")
             .build();
 
     private static final char[] SPECIAL_CHARS = {',', '\t', ';', '\r', '\n', '\'', '"'};
@@ -214,17 +266,19 @@ public class Sample {
                 COMMA_IN_QUOTES,
                 ESCAPED_QUOTES_AND_NEW_LINES,
                 SINGLE_FIELD,
-                EMPTY_LINES
+                EMPTY_LINES,
+                UNQUOTED_EMPTY_THEN_LINE,
+                QUOTED_EMPTY_THEN_LINE,
+                LINE_THEN_UNQUOTED_EMPTY,
+                LINE_THEN_QUOTED_EMPTY,
+                UNQUOTED_EMPTY,
+                QUOTED_EMPTY
         );
     }
 
     public static final List<Sample> SAMPLES = Stream.concat(getPredefinedSamples().stream(), getGeneratedSamples().stream()).collect(Collectors.toList());
 
-    public static final String getField(int length, char c) {
-        char[] result = new char[length];
-        Arrays.fill(result, c);
-        return String.valueOf(result);
-    }
-
     public static final List<Charset> CHARSETS = Arrays.asList(StandardCharsets.UTF_8, StandardCharsets.UTF_16, StandardCharsets.US_ASCII);
+
+    public static final Csv.Format ILLEGAL_FORMAT = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
 }
