@@ -49,6 +49,13 @@ public class Sample {
     @lombok.Singular
     private List<Row> rows;
 
+    public static final class Builder {
+
+        public Builder rowOf(String... fields) {
+            return row(Row.of(fields));
+        }
+    }
+
     private static Sample of(Csv.Format format, Row... rows) {
         return Sample.builder()
                 .content(toString(format, rows))

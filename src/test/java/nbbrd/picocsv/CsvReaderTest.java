@@ -28,7 +28,6 @@ import java.io.StringReader;
 import java.nio.charset.Charset;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -96,17 +95,11 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testNormal() throws IOException {
-        for (QuickReader writer : QuickReader.values()) {
+    public void testAllSamples() throws IOException {
+        for (QuickReader reader : QuickReader.values()) {
             for (Charset encoding : Sample.CHARSETS) {
                 for (Sample sample : Sample.SAMPLES) {
-                    assertThatCode(() -> writer.readValue(Row::read, encoding, sample.getFormat(), sample.getContent()))
-                            .describedAs("Reading '%s' with '%s'", sample.getName(), writer)
-                            .doesNotThrowAnyException();
-
-                    assertThat(writer.readValue(Row::read, encoding, sample.getFormat(), sample.getContent()))
-                            .describedAs("Reading '%s' with '%s'", sample.getName(), writer)
-                            .containsExactlyElementsOf(sample.getRows());
+                    assertValid(reader, encoding, sample);
                 }
             }
         }
@@ -119,30 +112,38 @@ public class CsvReaderTest {
             return Row.read(stream);
         };
 
-        forEach((type, encoding, sample) -> {
-            switch (sample.getRows().size()) {
-                case 0:
-                case 1:
-                    assertThat(type.readValue(skipFirst, encoding, sample.getFormat(), sample.getContent()))
-                            .isEmpty();
-                    break;
-                default:
-                    assertThat(type.readValue(skipFirst, encoding, sample.getFormat(), sample.getContent()))
-                            .element(0)
-                            .isEqualTo(sample.getRows().get(1));
-                    break;
+        for (QuickReader reader : QuickReader.values()) {
+            for (Charset encoding : Sample.CHARSETS) {
+                for (Sample sample : Sample.SAMPLES) {
+                    switch (sample.getRows().size()) {
+                        case 0:
+                        case 1:
+                            assertThat(reader.readValue(skipFirst, encoding, sample.getFormat(), sample.getContent()))
+                                    .isEmpty();
+                            break;
+                        default:
+                            assertThat(reader.readValue(skipFirst, encoding, sample.getFormat(), sample.getContent()))
+                                    .element(0)
+                                    .isEqualTo(sample.getRows().get(1));
+                            break;
+                    }
+                }
             }
-        });
+        }
     }
 
     @Test
     public void testReadFieldBeforeLine() throws IOException {
         VoidParser readFieldBeforeLine = Csv.Reader::readField;
 
-        forEach((type, encoding, sample) -> {
-            assertThatIllegalStateException()
-                    .isThrownBy(() -> type.read(readFieldBeforeLine, encoding, sample.getFormat(), sample.getContent()));
-        });
+        for (QuickReader reader : QuickReader.values()) {
+            for (Charset encoding : Sample.CHARSETS) {
+                for (Sample sample : Sample.SAMPLES) {
+                    assertThatIllegalStateException()
+                            .isThrownBy(() -> reader.read(readFieldBeforeLine, encoding, sample.getFormat(), sample.getContent()));
+                }
+            }
+        }
     }
 
     @Test
@@ -152,12 +153,11 @@ public class CsvReaderTest {
                 .name("Invalid but still ok")
                 .format(Csv.Format.RFC4180)
                 .content("\r\r\n")
-                .row(Row.of("\r"))
+                .rowOf("\r")
                 .build();
 
         for (QuickReader type : QuickReader.values()) {
-            assertThat(type.readValue(Row::read, UTF_8, invalidButStillOk.getFormat(), invalidButStillOk.getContent()))
-                    .containsExactlyElementsOf(invalidButStillOk.getRows());
+            assertValid(type, UTF_8, invalidButStillOk);
         }
     }
 
@@ -170,12 +170,11 @@ public class CsvReaderTest {
                 .name("overflow")
                 .format(Csv.Format.RFC4180)
                 .content(field1 + "," + field2)
-                .row(Row.of(field1, field2))
+                .rowOf(field1, field2)
                 .build();
 
         for (QuickReader type : QuickReader.values()) {
-            assertThat(type.readValue(Row::read, UTF_8, overflow.getFormat(), overflow.getContent()))
-                    .containsExactlyElementsOf(overflow.getRows());
+            assertValid(type, UTF_8, overflow);
         }
     }
 
@@ -194,51 +193,81 @@ public class CsvReaderTest {
 
     @Test
     public void testEmptyFirstField() throws IOException {
-        Sample emptyFirstField = Sample
+        assertValid(Sample
                 .builder()
                 .name("Empty first field")
                 .format(Csv.Format.RFC4180)
                 .content(",B1\r\nA2,B2\r\n")
-                .row(Row.of("", "B1"))
-                .row(Row.of("A2", "B2"))
-                .build();
-
-        for (QuickReader type : QuickReader.values()) {
-            assertThat(type.readValue(Row::read, UTF_8, emptyFirstField.getFormat(), emptyFirstField.getContent()))
-                    .containsExactlyElementsOf(emptyFirstField.getRows());
-        }
+                .rowOf("", "B1")
+                .rowOf("A2", "B2")
+                .build());
     }
 
-    @lombok.Value
-    private static final class Tuple {
+    @Test
+    public void testSingleEmptyField() throws IOException {
+        assertValid(Sample
+                .builder()
+                .name("Single empty field & Line")
+                .format(Csv.Format.RFC4180)
+                .content("\r\nA2\r\n")
+                .rowOf()
+                .rowOf("A2")
+                .build());
 
-        private QuickReader type;
-        private Charset encoding;
-        private Sample sample;
+        assertValid(Sample
+                .builder()
+                .name("Quoted single empty field & Line")
+                .format(Csv.Format.RFC4180)
+                .content("\"\"\r\nA2\r\n")
+                .rowOf("")
+                .rowOf("A2")
+                .build());
 
-        static List<Tuple> getAll() {
-            List<Tuple> result = new ArrayList<>();
-            for (QuickReader type : QuickReader.values()) {
-                for (Charset encoding : Sample.CHARSETS) {
-                    for (Sample sample : Sample.SAMPLES) {
-                        result.add(new Tuple(type, encoding, sample));
-                    }
-                }
-            }
-            return result;
-        }
+        assertValid(Sample
+                .builder()
+                .name("Line & Single empty field")
+                .format(Csv.Format.RFC4180)
+                .content("A1\r\n\r\n")
+                .rowOf("A1")
+                .rowOf()
+                .build());
 
+        assertValid(Sample
+                .builder()
+                .name("Line & Quoted single empty field")
+                .format(Csv.Format.RFC4180)
+                .content("A1\r\n\"\"\r\n")
+                .rowOf("A1")
+                .rowOf("")
+                .build());
+
+        assertValid(Sample
+                .builder()
+                .name("Single empty field")
+                .format(Csv.Format.RFC4180)
+                .content("")
+                //FIXME?
+                //                .rowOf()
+                .build());
+
+        assertValid(Sample
+                .builder()
+                .name("Quoted single empty field")
+                .format(Csv.Format.RFC4180)
+                .content("\"\"")
+                //FIXME?
+                //                .rowOf("")
+                .build());
     }
 
-    private static void forEach(TupleConsumer consumer) throws IOException {
-        for (Tuple o : Tuple.getAll()) {
-            consumer.apply(o.type, o.encoding, o.sample);
-        }
+    private static void assertValid(Sample sample) throws IOException {
+        assertValid(QuickReader.CHAR_READER, UTF_8, sample);
     }
 
-    private interface TupleConsumer {
-
-        void apply(QuickReader type, Charset encoding, Sample sample) throws IOException;
+    private static void assertValid(QuickReader r, Charset encoding, Sample sample) throws IOException {
+        assertThat(r.readValue(Row::read, encoding, sample.getFormat(), sample.getContent()))
+                .describedAs("Reading '%s' with '%s'", sample.getName(), r)
+                .containsExactlyElementsOf(sample.getRows());
     }
 
     private final Csv.Format illegalFormat = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();

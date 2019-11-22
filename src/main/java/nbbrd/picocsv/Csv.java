@@ -312,6 +312,7 @@ public final class Csv {
         private final EndOfLineReader endOfLine;
         private char[] fieldChars;
         private int fieldLength;
+        private boolean fieldQuoted;
         private State state;
         private boolean parsedByLine;
 
@@ -322,6 +323,7 @@ public final class Csv {
             this.endOfLine = endOfLine;
             this.fieldChars = new char[64];
             this.fieldLength = 0;
+            this.fieldQuoted = false;
             this.state = State.READY;
             this.parsedByLine = false;
         }
@@ -367,7 +369,7 @@ public final class Csv {
                 case LAST:
                     if (parsedByLine) {
                         parsedByLine = false;
-                        return fieldLength > 0;
+                        return fieldLength > 0 || fieldQuoted;
                     }
                     return false;
                 case NOT_LAST:
@@ -399,10 +401,10 @@ public final class Csv {
                     : this::append;
 
             // first char        
-            boolean quoted = false;
+            fieldQuoted = false;
             if ((val = input.read()) != Input.EOF) {
                 if (val == quote) {
-                    quoted = true;
+                    fieldQuoted = true;
                 } else {
                     if (val == delimiter) {
                         return State.NOT_LAST;
@@ -416,7 +418,7 @@ public final class Csv {
                 return State.DONE;
             }
 
-            if (quoted) {
+            if (fieldQuoted) {
                 // subsequent chars with escape
                 boolean escaped = false;
                 while ((val = input.read()) != Input.EOF) {
