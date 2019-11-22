@@ -33,7 +33,7 @@ import nbbrd.picocsv.Csv;
  */
 @lombok.Value
 @lombok.Builder(builderClassName = "Builder", toBuilder = true)
-@lombok.experimental.Wither
+@lombok.With
 public class Sample {
 
     @lombok.NonNull

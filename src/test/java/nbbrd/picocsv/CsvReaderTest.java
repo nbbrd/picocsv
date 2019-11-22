@@ -87,11 +87,11 @@ public class CsvReaderTest {
                 .withMessageContaining("charReader");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Reader.of(QuickReader.newReader(""), null))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newCharReader(""), null))
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Reader.of(QuickReader.newReader(""), illegalFormat))
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newCharReader(""), illegalFormat))
                 .withMessageContaining("format");
     }
 

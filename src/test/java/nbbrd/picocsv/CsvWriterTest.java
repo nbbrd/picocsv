@@ -21,7 +21,6 @@ import _test.Row;
 import _test.Sample;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -83,11 +82,11 @@ public class CsvWriterTest {
                 .withMessageContaining("charWriter");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newWriter(), null))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newCharWriter(), null))
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newWriter(), illegalFormat))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newCharWriter(), illegalFormat))
                 .withMessageContaining("format");
     }
 
@@ -124,11 +123,38 @@ public class CsvWriterTest {
 
     @Test
     public void testWriteField() throws IOException {
-        StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(result, Csv.Format.RFC4180)) {
-            writer.writeField(new StringBuilder().append("hello"));
-        }
-        assertThat(result.toString()).isEqualTo("hello");
+        CharSequence chars = new StringBuilder().append("hello");
+
+        assertThat(writeToString(w -> {
+            w.writeField(null);
+        })).isEqualTo("");
+
+        assertThat(writeToString(w -> {
+            w.writeField(null);
+            w.writeEndOfLine();
+        })).isEqualTo("\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeField(chars);
+            w.writeField(null);
+        })).isEqualTo("hello,");
+
+        assertThat(writeToString(w -> {
+            w.writeField(chars);
+            w.writeField(null);
+            w.writeEndOfLine();
+        })).isEqualTo("hello,\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeField(null);
+            w.writeField(chars);
+        })).isEqualTo(",hello");
+
+        assertThat(writeToString(w -> {
+            w.writeField(null);
+            w.writeField(chars);
+            w.writeEndOfLine();
+        })).isEqualTo(",hello\r\n");
     }
 
     @Test
@@ -189,4 +215,8 @@ public class CsvWriterTest {
     }
 
     private final Csv.Format illegalFormat = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
+
+    private static String writeToString(QuickWriter.VoidFormatter formatter) throws IOException {
+        return QuickWriter.CHAR_WRITER.write(formatter, null, Csv.Format.RFC4180);
+    }
 }

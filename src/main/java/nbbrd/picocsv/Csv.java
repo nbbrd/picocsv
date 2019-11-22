@@ -687,14 +687,18 @@ public final class Csv {
         }
 
         /**
-         * Writes a new field.
+         * Writes a new field. Null field is handled as empty.
          *
-         * @param field a non-null field
+         * @param field a nullable field
          * @throws IOException if an I/O error occurs
          */
         public void writeField(CharSequence field) throws IOException {
             if (pushFields()) {
                 output.write(delimiter);
+            }
+
+            if (field == null) {
+                return;
             }
 
             switch (getQuoting(field)) {

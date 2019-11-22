@@ -66,10 +66,10 @@ public enum QuickWriter {
             }
         }
     },
-    WRITER(StreamType.OBJECT) {
+    CHAR_WRITER(StreamType.OBJECT) {
         @Override
         public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, Csv.Format format) throws IOException {
-            try (Writer result = newWriter()) {
+            try (Writer result = newCharWriter()) {
                 try (Csv.Writer writer = Csv.Writer.of(result, format)) {
                     formatter.accept(value, writer);
                 }
@@ -87,11 +87,13 @@ public enum QuickWriter {
         return writeValue(null, (value, stream) -> formatter.accept(stream), encoding, format);
     }
 
+    @FunctionalInterface
     public interface Formatter<T> {
 
         void accept(T value, Csv.Writer writer) throws IOException;
     }
 
+    @FunctionalInterface
     public interface VoidFormatter {
 
         void accept(Csv.Writer writer) throws IOException;
@@ -107,7 +109,7 @@ public enum QuickWriter {
         return new ByteArrayOutputStream();
     }
 
-    public static Writer newWriter() {
+    public static Writer newCharWriter() {
         return new StringWriter();
     }
 

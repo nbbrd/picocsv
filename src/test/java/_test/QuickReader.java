@@ -64,10 +64,10 @@ public enum QuickReader {
             }
         }
     },
-    READER(StreamType.OBJECT) {
+    CHAR_READER(StreamType.OBJECT) {
         @Override
         public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException {
-            try (Reader object = newReader(input)) {
+            try (Reader object = newCharReader(input)) {
                 try (Csv.Reader reader = Csv.Reader.of(object, format)) {
                     return parser.accept(reader);
                 }
@@ -87,11 +87,13 @@ public enum QuickReader {
         }, encoding, format, input);
     }
 
+    @FunctionalInterface
     public interface Parser<T> {
 
         T accept(Csv.Reader reader) throws IOException;
     }
 
+    @FunctionalInterface
     public interface VoidParser {
 
         void accept(Csv.Reader reader) throws IOException;
@@ -108,7 +110,7 @@ public enum QuickReader {
         return new ByteArrayInputStream(content.getBytes(charset));
     }
 
-    public static Reader newReader(String content) {
+    public static Reader newCharReader(String content) {
         return new StringReader(content);
     }
 }
