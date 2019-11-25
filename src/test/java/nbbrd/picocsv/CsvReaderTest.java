@@ -203,6 +203,36 @@ public class CsvReaderTest {
                 .build());
     }
 
+    @Test
+    public void testCharSequence() throws IOException {
+        try (Reader charReader = new StringReader(Sample.SIMPLE.getContent())) {
+            try (Csv.Reader reader = Csv.Reader.of(charReader, Sample.SIMPLE.getFormat())) {
+                CharSequence chars = reader;
+                reader.readLine();
+                reader.readField();
+
+                assertThat(chars).hasSize(2);
+
+                assertThat(chars.charAt(0)).isEqualTo('A');
+                assertThat(chars.charAt(1)).isEqualTo('1');
+                assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                        .isThrownBy(() -> chars.charAt(-1));
+                assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                        .isThrownBy(() -> chars.charAt(2));
+
+                assertThat(chars.subSequence(0, 2)).isEqualTo("A1");
+                assertThat(chars.subSequence(1, 2)).isEqualTo("1");
+                assertThat(chars.subSequence(2, 2)).isEmpty();
+                assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                        .isThrownBy(() -> chars.subSequence(-1, 2));
+                assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                        .isThrownBy(() -> chars.subSequence(0, 3));
+                assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                        .isThrownBy(() -> chars.subSequence(1, 0));
+            }
+        }
+    }
+
     private static void assertValid(Sample sample) throws IOException {
         assertValid(QuickReader.CHAR_READER, UTF_8, sample);
     }

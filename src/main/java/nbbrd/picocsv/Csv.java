@@ -317,7 +317,7 @@ public final class Csv {
         private boolean parsedByLine;
 
         private static final int INITIAL_FIELD_CAPACITY = 64;
-        
+
         private Reader(Input input, int quoteCode, int delimiterCode, EndOfLineReader endOfLine) {
             this.input = input;
             this.quoteCode = quoteCode;
@@ -494,11 +494,17 @@ public final class Csv {
 
         @Override
         public char charAt(int index) {
+            if (index >= fieldLength) {
+                throw new IndexOutOfBoundsException(index);
+            }
             return fieldChars[index];
         }
 
         @Override
         public CharSequence subSequence(int start, int end) {
+            if (end > fieldLength) {
+                throw new IndexOutOfBoundsException(end);
+            }
             return new String(fieldChars, start, end - start);
         }
 
