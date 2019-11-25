@@ -307,8 +307,8 @@ public final class Csv {
         }
 
         private final Input input;
-        private final int quote;
-        private final int delimiter;
+        private final int quoteCode;
+        private final int delimiterCode;
         private final EndOfLineReader endOfLine;
         private char[] fieldChars;
         private int fieldLength;
@@ -316,12 +316,14 @@ public final class Csv {
         private State state;
         private boolean parsedByLine;
 
-        private Reader(Input input, int quote, int delimiter, EndOfLineReader endOfLine) {
+        private static final int INITIAL_FIELD_CAPACITY = 64;
+        
+        private Reader(Input input, int quoteCode, int delimiterCode, EndOfLineReader endOfLine) {
             this.input = input;
-            this.quote = quote;
-            this.delimiter = delimiter;
+            this.quoteCode = quoteCode;
+            this.delimiterCode = delimiterCode;
             this.endOfLine = endOfLine;
-            this.fieldChars = new char[64];
+            this.fieldChars = new char[INITIAL_FIELD_CAPACITY];
             this.fieldLength = 0;
             this.fieldQuoted = false;
             this.state = State.READY;
@@ -403,10 +405,10 @@ public final class Csv {
             // first char        
             fieldQuoted = false;
             if ((val = input.read()) != Input.EOF) {
-                if (val == quote) {
+                if (val == quoteCode) {
                     fieldQuoted = true;
                 } else {
-                    if (val == delimiter) {
+                    if (val == delimiterCode) {
                         return State.NOT_LAST;
                     }
                     if (endOfLine.isEndOfLine(val, input)) {
@@ -422,7 +424,7 @@ public final class Csv {
                 // subsequent chars with escape
                 boolean escaped = false;
                 while ((val = input.read()) != Input.EOF) {
-                    if (val == quote) {
+                    if (val == quoteCode) {
                         if (!escaped) {
                             escaped = true;
                         } else {
@@ -432,7 +434,7 @@ public final class Csv {
                         continue;
                     }
                     if (escaped) {
-                        if (val == delimiter) {
+                        if (val == delimiterCode) {
                             return State.NOT_LAST;
                         }
                         if (endOfLine.isEndOfLine(val, input)) {
@@ -444,7 +446,7 @@ public final class Csv {
             } else {
                 // subsequent chars without escape
                 while ((val = input.read()) != Input.EOF) {
-                    if (val == delimiter) {
+                    if (val == delimiterCode) {
                         return State.NOT_LAST;
                     }
                     if (endOfLine.isEndOfLine(val, input)) {
@@ -466,18 +468,18 @@ public final class Csv {
         private void resetField() {
             fieldLength = 0;
         }
-        
+
         private boolean isFieldNotNull() {
             return fieldLength > 0 || fieldQuoted;
         }
 
-        private void swallow(int c) {
+        private void swallow(int code) {
             // do nothing
         }
 
-        private void append(int c) {
+        private void append(int code) {
             ensureFieldSize();
-            fieldChars[fieldLength++] = (char) c;
+            fieldChars[fieldLength++] = (char) code;
         }
 
         @Override
@@ -565,17 +567,20 @@ public final class Csv {
         @FunctionalInterface
         private interface EndOfLineReader {
 
-            boolean isEndOfLine(int c, Input input) throws IOException;
+            boolean isEndOfLine(int code, Input input) throws IOException;
+
+            static final int CR_CODE = NewLine.CR;
+            static final int LF_CODE = NewLine.LF;
 
             static EndOfLineReader of(NewLine newLine) {
                 switch (newLine) {
                     case MACINTOSH:
-                        return (c, input) -> c == NewLine.CR;
+                        return (code, input) -> code == CR_CODE;
                     case UNIX:
-                        return (c, input) -> c == NewLine.LF;
+                        return (code, input) -> code == LF_CODE;
                     case WINDOWS:
-                        return (c, input) -> {
-                            if (c == NewLine.CR && ((ReadAheadInput) input).peek(NewLine.LF)) {
+                        return (code, input) -> {
+                            if (code == CR_CODE && ((ReadAheadInput) input).peek(LF_CODE)) {
                                 ((ReadAheadInput) input).discardAheadOfTimeChar();
                                 return true;
                             }
@@ -851,16 +856,16 @@ public final class Csv {
         @FunctionalInterface
         private interface EndOfLineWriter {
 
-            void write(Output stream) throws IOException;
+            void write(Output output) throws IOException;
 
             static EndOfLineWriter of(NewLine newLine) {
                 switch (newLine) {
                     case MACINTOSH:
-                        return stream -> stream.write(NewLine.CR);
+                        return output -> output.write(NewLine.CR);
                     case UNIX:
-                        return stream -> stream.write(NewLine.LF);
+                        return output -> output.write(NewLine.LF);
                     case WINDOWS:
-                        return stream -> stream.write(NewLine.CRLF);
+                        return output -> output.write(NewLine.CRLF);
                     default:
                         throw new RuntimeException();
                 }

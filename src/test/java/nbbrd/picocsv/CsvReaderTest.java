@@ -17,7 +17,6 @@
 package nbbrd.picocsv;
 
 import _test.QuickReader;
-import _test.QuickReader.Parser;
 import _test.QuickReader.VoidParser;
 import _test.Row;
 import _test.Sample;
@@ -108,22 +107,17 @@ public class CsvReaderTest {
 
     @Test
     public void testSkip() throws IOException {
-        Parser<List<Row>> skipFirst = stream -> {
-            stream.readLine();
-            return Row.read(stream);
-        };
-
         for (QuickReader reader : QuickReader.values()) {
             for (Charset encoding : Sample.CHARSETS) {
                 for (Sample sample : Sample.SAMPLES) {
                     switch (sample.getRows().size()) {
                         case 0:
                         case 1:
-                            assertThat(reader.readValue(skipFirst, encoding, sample.getFormat(), sample.getContent()))
+                            assertThat(reader.readValue(this::skipFirst, encoding, sample.getFormat(), sample.getContent()))
                                     .isEmpty();
                             break;
                         default:
-                            assertThat(reader.readValue(skipFirst, encoding, sample.getFormat(), sample.getContent()))
+                            assertThat(reader.readValue(this::skipFirst, encoding, sample.getFormat(), sample.getContent()))
                                     .element(0)
                                     .isEqualTo(sample.getRows().get(1));
                             break;
@@ -131,6 +125,11 @@ public class CsvReaderTest {
                 }
             }
         }
+    }
+
+    private List<Row> skipFirst(Csv.Reader reader) throws IOException {
+        reader.readLine();
+        return Row.read(reader);
     }
 
     @Test
@@ -164,8 +163,8 @@ public class CsvReaderTest {
 
     @Test
     public void testReusableFieldOverflow() throws IOException {
-        String field1 = IntStream.range(0, 70).mapToObj(o -> "A").collect(Collectors.joining());
-        String field2 = IntStream.range(0, 10).mapToObj(o -> "B").collect(Collectors.joining());
+        String field1 = IntStream.range(0, 70).mapToObj(i -> "A").collect(Collectors.joining());
+        String field2 = IntStream.range(0, 10).mapToObj(i -> "B").collect(Collectors.joining());
         Sample overflow = Sample
                 .builder()
                 .name("overflow")
@@ -181,8 +180,8 @@ public class CsvReaderTest {
 
     @Test
     public void testEmptyLine() throws IOException {
-        try (Reader object = new StringReader(Sample.EMPTY_LINES.getContent())) {
-            try (Csv.Reader reader = Csv.Reader.of(object, Sample.EMPTY_LINES.getFormat())) {
+        try (Reader charReader = new StringReader(Sample.EMPTY_LINES.getContent())) {
+            try (Csv.Reader reader = Csv.Reader.of(charReader, Sample.EMPTY_LINES.getFormat())) {
                 assertThat(reader.readLine()).isTrue();
                 assertThat(reader.readField()).isFalse();
                 assertThat(reader.readLine()).isTrue();

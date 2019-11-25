@@ -49,20 +49,13 @@ public class Sample {
     @lombok.Singular
     private List<Row> rows;
 
+    private boolean withoutEOL;
+
     public static final class Builder {
 
         public Builder rowOf(String... fields) {
             return row(Row.of(fields));
         }
-    }
-
-    private static Sample of(Csv.Format format, Row... rows) {
-        return Sample.builder()
-                .content(toString(format, rows))
-                .format(format)
-                .name(format.toString())
-                .rows(Arrays.asList(rows))
-                .build();
     }
 
     public static final Sample EMPTY = Sample
@@ -96,6 +89,7 @@ public class Sample {
             .content("A1,B1\r\nA2,B2")
             .rowOf("A1", "B1")
             .rowOf("A2", "B2")
+            .withoutEOL(true)
             .build();
 
     public static final Sample ESCAPED_QUOTES = Sample
@@ -141,6 +135,7 @@ public class Sample {
             .content("A1\r\nA2")
             .rowOf("A1")
             .rowOf("A2")
+            .withoutEOL(true)
             .build();
 
     public static final Sample EMPTY_LINES = Sample
@@ -210,6 +205,7 @@ public class Sample {
             .format(Csv.Format.RFC4180)
             .content("\"\"")
             .rowOf("")
+            .withoutEOL(true)
             .build();
 
     private static final char[] SPECIAL_CHARS = {',', '\t', ';', '\r', '\n', '\'', '"'};
@@ -232,17 +228,24 @@ public class Sample {
         return result;
     }
 
-    private static Row generateRow() {
+    private static Row generateSpecialCharsRow() {
         return Row.of(String.valueOf(SPECIAL_CHARS)
                 .chars()
-                .mapToObj(c -> String.valueOf((char) c))
-                .flatMap(c -> Stream
-                .of(
-                        c,
-                        c + "2", "1" + c,
-                        c + "23", "1" + c + "3", "12" + c
-                ))
+                .mapToObj(Sample::getSpecialCharAsString)
+                .flatMap(Sample::getFieldsContainingSpecialChar)
                 .toArray(String[]::new));
+    }
+
+    private static String getSpecialCharAsString(int c) {
+        return String.valueOf((char) c);
+    }
+
+    private static Stream<String> getFieldsContainingSpecialChar(String c) {
+        return Stream.of(
+                c,
+                c + "2", "1" + c,
+                c + "23", "1" + c + "3", "12" + c
+        );
     }
 
     private static String toString(Csv.Format format, Row... rows) {
@@ -256,12 +259,22 @@ public class Sample {
     }
 
     private static List<Sample> getGeneratedSamples() {
-        Row row = generateRow();
+        Row generatedRow = generateSpecialCharsRow();
         return generateFormats()
                 .stream()
                 .filter(Csv.Format::isValid)
-                .map(format -> of(format, row, row))
+                .map(format -> getGeneratedSample(format, generatedRow))
                 .collect(Collectors.toList());
+    }
+
+    private static Sample getGeneratedSample(Csv.Format generatedFormat, Row generatedRow) {
+        return Sample.builder()
+                .name(generatedFormat.toString())
+                .format(generatedFormat)
+                .content(toString(generatedFormat, generatedRow, generatedRow))
+                .row(generatedRow)
+                .row(generatedRow)
+                .build();
     }
 
     private static List<Sample> getPredefinedSamples() {
