@@ -204,18 +204,6 @@ public class CsvReaderTest {
                 .build());
     }
 
-    @Test
-    public void testSingleEmptyField() throws IOException {
-        assertValid(Sample
-                .builder()
-                .name("Quoted single empty field without NewLine")
-                .format(Csv.Format.RFC4180)
-                .content("\"\"")
-                //FIXME?
-                //                .rowOf("")
-                .build());
-    }
-
     private static void assertValid(Sample sample) throws IOException {
         assertValid(QuickReader.CHAR_READER, UTF_8, sample);
     }

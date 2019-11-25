@@ -369,7 +369,7 @@ public final class Csv {
                 case LAST:
                     if (parsedByLine) {
                         parsedByLine = false;
-                        return fieldLength > 0 || fieldQuoted;
+                        return isFieldNotNull();
                     }
                     return false;
                 case NOT_LAST:
@@ -454,7 +454,7 @@ public final class Csv {
                 }
             }
 
-            return fieldLength > 0 ? State.LAST : State.DONE;
+            return isFieldNotNull() ? State.LAST : State.DONE;
         }
 
         private void ensureFieldSize() {
@@ -465,6 +465,10 @@ public final class Csv {
 
         private void resetField() {
             fieldLength = 0;
+        }
+        
+        private boolean isFieldNotNull() {
+            return fieldLength > 0 || fieldQuoted;
         }
 
         private void swallow(int c) {

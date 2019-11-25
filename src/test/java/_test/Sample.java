@@ -204,6 +204,14 @@ public class Sample {
             .rowOf("")
             .build();
 
+    public static final Sample QUOTED_EMPTY_WITHOUT_LAST_EOL = Sample
+            .builder()
+            .name("Quoted single empty field without last EOL")
+            .format(Csv.Format.RFC4180)
+            .content("\"\"")
+            .rowOf("")
+            .build();
+
     private static final char[] SPECIAL_CHARS = {',', '\t', ';', '\r', '\n', '\'', '"'};
 
     private static List<Csv.Format> generateFormats() {
@@ -272,7 +280,8 @@ public class Sample {
                 LINE_THEN_UNQUOTED_EMPTY,
                 LINE_THEN_QUOTED_EMPTY,
                 UNQUOTED_EMPTY,
-                QUOTED_EMPTY
+                QUOTED_EMPTY,
+                QUOTED_EMPTY_WITHOUT_LAST_EOL
         );
     }
 
