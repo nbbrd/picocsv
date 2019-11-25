@@ -495,7 +495,7 @@ public final class Csv {
         @Override
         public char charAt(int index) {
             if (index >= fieldLength) {
-                throw new IndexOutOfBoundsException(index);
+                throw new IndexOutOfBoundsException(String.valueOf(index));
             }
             return fieldChars[index];
         }
@@ -503,7 +503,7 @@ public final class Csv {
         @Override
         public CharSequence subSequence(int start, int end) {
             if (end > fieldLength) {
-                throw new IndexOutOfBoundsException(end);
+                throw new IndexOutOfBoundsException(String.valueOf(end));
             }
             return new String(fieldChars, start, end - start);
         }
