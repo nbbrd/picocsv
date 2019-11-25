@@ -307,21 +307,25 @@ public final class Csv {
         }
 
         private final Input input;
-        private final int quote;
-        private final int delimiter;
+        private final int quoteCode;
+        private final int delimiterCode;
         private final EndOfLineReader endOfLine;
         private char[] fieldChars;
         private int fieldLength;
+        private boolean fieldQuoted;
         private State state;
         private boolean parsedByLine;
 
-        private Reader(Input input, int quote, int delimiter, EndOfLineReader endOfLine) {
+        private static final int INITIAL_FIELD_CAPACITY = 64;
+
+        private Reader(Input input, int quoteCode, int delimiterCode, EndOfLineReader endOfLine) {
             this.input = input;
-            this.quote = quote;
-            this.delimiter = delimiter;
+            this.quoteCode = quoteCode;
+            this.delimiterCode = delimiterCode;
             this.endOfLine = endOfLine;
-            this.fieldChars = new char[64];
+            this.fieldChars = new char[INITIAL_FIELD_CAPACITY];
             this.fieldLength = 0;
+            this.fieldQuoted = false;
             this.state = State.READY;
             this.parsedByLine = false;
         }
@@ -367,7 +371,7 @@ public final class Csv {
                 case LAST:
                     if (parsedByLine) {
                         parsedByLine = false;
-                        return fieldLength > 0;
+                        return isFieldNotNull();
                     }
                     return false;
                 case NOT_LAST:
@@ -399,12 +403,12 @@ public final class Csv {
                     : this::append;
 
             // first char        
-            boolean quoted = false;
+            fieldQuoted = false;
             if ((val = input.read()) != Input.EOF) {
-                if (val == quote) {
-                    quoted = true;
+                if (val == quoteCode) {
+                    fieldQuoted = true;
                 } else {
-                    if (val == delimiter) {
+                    if (val == delimiterCode) {
                         return State.NOT_LAST;
                     }
                     if (endOfLine.isEndOfLine(val, input)) {
@@ -416,11 +420,11 @@ public final class Csv {
                 return State.DONE;
             }
 
-            if (quoted) {
+            if (fieldQuoted) {
                 // subsequent chars with escape
                 boolean escaped = false;
                 while ((val = input.read()) != Input.EOF) {
-                    if (val == quote) {
+                    if (val == quoteCode) {
                         if (!escaped) {
                             escaped = true;
                         } else {
@@ -430,7 +434,7 @@ public final class Csv {
                         continue;
                     }
                     if (escaped) {
-                        if (val == delimiter) {
+                        if (val == delimiterCode) {
                             return State.NOT_LAST;
                         }
                         if (endOfLine.isEndOfLine(val, input)) {
@@ -442,7 +446,7 @@ public final class Csv {
             } else {
                 // subsequent chars without escape
                 while ((val = input.read()) != Input.EOF) {
-                    if (val == delimiter) {
+                    if (val == delimiterCode) {
                         return State.NOT_LAST;
                     }
                     if (endOfLine.isEndOfLine(val, input)) {
@@ -452,7 +456,7 @@ public final class Csv {
                 }
             }
 
-            return fieldLength > 0 ? State.LAST : State.DONE;
+            return isFieldNotNull() ? State.LAST : State.DONE;
         }
 
         private void ensureFieldSize() {
@@ -465,13 +469,17 @@ public final class Csv {
             fieldLength = 0;
         }
 
-        private void swallow(int c) {
+        private boolean isFieldNotNull() {
+            return fieldLength > 0 || fieldQuoted;
+        }
+
+        private void swallow(int code) {
             // do nothing
         }
 
-        private void append(int c) {
+        private void append(int code) {
             ensureFieldSize();
-            fieldChars[fieldLength++] = (char) c;
+            fieldChars[fieldLength++] = (char) code;
         }
 
         @Override
@@ -486,11 +494,17 @@ public final class Csv {
 
         @Override
         public char charAt(int index) {
+            if (index >= fieldLength) {
+                throw new IndexOutOfBoundsException(String.valueOf(index));
+            }
             return fieldChars[index];
         }
 
         @Override
         public CharSequence subSequence(int start, int end) {
+            if (end > fieldLength) {
+                throw new IndexOutOfBoundsException(String.valueOf(end));
+            }
             return new String(fieldChars, start, end - start);
         }
 
@@ -559,17 +573,20 @@ public final class Csv {
         @FunctionalInterface
         private interface EndOfLineReader {
 
-            boolean isEndOfLine(int c, Input input) throws IOException;
+            boolean isEndOfLine(int code, Input input) throws IOException;
+
+            static final int CR_CODE = NewLine.CR;
+            static final int LF_CODE = NewLine.LF;
 
             static EndOfLineReader of(NewLine newLine) {
                 switch (newLine) {
                     case MACINTOSH:
-                        return (c, input) -> c == NewLine.CR;
+                        return (code, input) -> code == CR_CODE;
                     case UNIX:
-                        return (c, input) -> c == NewLine.LF;
+                        return (code, input) -> code == LF_CODE;
                     case WINDOWS:
-                        return (c, input) -> {
-                            if (c == NewLine.CR && ((ReadAheadInput) input).peek(NewLine.LF)) {
+                        return (code, input) -> {
+                            if (code == CR_CODE && ((ReadAheadInput) input).peek(LF_CODE)) {
                                 ((ReadAheadInput) input).discardAheadOfTimeChar();
                                 return true;
                             }
@@ -676,27 +693,69 @@ public final class Csv {
         private final char quote;
         private final char delimiter;
         private final EndOfLineWriter endOfLine;
-        private boolean requiresDelimiter;
+        private State state;
 
         private Writer(Output output, char quote, char delimiter, EndOfLineWriter endOfLine) {
             this.output = output;
             this.quote = quote;
             this.delimiter = delimiter;
             this.endOfLine = endOfLine;
-            this.requiresDelimiter = false;
+            this.state = State.NO_FIELD;
         }
 
         /**
-         * Writes a new field.
+         * Writes a new field. Null field is handled as empty.
          *
-         * @param field a non-null field
+         * @param field a nullable field
          * @throws IOException if an I/O error occurs
          */
         public void writeField(CharSequence field) throws IOException {
-            if (pushFields()) {
-                output.write(delimiter);
+            switch (state) {
+                case NO_FIELD:
+                    if (!isNullOrEmpty(field)) {
+                        state = State.MULTI_FIELD;
+                        writeNonEmptyField(field);
+                    } else {
+                        state = State.SINGLE_EMPTY_FIELD;
+                    }
+                    break;
+                case SINGLE_EMPTY_FIELD:
+                    state = State.MULTI_FIELD;
+                    output.write(delimiter);
+                    if (!isNullOrEmpty(field)) {
+                        writeNonEmptyField(field);
+                    }
+                    break;
+                case MULTI_FIELD:
+                    output.write(delimiter);
+                    if (!isNullOrEmpty(field)) {
+                        writeNonEmptyField(field);
+                    }
+                    break;
             }
+        }
 
+        /**
+         * Writes an end of line.
+         *
+         * @throws IOException if an I/O error occurs
+         */
+        public void writeEndOfLine() throws IOException {
+            flushField();
+            endOfLine.write(output);
+        }
+
+        @Override
+        public void close() throws IOException {
+            flushField();
+            output.close();
+        }
+
+        private boolean isNullOrEmpty(CharSequence field) {
+            return field == null || field.length() == 0;
+        }
+
+        private void writeNonEmptyField(CharSequence field) throws IOException {
             switch (getQuoting(field)) {
                 case NONE:
                     output.write(field);
@@ -720,29 +779,12 @@ public final class Csv {
             }
         }
 
-        /**
-         * Writes an end of line.
-         *
-         * @throws IOException if an I/O error occurs
-         */
-        public void writeEndOfLine() throws IOException {
-            endOfLine.write(output);
-            resetFields();
-        }
-
-        @Override
-        public void close() throws IOException {
-            output.close();
-        }
-
-        private boolean pushFields() {
-            boolean result = requiresDelimiter;
-            requiresDelimiter = true;
-            return result;
-        }
-
-        private void resetFields() {
-            requiresDelimiter = false;
+        private void flushField() throws IOException {
+            if (state == State.SINGLE_EMPTY_FIELD) {
+                output.write(quote);
+                output.write(quote);
+            }
+            state = State.NO_FIELD;
         }
 
         private Quoting getQuoting(CharSequence field) {
@@ -761,6 +803,10 @@ public final class Csv {
 
         private enum Quoting {
             NONE, PARTIAL, FULL
+        }
+
+        private enum State {
+            NO_FIELD, SINGLE_EMPTY_FIELD, MULTI_FIELD
         }
 
         private static final class Output implements Closeable {
@@ -816,16 +862,16 @@ public final class Csv {
         @FunctionalInterface
         private interface EndOfLineWriter {
 
-            void write(Output stream) throws IOException;
+            void write(Output output) throws IOException;
 
             static EndOfLineWriter of(NewLine newLine) {
                 switch (newLine) {
                     case MACINTOSH:
-                        return stream -> stream.write(NewLine.CR);
+                        return output -> output.write(NewLine.CR);
                     case UNIX:
-                        return stream -> stream.write(NewLine.LF);
+                        return output -> output.write(NewLine.LF);
                     case WINDOWS:
-                        return stream -> stream.write(NewLine.CRLF);
+                        return output -> output.write(NewLine.CRLF);
                     default:
                         throw new RuntimeException();
                 }

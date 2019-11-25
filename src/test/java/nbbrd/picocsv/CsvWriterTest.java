@@ -19,14 +19,14 @@ package nbbrd.picocsv;
 import _test.QuickWriter;
 import _test.Row;
 import _test.Sample;
+import static _test.Sample.ILLEGAL_FORMAT;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.nio.file.Path;
-import java.util.function.Function;
+import java.util.Arrays;
 import static nbbrd.picocsv.Csv.BufferSizes.DEFAULT_CHAR_BUFFER_SIZE;
 import org.junit.Test;
 import static nbbrd.picocsv.Csv.Format.RFC4180;
@@ -53,7 +53,7 @@ public class CsvWriterTest {
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), UTF_8, illegalFormat))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), UTF_8, ILLEGAL_FORMAT))
                 .withMessageContaining("format");
     }
 
@@ -72,7 +72,7 @@ public class CsvWriterTest {
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), UTF_8, illegalFormat))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), UTF_8, ILLEGAL_FORMAT))
                 .withMessageContaining("format");
     }
 
@@ -83,27 +83,20 @@ public class CsvWriterTest {
                 .withMessageContaining("charWriter");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newWriter(), null))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newCharWriter(), null))
                 .withMessageContaining("format");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newWriter(), illegalFormat))
+                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newCharWriter(), ILLEGAL_FORMAT))
                 .withMessageContaining("format");
     }
 
     @Test
-    public void testNormal() throws IOException {
+    public void testAllSamples() throws IOException {
         for (QuickWriter writer : QuickWriter.values()) {
             for (Charset encoding : Sample.CHARSETS) {
                 for (Sample sample : Sample.SAMPLES) {
-                    assertThatCode(() -> writer.writeValue(sample.getRows(), Row::write, encoding, sample.getFormat()))
-                            .describedAs("Writing '%s' with '%s'", sample.getName(), writer)
-                            .doesNotThrowAnyException();
-
-                    assertThat(writer.writeValue(sample.getRows(), Row::write, encoding, sample.getFormat()))
-                            .describedAs("Writing '%s' with '%s'", sample.getName(), writer)
-                            .startsWith(sample.getContent())
-                            .hasSize(expectedSize(sample));
+                    assertValid(writer, encoding, sample);
                 }
             }
         }
@@ -124,58 +117,110 @@ public class CsvWriterTest {
 
     @Test
     public void testWriteField() throws IOException {
-        StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(result, Csv.Format.RFC4180)) {
-            writer.writeField(new StringBuilder().append("hello"));
-        }
-        assertThat(result.toString()).isEqualTo("hello");
+        CharSequence chars = new StringBuilder().append("hello");
+
+        assertThat(writeToString(w -> {
+        })).isEqualTo("");
+
+        assertThat(writeToString(w -> {
+            w.writeEndOfLine();
+        })).isEqualTo("\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeField(null);
+        })).isEqualTo("\"\"");
+
+        assertThat(writeToString(w -> {
+            w.writeField(null);
+            w.writeEndOfLine();
+        })).isEqualTo("\"\"\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeEndOfLine();
+            w.writeField(null);
+        })).isEqualTo("\r\n\"\"");
+
+        assertThat(writeToString(w -> {
+            w.writeField(chars);
+            w.writeField(null);
+        })).isEqualTo("hello,");
+
+        assertThat(writeToString(w -> {
+            w.writeField(chars);
+            w.writeField(null);
+            w.writeEndOfLine();
+        })).isEqualTo("hello,\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeEndOfLine();
+            w.writeField(chars);
+            w.writeField(null);
+        })).isEqualTo("\r\nhello,");
+
+        assertThat(writeToString(w -> {
+            w.writeField(null);
+            w.writeField(chars);
+        })).isEqualTo(",hello");
+
+        assertThat(writeToString(w -> {
+            w.writeField(null);
+            w.writeField(chars);
+            w.writeEndOfLine();
+        })).isEqualTo(",hello\r\n");
     }
 
     @Test
     public void testOutputBuffer() throws IOException {
-        Function<String[], Sample> toSample
-                = fields -> Sample
-                        .builder()
-                        .name("overflow")
-                        .format(Csv.Format.RFC4180)
-                        .content(String.join(",", fields).replace("\"", "\"\"\"\"") + "\r\n")
-                        .row(Row.of(fields))
-                        .build();
-
-        assertWrite(QuickWriter.BYTE_ARRAY, toSample.apply(new String[]{
-            Sample.getField(DEFAULT_CHAR_BUFFER_SIZE - 1, 'A'),
-            "\"",
-            Sample.getField(10, 'C')}
+        assertValid(QuickWriter.BYTE_ARRAY, UTF_8, getOverflowSample(
+                repeat('A', DEFAULT_CHAR_BUFFER_SIZE - 1),
+                "\"",
+                repeat('C', 10)
         ));
 
-        assertWrite(QuickWriter.BYTE_ARRAY, toSample.apply(new String[]{
-            Sample.getField(DEFAULT_CHAR_BUFFER_SIZE, 'A'),
-            "\"",
-            Sample.getField(10, 'C')}
+        assertValid(QuickWriter.BYTE_ARRAY, UTF_8, getOverflowSample(
+                repeat('A', DEFAULT_CHAR_BUFFER_SIZE),
+                "\"",
+                repeat('C', 10)
         ));
 
-        assertWrite(QuickWriter.BYTE_ARRAY, toSample.apply(new String[]{
-            Sample.getField(DEFAULT_CHAR_BUFFER_SIZE + 1, 'A'),
-            "\"",
-            Sample.getField(10, 'C')}
+        assertValid(QuickWriter.BYTE_ARRAY, UTF_8, getOverflowSample(
+                repeat('A', DEFAULT_CHAR_BUFFER_SIZE + 1),
+                "\"",
+                repeat('C', 10)
         ));
     }
 
-    private static void assertWrite(QuickWriter writer, Sample sample) throws IOException {
-        assertThat(writer.writeValue(sample.getRows(), Row::write, UTF_8, sample.getFormat()))
-                .isEqualTo(sample.getContent());
+    private static Sample getOverflowSample(String... fields) {
+        return Sample
+                .builder()
+                .name("overflow")
+                .format(Csv.Format.RFC4180)
+                .content(String.join(",", fields).replace("\"", "\"\"\"\"") + "\r\n")
+                .rowOf(fields)
+                .build();
     }
 
-    private static int expectedSize(Sample sample) {
-        int length = sample.getContent().length();
-        if (length == 0) {
-            return 0;
-        }
-        String eol = getEolString(sample.getFormat().getSeparator());
-        return sample.getContent().endsWith(eol) ? length : length + eol.length();
+    private static String writeToString(QuickWriter.VoidFormatter formatter) throws IOException {
+        return QuickWriter.CHAR_WRITER.write(formatter, null, Csv.Format.RFC4180);
     }
 
-    private static String getEolString(Csv.NewLine newLine) {
+    private static String repeat(char c, int length) {
+        char[] result = new char[length];
+        Arrays.fill(result, c);
+        return String.valueOf(result);
+    }
+
+    private static void assertValid(QuickWriter writer, Charset encoding, Sample sample) throws IOException {
+        assertThat(writer.writeValue(sample.getRows(), Row::write, encoding, sample.getFormat()))
+                .describedAs("Writing '%s' with '%s'", sample.getName(), writer)
+                .isEqualTo(sample.getContent() + getMissingEOL(sample));
+    }
+
+    private static String getMissingEOL(Sample sample) {
+        return sample.isWithoutEOL() ? getEOLString(sample.getFormat().getSeparator()) : "";
+    }
+
+    private static String getEOLString(Csv.NewLine newLine) {
         switch (newLine) {
             case MACINTOSH:
                 return "\r";
@@ -187,6 +232,4 @@ public class CsvWriterTest {
                 throw new RuntimeException();
         }
     }
-
-    private final Csv.Format illegalFormat = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
 }
