@@ -214,6 +214,41 @@
             </build>
         </profile>
                 
+        <!-- Enforce dependency rules -->
+        <profile>
+            <id>enforce-dependency-rules</id>
+            <activation>
+                <property>
+                    <name>!skipEnforceDependencyRules</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>3.0.0-M3</version>
+                        <executions>
+                            <execution>
+                                <id>enforce</id>
+                                <configuration>
+                                    <rules>
+                                        <requireMavenVersion>
+                                            <version>3.3.9</version>
+                                        </requireMavenVersion>
+                                        <DependencyConvergence/>
+                                    </rules>
+                                </configuration>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Optional checks -->
         <profile>
             <id>optional-checks</id>
