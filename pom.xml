@@ -280,9 +280,14 @@
             </build>
         </profile>
 
-        <!-- Optional checks -->
+        <!-- Enforce code coverage -->
         <profile>
-            <id>optional-checks</id>
+            <id>enforce-code-coverage</id>
+            <activation>
+                <property>
+                    <name>!skipEnforceCodeCoverage</name>
+                </property>
+            </activation>
             <build>
                 <plugins>
                     <plugin>
