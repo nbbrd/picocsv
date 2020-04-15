@@ -51,6 +51,10 @@ public class Sample {
 
     private boolean withoutEOL;
 
+    public Sample withNewLine(Csv.NewLine newLine) {
+        return withFormat(getFormat().toBuilder().separator(newLine).build());
+    }
+
     public static final class Builder {
 
         public Builder rowOf(String... fields) {

@@ -58,6 +58,26 @@ public class CsvReaderTest {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), UTF_8, ILLEGAL_FORMAT))
                 .withMessageContaining("format");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of((Path) null, UTF_8, RFC4180, Csv.Parsing.STRICT))
+                .withMessageContaining("file");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), null, RFC4180, Csv.Parsing.STRICT))
+                .withMessageContaining("encoding");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), UTF_8, null, Csv.Parsing.STRICT))
+                .withMessageContaining("format");
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), UTF_8, ILLEGAL_FORMAT, Csv.Parsing.STRICT))
+                .withMessageContaining("format");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputFile("", UTF_8), UTF_8, RFC4180, null))
+                .withMessageContaining("options");
     }
 
     @Test
@@ -77,6 +97,26 @@ public class CsvReaderTest {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), UTF_8, ILLEGAL_FORMAT))
                 .withMessageContaining("format");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of((InputStream) null, UTF_8, RFC4180, Csv.Parsing.STRICT))
+                .withMessageContaining("stream");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), null, RFC4180, Csv.Parsing.STRICT))
+                .withMessageContaining("encoding");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), UTF_8, null, Csv.Parsing.STRICT))
+                .withMessageContaining("format");
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), UTF_8, ILLEGAL_FORMAT, Csv.Parsing.STRICT))
+                .withMessageContaining("format");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newInputStream("", UTF_8), UTF_8, RFC4180, null))
+                .withMessageContaining("options");
     }
 
     @Test
@@ -92,6 +132,22 @@ public class CsvReaderTest {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Reader.of(QuickReader.newCharReader(""), ILLEGAL_FORMAT))
                 .withMessageContaining("format");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of((Reader) null, RFC4180, Csv.Parsing.STRICT))
+                .withMessageContaining("charReader");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newCharReader(""), null, Csv.Parsing.STRICT))
+                .withMessageContaining("format");
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newCharReader(""), ILLEGAL_FORMAT, Csv.Parsing.STRICT))
+                .withMessageContaining("format");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of(QuickReader.newCharReader(""), RFC4180, null))
+                .withMessageContaining("options");
     }
 
     @Test
@@ -99,7 +155,10 @@ public class CsvReaderTest {
         for (QuickReader reader : QuickReader.values()) {
             for (Charset encoding : Sample.CHARSETS) {
                 for (Sample sample : Sample.SAMPLES) {
-                    assertValid(reader, encoding, sample);
+                    assertValid(reader, encoding, sample, Csv.Parsing.STRICT);
+                    for (Csv.NewLine newLine : Csv.NewLine.values()) {
+                        assertValid(reader, encoding, sample.withNewLine(newLine), Csv.Parsing.LENIENT);
+                    }
                 }
             }
         }
@@ -113,11 +172,11 @@ public class CsvReaderTest {
                     switch (sample.getRows().size()) {
                         case 0:
                         case 1:
-                            assertThat(reader.readValue(this::skipFirst, encoding, sample.getFormat(), sample.getContent()))
+                            assertThat(reader.readValue(this::skipFirst, encoding, sample.getFormat(), sample.getContent(), Csv.Parsing.STRICT))
                                     .isEmpty();
                             break;
                         default:
-                            assertThat(reader.readValue(this::skipFirst, encoding, sample.getFormat(), sample.getContent()))
+                            assertThat(reader.readValue(this::skipFirst, encoding, sample.getFormat(), sample.getContent(), Csv.Parsing.STRICT))
                                     .element(0)
                                     .isEqualTo(sample.getRows().get(1));
                             break;
@@ -140,7 +199,7 @@ public class CsvReaderTest {
             for (Charset encoding : Sample.CHARSETS) {
                 for (Sample sample : Sample.SAMPLES) {
                     assertThatIllegalStateException()
-                            .isThrownBy(() -> reader.read(readFieldBeforeLine, encoding, sample.getFormat(), sample.getContent()));
+                            .isThrownBy(() -> reader.read(readFieldBeforeLine, encoding, sample.getFormat(), sample.getContent(), Csv.Parsing.STRICT));
                 }
             }
         }
@@ -157,7 +216,7 @@ public class CsvReaderTest {
                 .build();
 
         for (QuickReader type : QuickReader.values()) {
-            assertValid(type, UTF_8, invalidButStillOk);
+            assertValid(type, UTF_8, invalidButStillOk, Csv.Parsing.STRICT);
         }
     }
 
@@ -174,7 +233,7 @@ public class CsvReaderTest {
                 .build();
 
         for (QuickReader type : QuickReader.values()) {
-            assertValid(type, UTF_8, overflow);
+            assertValid(type, UTF_8, overflow, Csv.Parsing.STRICT);
         }
     }
 
@@ -234,11 +293,11 @@ public class CsvReaderTest {
     }
 
     private static void assertValid(Sample sample) throws IOException {
-        assertValid(QuickReader.CHAR_READER, UTF_8, sample);
+        assertValid(QuickReader.CHAR_READER, UTF_8, sample, Csv.Parsing.STRICT);
     }
 
-    private static void assertValid(QuickReader r, Charset encoding, Sample sample) throws IOException {
-        assertThat(r.readValue(Row::read, encoding, sample.getFormat(), sample.getContent()))
+    private static void assertValid(QuickReader r, Charset encoding, Sample sample, Csv.Parsing options) throws IOException {
+        assertThat(r.readValue(Row::read, encoding, sample.getFormat(), sample.getContent(), options))
                 .describedAs("Reading '%s' with '%s'", sample.getName(), r)
                 .containsExactlyElementsOf(sample.getRows());
     }
