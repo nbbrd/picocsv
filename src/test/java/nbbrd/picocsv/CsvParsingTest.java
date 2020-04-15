@@ -17,45 +17,28 @@
 package nbbrd.picocsv;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import org.junit.Test;
 
 /**
  *
  * @author Philippe Charles
  */
-public class CsvFormatTest {
-
-    @Test
-    public void testFactories() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Format.builder().build())
-                .withMessageContaining("separator");
-    }
-
-    @Test
-    public void testToBuilder() {
-        assertThat(Csv.Format.DEFAULT.toBuilder().build())
-                .isEqualTo(Csv.Format.DEFAULT);
-
-        assertThat(Csv.Format.EXCEL.toBuilder().build())
-                .isEqualTo(Csv.Format.EXCEL);
-    }
+public class CsvParsingTest {
 
     @Test
     public void testEqualsAndHashcode() {
-        assertThat(Csv.Format.DEFAULT)
-                .isEqualTo(Csv.Format.DEFAULT)
-                .hasSameHashCodeAs(Csv.Format.DEFAULT)
-                .isNotEqualTo(Csv.Format.EXCEL)
+        assertThat(Csv.Parsing.STRICT)
+                .isEqualTo(Csv.Parsing.STRICT)
+                .hasSameHashCodeAs(Csv.Parsing.STRICT)
+                .isNotEqualTo(Csv.Parsing.LENIENT)
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
     }
 
     @Test
     public void testToString() {
-        assertThat(Csv.Format.DEFAULT.toString())
-                .isEqualTo(Csv.Format.DEFAULT.toString())
-                .isNotEqualTo(Csv.Format.EXCEL.toString());
+        assertThat(Csv.Parsing.STRICT.toString())
+                .isEqualTo(Csv.Parsing.STRICT.toString())
+                .isNotEqualTo(Csv.Parsing.LENIENT.toString());
     }
 }

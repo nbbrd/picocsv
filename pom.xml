@@ -4,7 +4,7 @@
 
     <groupId>be.nbb.rd</groupId>
     <artifactId>picocsv</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
 
     <name>picocsv</name>
@@ -32,13 +32,13 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <version>4.13</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.14.0</version>
+            <version>3.15.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -98,8 +98,8 @@
                 </property>
             </activation>
             <properties>
-                <lombok.version>1.18.10</lombok.version>
-                <jmh.version>1.22</jmh.version>
+                <lombok.version>1.18.12</lombok.version>
+                <jmh.version>1.23</jmh.version>
             </properties>
             <dependencyManagement>
                 <dependencies>
@@ -214,18 +214,60 @@
             </build>
         </profile>
                 
-        <!-- Optional checks -->
+        <!-- Enforce dependency rules -->
         <profile>
-            <id>optional-checks</id>
+            <id>enforce-dependency-rules</id>
+            <activation>
+                <property>
+                    <name>!skipEnforceDependencyRules</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>3.0.0-M3</version>
+                        <executions>
+                            <execution>
+                                <id>enforce</id>
+                                <configuration>
+                                    <rules>
+                                        <requireMavenVersion>
+                                            <version>3.3.9</version>
+                                        </requireMavenVersion>
+                                        <DependencyConvergence/>
+                                        <requireReleaseDeps>
+                                            <onlyWhenRelease>true</onlyWhenRelease>
+                                        </requireReleaseDeps>
+                                    </rules>
+                                </configuration>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Enforce modern API -->
+        <profile>
+            <id>enforce-modern-api</id>
+            <activation>
+                <property>
+                    <name>!skipEnforceModernAPI</name>
+                </property>
+            </activation>
             <build>
                 <plugins>
                     <plugin>
                         <groupId>org.gaul</groupId>
                         <artifactId>modernizer-maven-plugin</artifactId>
-                        <version>2.0.0</version>
+                        <version>2.1.0</version>
                         <configuration>
                             <javaVersion>1.8</javaVersion>
-                            <!--<failOnViolations>false</failOnViolations>-->
                         </configuration>
                         <executions>
                             <execution>
@@ -237,6 +279,20 @@
                             </execution>
                         </executions>
                     </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Enforce code coverage -->
+        <profile>
+            <id>enforce-code-coverage</id>
+            <activation>
+                <property>
+                    <name>!skipEnforceCodeCoverage</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
                     <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId> 
@@ -279,7 +335,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>3.2.1</version>
                         <executions>
                             <execution>
                                 <phase>verify</phase>
@@ -312,7 +368,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>3.2.1</version>
                         <executions>
                             <execution>
                                 <phase>verify</phase>

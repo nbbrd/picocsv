@@ -36,9 +36,9 @@ public enum QuickReader {
 
     BYTE_ARRAY(StreamType.STREAM) {
         @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException {
+        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
             try (InputStream stream = newInputStream(input, encoding)) {
-                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format)) {
+                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format, options)) {
                     return parser.accept(reader);
                 }
             }
@@ -46,19 +46,19 @@ public enum QuickReader {
     },
     FILE(StreamType.FILE) {
         @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException {
+        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
             Path file = newInputFile(input, encoding);
-            try (Csv.Reader reader = Csv.Reader.of(file, encoding, format)) {
+            try (Csv.Reader reader = Csv.Reader.of(file, encoding, format, options)) {
                 return parser.accept(reader);
             }
         }
     },
     FILE_STREAM(StreamType.STREAM) {
         @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException {
+        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
             Path file = newInputFile(input, encoding);
             try (InputStream stream = Files.newInputStream(file)) {
-                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format)) {
+                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format, options)) {
                     return parser.accept(reader);
                 }
             }
@@ -66,9 +66,9 @@ public enum QuickReader {
     },
     CHAR_READER(StreamType.OBJECT) {
         @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException {
+        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
             try (Reader object = newCharReader(input)) {
-                try (Csv.Reader reader = Csv.Reader.of(object, format)) {
+                try (Csv.Reader reader = Csv.Reader.of(object, format, options)) {
                     return parser.accept(reader);
                 }
             }
@@ -78,13 +78,13 @@ public enum QuickReader {
     @lombok.Getter
     private final StreamType type;
 
-    abstract public <T> T readValue(Parser<T> parser, Charset encoding, Csv.Format format, String input) throws IOException;
+    abstract public <T> T readValue(Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException;
 
-    public void read(VoidParser parser, Charset encoding, Csv.Format format, String input) throws IOException {
+    public void read(VoidParser parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
         readValue(stream -> {
             parser.accept(stream);
             return null;
-        }, encoding, format, input);
+        }, encoding, format, input, options);
     }
 
     @FunctionalInterface

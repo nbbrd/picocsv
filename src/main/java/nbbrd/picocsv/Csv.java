@@ -222,6 +222,64 @@ public final class Csv {
     }
 
     /**
+     * Specifies the reader options.
+     */
+    public static final class Parsing {
+
+        public static final Parsing STRICT = new Parsing(false);
+        public static final Parsing LENIENT = new Parsing(true);
+
+        private final boolean lenientSeparator;
+
+        private Parsing(boolean lenientSeparator) {
+            this.lenientSeparator = lenientSeparator;
+        }
+
+        /**
+         * Determine if the separator is parsed leniently or not. If set to
+         * true, the reader follows the same behavior as BufferedReader: <i>a
+         * line is considered to be terminated by any one of a line feed ('\n'),
+         * a carriage return ('\r'), a carriage return followed immediately by a
+         * line feed, or by reaching the end-of-file (EOF)</i>.
+         *
+         * @return true if lenient parsing of separator, false otherwise
+         */
+        public boolean isLenientSeparator() {
+            return lenientSeparator;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 37 * hash + Boolean.hashCode(lenientSeparator);
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final Parsing other = (Parsing) obj;
+            if (this.lenientSeparator != other.lenientSeparator) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return "ReaderOptions{" + "lenientSeparator=" + lenientSeparator + '}';
+        }
+    }
+
+    /**
      * Reads CSV files.
      */
     public static final class Reader implements Closeable, CharSequence {
@@ -238,9 +296,26 @@ public final class Csv {
          * @throws IOException if an I/O error occurs
          */
         public static Reader of(Path file, Charset encoding, Format format) throws IllegalArgumentException, IOException {
+            return of(file, encoding, format, Parsing.STRICT);
+        }
+
+        /**
+         * Creates a new instance from a file.
+         *
+         * @param file a non-null file
+         * @param encoding a non-null encoding
+         * @param format a non-null format
+         * @param options non-null options
+         * @return a new CSV reader
+         * @throws IllegalArgumentException if the format contains an invalid
+         * combination of options
+         * @throws IOException if an I/O error occurs
+         */
+        public static Reader of(Path file, Charset encoding, Format format, Parsing options) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(file, "file");
             Objects.requireNonNull(encoding, "encoding");
             Objects.requireNonNull(format, "format");
+            Objects.requireNonNull(options, "options");
 
             if (!format.isValid()) {
                 throw new IllegalArgumentException("format");
@@ -248,7 +323,7 @@ public final class Csv {
 
             CharsetDecoder decoder = encoding.newDecoder();
             BufferSizes sizes = BufferSizes.of(file, decoder);
-            return make(format, sizes.chars, newCharReader(file, decoder, sizes.bytes));
+            return make(format, sizes.chars, newCharReader(file, decoder, sizes.bytes), options);
         }
 
         /**
@@ -263,9 +338,26 @@ public final class Csv {
          * @throws IOException if an I/O error occurs
          */
         public static Reader of(InputStream stream, Charset encoding, Format format) throws IllegalArgumentException, IOException {
+            return of(stream, encoding, format, Parsing.STRICT);
+        }
+
+        /**
+         * Creates a new instance from a stream.
+         *
+         * @param stream a non-null stream
+         * @param encoding a non-null encoding
+         * @param format a non-null format
+         * @param options non-null options
+         * @return a new CSV reader
+         * @throws IllegalArgumentException if the format contains an invalid
+         * combination of options
+         * @throws IOException if an I/O error occurs
+         */
+        public static Reader of(InputStream stream, Charset encoding, Format format, Parsing options) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(stream, "stream");
             Objects.requireNonNull(encoding, "encoding");
             Objects.requireNonNull(format, "format");
+            Objects.requireNonNull(options, "options");
 
             if (!format.isValid()) {
                 throw new IllegalArgumentException("format");
@@ -273,7 +365,7 @@ public final class Csv {
 
             CharsetDecoder decoder = encoding.newDecoder();
             BufferSizes sizes = BufferSizes.of(stream, decoder);
-            return make(format, sizes.chars, new InputStreamReader(stream, decoder));
+            return make(format, sizes.chars, new InputStreamReader(stream, decoder), options);
         }
 
         /**
@@ -287,23 +379,39 @@ public final class Csv {
          * @throws IOException if an I/O error occurs
          */
         public static Reader of(java.io.Reader charReader, Format format) throws IllegalArgumentException, IOException {
+            return of(charReader, format, Parsing.STRICT);
+        }
+
+        /**
+         * Creates a new instance from a char reader.
+         *
+         * @param charReader a non-null char reader
+         * @param format a non-null format
+         * @param options non-null options
+         * @return a new CSV reader
+         * @throws IllegalArgumentException if the format contains an invalid
+         * combination of options
+         * @throws IOException if an I/O error occurs
+         */
+        public static Reader of(java.io.Reader charReader, Format format, Parsing options) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(charReader, "charReader");
             Objects.requireNonNull(format, "format");
+            Objects.requireNonNull(options, "options");
 
             if (!format.isValid()) {
                 throw new IllegalArgumentException("format");
             }
 
             BufferSizes sizes = BufferSizes.EMPTY;
-            return make(format, sizes.chars, charReader);
+            return make(format, sizes.chars, charReader, options);
         }
 
-        private static Reader make(Format format, OptionalInt charBufferSize, java.io.Reader charReader) {
+        private static Reader make(Format format, OptionalInt charBufferSize, java.io.Reader charReader, Parsing options) {
             int size = BufferSizes.getSize(charBufferSize, BufferSizes.DEFAULT_CHAR_BUFFER_SIZE);
             return new Reader(
-                    format.getSeparator() == NewLine.WINDOWS ? new ReadAheadInput(charReader, size) : new Input(charReader, size),
+                    ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, size) : new Input(charReader, size),
                     format.getQuote(), format.getDelimiter(),
-                    EndOfLineReader.of(format.getSeparator()));
+                    EndOfLineReader.of(format, options));
         }
 
         private final Input input;
@@ -543,6 +651,10 @@ public final class Csv {
 
         private static final class ReadAheadInput extends Input {
 
+            static boolean isNeeded(Format format, Parsing options) {
+                return options.isLenientSeparator() || format.getSeparator() == NewLine.WINDOWS;
+            }
+
             private static final int NULL = -2;
             private int readAhead;
 
@@ -578,23 +690,50 @@ public final class Csv {
             static final int CR_CODE = NewLine.CR;
             static final int LF_CODE = NewLine.LF;
 
-            static EndOfLineReader of(NewLine newLine) {
-                switch (newLine) {
+            static EndOfLineReader of(Format format, Parsing options) {
+                if (options.isLenientSeparator()) {
+                    return EndOfLineReader::isLenient;
+                }
+                switch (format.getSeparator()) {
                     case MACINTOSH:
-                        return (code, input) -> code == CR_CODE;
+                        return EndOfLineReader::isMacintosh;
                     case UNIX:
-                        return (code, input) -> code == LF_CODE;
+                        return EndOfLineReader::isUnix;
                     case WINDOWS:
-                        return (code, input) -> {
-                            if (code == CR_CODE && ((ReadAheadInput) input).peek(LF_CODE)) {
-                                ((ReadAheadInput) input).discardAheadOfTimeChar();
-                                return true;
-                            }
-                            return false;
-                        };
+                        return EndOfLineReader::isWindows;
                     default:
                         throw new RuntimeException();
                 }
+            }
+
+            static boolean isLenient(int code, Input input) throws IOException {
+                switch (code) {
+                    case LF_CODE:
+                        return true;
+                    case CR_CODE:
+                        if (((ReadAheadInput) input).peek(LF_CODE)) {
+                            ((ReadAheadInput) input).discardAheadOfTimeChar();
+                        }
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+
+            static boolean isMacintosh(int code, Input input) throws IOException {
+                return code == CR_CODE;
+            }
+
+            static boolean isUnix(int code, Input input) throws IOException {
+                return code == LF_CODE;
+            }
+
+            static boolean isWindows(int code, Input input) throws IOException {
+                if (code == CR_CODE && ((ReadAheadInput) input).peek(LF_CODE)) {
+                    ((ReadAheadInput) input).discardAheadOfTimeChar();
+                    return true;
+                }
+                return false;
             }
         }
 
