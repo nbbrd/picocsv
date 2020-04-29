@@ -8,7 +8,7 @@ Key points:
 - ligthweight library with no dependency
 - Java 8 minimum requirement
 - designed to be embeddable into other libraries
-- has an automatic module name that makes it compatible with [JPMS](https://www.baeldung.com/java-9-modularity) 
+- has a module-info that makes it compatible with [JPMS](https://www.baeldung.com/java-9-modularity) 
 
 Features:
 - reads/writes CSV from/to files and streams
