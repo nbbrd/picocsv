@@ -1,28 +1,22 @@
 /*
  * Copyright 2019 National Bank of Belgium
- * 
- * Licensed under the EUPL, Version 1.1 or - as soon they will be approved 
+ *
+ * Licensed under the EUPL, Version 1.1 or - as soon they will be approved
  * by the European Commission - subsequent versions of the EUPL (the "Licence");
  * You may not use this work except in compliance with the Licence.
  * You may obtain a copy of the Licence at:
- * 
+ *
  * http://ec.europa.eu/idabc/eupl
- * 
- * Unless required by applicable law or agreed to in writing, software 
+ *
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the Licence is distributed on an "AS IS" basis,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the Licence for the specific language governing permissions and 
+ * See the Licence for the specific language governing permissions and
  * limitations under the Licence.
  */
 package nbbrd.picocsv;
 
-import java.io.BufferedOutputStream;
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.nio.channels.Channels;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
@@ -36,7 +30,6 @@ import java.util.OptionalInt;
 import java.util.function.IntConsumer;
 
 /**
- *
  * @author Philippe Charles
  */
 public final class Csv {
@@ -48,7 +41,7 @@ public final class Csv {
     /**
      * Character used to signify the end of a line.
      *
-     * @see https://en.wikipedia.org/wiki/Newline
+     * @see <a href="https://en.wikipedia.org/wiki/Newline">https://en.wikipedia.org/wiki/Newline</a>
      */
     public enum NewLine {
 
@@ -101,7 +94,7 @@ public final class Csv {
         }
 
         /**
-         * Character used to separate lines in the input.
+         * Character used to separate lines.
          *
          * @return a non-null line separator
          */
@@ -110,18 +103,18 @@ public final class Csv {
         }
 
         /**
-         * Delimiting character of the input.
+         * Character used to delimit the values.
          *
-         * @return
+         * @return the delimiting character
          */
         public char getDelimiter() {
             return delimiter;
         }
 
         /**
-         * Character used to quote strings in the input.
+         * Character used to encapsulate values containing special characters.
          *
-         * @return
+         * @return the quoting character
          */
         public char getQuote() {
             return quote;
@@ -285,16 +278,9 @@ public final class Csv {
     public static final class Reader implements Closeable, CharSequence {
 
         /**
-         * Creates a new instance from a file.
-         *
-         * @param file a non-null file
-         * @param encoding a non-null encoding
-         * @param format a non-null format
-         * @return a new CSV reader
-         * @throws IllegalArgumentException if the format contains an invalid
-         * combination of options
-         * @throws IOException if an I/O error occurs
+         * @deprecated replaced by {@link #of(Path, Charset, Format, Parsing)}
          */
+        @Deprecated
         public static Reader of(Path file, Charset encoding, Format format) throws IllegalArgumentException, IOException {
             return of(file, encoding, format, Parsing.STRICT);
         }
@@ -302,24 +288,21 @@ public final class Csv {
         /**
          * Creates a new instance from a file.
          *
-         * @param file a non-null file
+         * @param file     a non-null file
          * @param encoding a non-null encoding
-         * @param format a non-null format
-         * @param options non-null options
+         * @param format   a non-null format
+         * @param options  non-null options
          * @return a new CSV reader
          * @throws IllegalArgumentException if the format contains an invalid
-         * combination of options
-         * @throws IOException if an I/O error occurs
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
          */
         public static Reader of(Path file, Charset encoding, Format format, Parsing options) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(file, "file");
             Objects.requireNonNull(encoding, "encoding");
             Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
-
-            if (!format.isValid()) {
-                throw new IllegalArgumentException("format");
-            }
+            requireValid(format, "format");
 
             CharsetDecoder decoder = encoding.newDecoder();
             BufferSizes sizes = BufferSizes.of(file, decoder);
@@ -327,16 +310,9 @@ public final class Csv {
         }
 
         /**
-         * Creates a new instance from a stream.
-         *
-         * @param stream a non-null stream
-         * @param encoding a non-null encoding
-         * @param format a non-null format
-         * @return a new CSV reader
-         * @throws IllegalArgumentException if the format contains an invalid
-         * combination of options
-         * @throws IOException if an I/O error occurs
+         * @deprecated replaced by {@link #of(InputStream, Charset, Format, Parsing)}
          */
+        @Deprecated
         public static Reader of(InputStream stream, Charset encoding, Format format) throws IllegalArgumentException, IOException {
             return of(stream, encoding, format, Parsing.STRICT);
         }
@@ -344,24 +320,21 @@ public final class Csv {
         /**
          * Creates a new instance from a stream.
          *
-         * @param stream a non-null stream
+         * @param stream   a non-null stream
          * @param encoding a non-null encoding
-         * @param format a non-null format
-         * @param options non-null options
+         * @param format   a non-null format
+         * @param options  non-null options
          * @return a new CSV reader
          * @throws IllegalArgumentException if the format contains an invalid
-         * combination of options
-         * @throws IOException if an I/O error occurs
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
          */
         public static Reader of(InputStream stream, Charset encoding, Format format, Parsing options) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(stream, "stream");
             Objects.requireNonNull(encoding, "encoding");
             Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
-
-            if (!format.isValid()) {
-                throw new IllegalArgumentException("format");
-            }
+            requireValid(format, "format");
 
             CharsetDecoder decoder = encoding.newDecoder();
             BufferSizes sizes = BufferSizes.of(stream, decoder);
@@ -369,15 +342,9 @@ public final class Csv {
         }
 
         /**
-         * Creates a new instance from a char reader.
-         *
-         * @param charReader a non-null char reader
-         * @param format a non-null format
-         * @return a new CSV reader
-         * @throws IllegalArgumentException if the format contains an invalid
-         * combination of options
-         * @throws IOException if an I/O error occurs
+         * @deprecated replaced by {@link #of(java.io.Reader, Format, Parsing)}
          */
+        @Deprecated
         public static Reader of(java.io.Reader charReader, Format format) throws IllegalArgumentException, IOException {
             return of(charReader, format, Parsing.STRICT);
         }
@@ -386,21 +353,18 @@ public final class Csv {
          * Creates a new instance from a char reader.
          *
          * @param charReader a non-null char reader
-         * @param format a non-null format
-         * @param options non-null options
+         * @param format     a non-null format
+         * @param options    non-null options
          * @return a new CSV reader
          * @throws IllegalArgumentException if the format contains an invalid
-         * combination of options
-         * @throws IOException if an I/O error occurs
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
          */
         public static Reader of(java.io.Reader charReader, Format format, Parsing options) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(charReader, "charReader");
             Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
-
-            if (!format.isValid()) {
-                throw new IllegalArgumentException("format");
-            }
+            requireValid(format, "format");
 
             BufferSizes sizes = BufferSizes.EMPTY;
             return make(format, sizes.chars, charReader, options);
@@ -655,21 +619,21 @@ public final class Csv {
                 return options.isLenientSeparator() || format.getSeparator() == NewLine.WINDOWS;
             }
 
-            private static final int NULL = -2;
+            private static final int NULL_CODE = -2;
             private int readAhead;
 
             private ReadAheadInput(java.io.Reader charReader, int bufferSize) {
                 super(charReader, bufferSize);
-                this.readAhead = NULL;
+                this.readAhead = NULL_CODE;
             }
 
             @Override
             public int read() throws IOException {
-                if (readAhead == NULL) {
+                if (readAhead == NULL_CODE) {
                     return super.read();
                 }
                 int result = readAhead;
-                readAhead = NULL;
+                readAhead = NULL_CODE;
                 return result;
             }
 
@@ -678,7 +642,7 @@ public final class Csv {
             }
 
             public void discardAheadOfTimeChar() throws IOException {
-                readAhead = NULL;
+                readAhead = NULL_CODE;
             }
         }
 
@@ -687,8 +651,8 @@ public final class Csv {
 
             boolean isEndOfLine(int code, Input input) throws IOException;
 
-            static final int CR_CODE = NewLine.CR;
-            static final int LF_CODE = NewLine.LF;
+            int CR_CODE = NewLine.CR;
+            int LF_CODE = NewLine.LF;
 
             static EndOfLineReader of(Format format, Parsing options) {
                 if (options.isLenientSeparator()) {
@@ -750,22 +714,19 @@ public final class Csv {
         /**
          * Creates a new instance from a file.
          *
-         * @param file a non-null file
+         * @param file     a non-null file
          * @param encoding a non-null encoding
-         * @param format a non-null format
+         * @param format   a non-null format
          * @return a new CSV writer
          * @throws IllegalArgumentException if the format contains an invalid
-         * combination of options
-         * @throws IOException if an I/O error occurs
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
          */
-        public static Writer of(Path file, Charset encoding, Format format) throws IOException {
+        public static Writer of(Path file, Charset encoding, Format format) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(file, "file");
             Objects.requireNonNull(encoding, "encoding");
             Objects.requireNonNull(format, "format");
-
-            if (!format.isValid()) {
-                throw new IllegalArgumentException("format");
-            }
+            requireValid(format, "format");
 
             CharsetEncoder encoder = encoding.newEncoder();
             BufferSizes sizes = BufferSizes.of(file, encoder);
@@ -775,22 +736,19 @@ public final class Csv {
         /**
          * Creates a new instance from a stream.
          *
-         * @param stream a non-null stream
+         * @param stream   a non-null stream
          * @param encoding a non-null encoding
-         * @param format a non-null format
+         * @param format   a non-null format
          * @return a new CSV writer
          * @throws IllegalArgumentException if the format contains an invalid
-         * combination of options
-         * @throws IOException if an I/O error occurs
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
          */
-        public static Writer of(OutputStream stream, Charset encoding, Format format) throws IOException {
+        public static Writer of(OutputStream stream, Charset encoding, Format format) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(stream, "stream");
             Objects.requireNonNull(encoding, "encoding");
             Objects.requireNonNull(format, "format");
-
-            if (!format.isValid()) {
-                throw new IllegalArgumentException("format");
-            }
+            requireValid(format, "format");
 
             CharsetEncoder encoder = encoding.newEncoder();
             BufferSizes sizes = BufferSizes.of(stream, encoder);
@@ -801,19 +759,16 @@ public final class Csv {
          * Creates a new instance from a char writer.
          *
          * @param charWriter a non-null char writer
-         * @param format a non-null format
+         * @param format     a non-null format
          * @return a new CSV writer
          * @throws IllegalArgumentException if the format contains an invalid
-         * combination of options
-         * @throws IOException if an I/O error occurs
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
          */
-        public static Writer of(java.io.Writer charWriter, Format format) throws IOException {
+        public static Writer of(java.io.Writer charWriter, Format format) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(charWriter, "charWriter");
             Objects.requireNonNull(format, "format");
-
-            if (!format.isValid()) {
-                throw new IllegalArgumentException("format");
-            }
+            requireValid(format, "format");
 
             BufferSizes sizes = BufferSizes.EMPTY;
             return make(format, sizes.chars, charWriter);
@@ -1105,5 +1060,12 @@ public final class Csv {
             }
             return defaultValue;
         }
+    }
+
+    private static Format requireValid(Format format, String message) throws IllegalArgumentException {
+        if (!format.isValid()) {
+            throw new IllegalArgumentException(message);
+        }
+        return format;
     }
 }
