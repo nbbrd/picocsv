@@ -26,7 +26,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.OptionalInt;
 import java.util.function.IntConsumer;
 
 /**
@@ -306,7 +305,7 @@ public final class Csv {
 
             CharsetDecoder decoder = encoding.newDecoder();
             BufferSizes sizes = BufferSizes.of(file, decoder);
-            return make(format, sizes.chars, newCharReader(file, decoder, sizes.bytes), options);
+            return make(format, sizes.chars, sizes.newCharReader(file, decoder), options);
         }
 
         /**
@@ -370,8 +369,8 @@ public final class Csv {
             return make(format, sizes.chars, charReader, options);
         }
 
-        private static Reader make(Format format, OptionalInt charBufferSize, java.io.Reader charReader, Parsing options) {
-            int size = BufferSizes.getSize(charBufferSize, BufferSizes.DEFAULT_CHAR_BUFFER_SIZE);
+        private static Reader make(Format format, int charBufferSize, java.io.Reader charReader, Parsing options) {
+            int size = BufferSizes.getValidSize(charBufferSize, BufferSizes.DEFAULT_CHAR_BUFFER_SIZE);
             return new Reader(
                     ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, size) : new Input(charReader, size),
                     format.getQuote(), format.getDelimiter(),
@@ -700,10 +699,6 @@ public final class Csv {
                 return false;
             }
         }
-
-        private static java.io.Reader newCharReader(Path file, CharsetDecoder decoder, OptionalInt byteBufferSize) throws IOException {
-            return Channels.newReader(Files.newByteChannel(file, StandardOpenOption.READ), decoder, byteBufferSize.orElse(-1));
-        }
     }
 
     /**
@@ -730,7 +725,7 @@ public final class Csv {
 
             CharsetEncoder encoder = encoding.newEncoder();
             BufferSizes sizes = BufferSizes.of(file, encoder);
-            return make(format, sizes.chars, newCharWriter(file, encoder, sizes.bytes));
+            return make(format, sizes.chars, sizes.newCharWriter(file, encoder));
         }
 
         /**
@@ -774,8 +769,8 @@ public final class Csv {
             return make(format, sizes.chars, charWriter);
         }
 
-        private static Writer make(Format format, OptionalInt charBufferSize, java.io.Writer charWriter) {
-            int size = BufferSizes.getSize(charBufferSize, BufferSizes.DEFAULT_CHAR_BUFFER_SIZE);
+        private static Writer make(Format format, int charBufferSize, java.io.Writer charWriter) {
+            int size = BufferSizes.getValidSize(charBufferSize, BufferSizes.DEFAULT_CHAR_BUFFER_SIZE);
             return new Writer(
                     new Output(charWriter, size),
                     format.getQuote(), format.getDelimiter(),
@@ -971,10 +966,6 @@ public final class Csv {
                 }
             }
         }
-
-        private static java.io.Writer newCharWriter(Path file, CharsetEncoder encoder, OptionalInt byteBufferSize) throws IOException {
-            return Channels.newWriter(Files.newByteChannel(file, StandardOpenOption.WRITE), encoder, byteBufferSize.orElse(-1));
-        }
     }
 
     static final class BufferSizes {
@@ -982,8 +973,9 @@ public final class Csv {
         static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
         static final int DEFAULT_BLOCK_BUFFER_SIZE = 512;
         static final int DEFAULT_BUFFER_OUTPUT_STREAM_SIZE = 8192;
+        static final int UNKNOWN_SIZE = -1;
 
-        static final BufferSizes EMPTY = new BufferSizes(OptionalInt.empty(), OptionalInt.empty(), OptionalInt.empty());
+        static final BufferSizes EMPTY = new BufferSizes(UNKNOWN_SIZE, UNKNOWN_SIZE, UNKNOWN_SIZE);
 
         static BufferSizes of(Path file, CharsetDecoder decoder) throws IOException {
             return make(getBlockSize(file), decoder.averageCharsPerByte());
@@ -1002,27 +994,36 @@ public final class Csv {
             return make(getBlockSize(stream), 1f / encoder.averageBytesPerChar());
         }
 
-        private static BufferSizes make(OptionalInt byteBlockSize, float averageCharsPerByte) {
-            if (!byteBlockSize.isPresent()) {
+        private static BufferSizes make(int blockSize, float averageCharsPerByte) {
+            if (blockSize == UNKNOWN_SIZE) {
                 return EMPTY;
             }
-            int bytes = getByteBufferSize(byteBlockSize.getAsInt());
-            return new BufferSizes(byteBlockSize, OptionalInt.of(bytes), OptionalInt.of((int) (bytes * averageCharsPerByte)));
+            int bytes = getByteSizeFromBlockSize(blockSize);
+            int chars = (int) (bytes * averageCharsPerByte);
+            return new BufferSizes(blockSize, bytes, chars);
         }
 
-        final OptionalInt block;
-        final OptionalInt bytes;
-        final OptionalInt chars;
+        final int block;
+        final int bytes;
+        final int chars;
 
-        BufferSizes(OptionalInt block, OptionalInt bytes, OptionalInt chars) {
+        BufferSizes(int block, int bytes, int chars) {
             this.block = block;
             this.bytes = bytes;
             this.chars = chars;
         }
 
-        private static int getByteBufferSize(int byteBlockSize) {
-            int tmp = getNextHighestPowerOfTwo(byteBlockSize);
-            return tmp == byteBlockSize ? byteBlockSize * 64 : byteBlockSize;
+        java.io.Reader newCharReader(Path file, CharsetDecoder decoder) throws IOException {
+            return Channels.newReader(Files.newByteChannel(file, StandardOpenOption.READ), decoder, getValidSize(bytes, UNKNOWN_SIZE));
+        }
+
+        java.io.Writer newCharWriter(Path file, CharsetEncoder encoder) throws IOException {
+            return Channels.newWriter(Files.newByteChannel(file, StandardOpenOption.WRITE), encoder, getValidSize(bytes, UNKNOWN_SIZE));
+        }
+
+        private static int getByteSizeFromBlockSize(int blockSize) {
+            int tmp = getNextHighestPowerOfTwo(blockSize);
+            return tmp == blockSize ? blockSize * 64 : blockSize;
         }
 
         private static int getNextHighestPowerOfTwo(int val) {
@@ -1035,30 +1036,22 @@ public final class Csv {
             return val + 1;
         }
 
-        private static OptionalInt getBlockSize(Path file) throws IOException {
+        private static int getBlockSize(Path file) throws IOException {
             Objects.requireNonNull(file);
             // FIXME: JDK10 -> https://docs.oracle.com/javase/10/docs/api/java/nio/file/FileStore.html#getBlockSize()
-            return OptionalInt.of(DEFAULT_BLOCK_BUFFER_SIZE);
+            return DEFAULT_BLOCK_BUFFER_SIZE;
         }
 
-        private static OptionalInt getBlockSize(InputStream stream) throws IOException {
-            int result = stream.available();
-            return result > 0 ? OptionalInt.of(result) : OptionalInt.empty();
+        private static int getBlockSize(InputStream stream) throws IOException {
+            return getValidSize(stream.available(), UNKNOWN_SIZE);
         }
 
-        private static OptionalInt getBlockSize(OutputStream stream) throws IOException {
-            if (stream instanceof BufferedOutputStream) {
-                return OptionalInt.of(DEFAULT_BUFFER_OUTPUT_STREAM_SIZE);
-            }
-            return OptionalInt.empty();
+        private static int getBlockSize(OutputStream stream) throws IOException {
+            return stream instanceof BufferedOutputStream ? DEFAULT_BUFFER_OUTPUT_STREAM_SIZE : UNKNOWN_SIZE;
         }
 
-        static int getSize(OptionalInt value, int defaultValue) {
-            if (value.isPresent()) {
-                int result = value.getAsInt();
-                return result > 0 ? result : defaultValue;
-            }
-            return defaultValue;
+        static int getValidSize(int size, int defaultValue) {
+            return size > 0 ? size : defaultValue;
         }
     }
 
