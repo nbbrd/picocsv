@@ -18,6 +18,7 @@ package nbbrd.picocsv;
 
 import java.io.*;
 import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
@@ -26,6 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntConsumer;
 
 /**
@@ -305,7 +307,8 @@ public final class Csv {
 
             CharsetDecoder decoder = encoding.newDecoder();
             BufferSizes sizes = BufferSizes.of(file, decoder);
-            return make(format, sizes.chars, sizes.newCharReader(file, decoder), options);
+            SeekableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.READ);
+            return make(format, sizes.getCharBufferSize(), sizes.newCharReader(channel, decoder), options);
         }
 
         /**
@@ -337,7 +340,7 @@ public final class Csv {
 
             CharsetDecoder decoder = encoding.newDecoder();
             BufferSizes sizes = BufferSizes.of(stream, decoder);
-            return make(format, sizes.chars, new InputStreamReader(stream, decoder), options);
+            return make(format, sizes.getCharBufferSize(), new InputStreamReader(stream, decoder), options);
         }
 
         /**
@@ -366,13 +369,12 @@ public final class Csv {
             requireValid(format, "format");
 
             BufferSizes sizes = BufferSizes.EMPTY;
-            return make(format, sizes.chars, charReader, options);
+            return make(format, sizes.getCharBufferSize(), charReader, options);
         }
 
         private static Reader make(Format format, int charBufferSize, java.io.Reader charReader, Parsing options) {
-            int size = BufferSizes.getValidSize(charBufferSize, BufferSizes.DEFAULT_CHAR_BUFFER_SIZE);
             return new Reader(
-                    ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, size) : new Input(charReader, size),
+                    ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBufferSize) : new Input(charReader, charBufferSize),
                     format.getQuote(), format.getDelimiter(),
                     EndOfLineReader.of(format, options));
         }
@@ -725,7 +727,8 @@ public final class Csv {
 
             CharsetEncoder encoder = encoding.newEncoder();
             BufferSizes sizes = BufferSizes.of(file, encoder);
-            return make(format, sizes.chars, sizes.newCharWriter(file, encoder));
+            SeekableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.WRITE);
+            return make(format, sizes.getCharBufferSize(), sizes.newCharWriter(channel, encoder));
         }
 
         /**
@@ -747,7 +750,7 @@ public final class Csv {
 
             CharsetEncoder encoder = encoding.newEncoder();
             BufferSizes sizes = BufferSizes.of(stream, encoder);
-            return make(format, sizes.chars, new OutputStreamWriter(stream, encoder));
+            return make(format, sizes.getCharBufferSize(), new OutputStreamWriter(stream, encoder));
         }
 
         /**
@@ -766,13 +769,12 @@ public final class Csv {
             requireValid(format, "format");
 
             BufferSizes sizes = BufferSizes.EMPTY;
-            return make(format, sizes.chars, charWriter);
+            return make(format, sizes.getCharBufferSize(), charWriter);
         }
 
         private static Writer make(Format format, int charBufferSize, java.io.Writer charWriter) {
-            int size = BufferSizes.getValidSize(charBufferSize, BufferSizes.DEFAULT_CHAR_BUFFER_SIZE);
             return new Writer(
-                    new Output(charWriter, size),
+                    new Output(charWriter, charBufferSize),
                     format.getQuote(), format.getDelimiter(),
                     EndOfLineWriter.of(format.getSeparator())
             );
@@ -971,36 +973,38 @@ public final class Csv {
     static final class BufferSizes {
 
         static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
-        static final int DEFAULT_BLOCK_BUFFER_SIZE = 512;
-        static final int DEFAULT_BUFFER_OUTPUT_STREAM_SIZE = 8192;
-        static final int UNKNOWN_SIZE = -1;
+        static final int IMPL_DEPENDENT_MIN_BUFFER_CAP = -1;
 
-        static final BufferSizes EMPTY = new BufferSizes(UNKNOWN_SIZE, UNKNOWN_SIZE, UNKNOWN_SIZE);
+        static final BufferSizes EMPTY = new BufferSizes(-1, -1, -1);
 
         static BufferSizes of(Path file, CharsetDecoder decoder) throws IOException {
-            return make(getBlockSize(file), decoder.averageCharsPerByte());
+            return make(BLOCK_SIZER.get().getBlockSize(file), decoder.averageCharsPerByte());
         }
 
         static BufferSizes of(Path file, CharsetEncoder encoder) throws IOException {
-            return make(getBlockSize(file), 1f / encoder.averageBytesPerChar());
+            return make(BLOCK_SIZER.get().getBlockSize(file), 1f / encoder.averageBytesPerChar());
         }
 
         static BufferSizes of(InputStream stream, CharsetDecoder decoder) throws IOException {
-            return make(getBlockSize(stream), decoder.averageCharsPerByte());
+            return make(BLOCK_SIZER.get().getBlockSize(stream), decoder.averageCharsPerByte());
         }
 
         static BufferSizes of(OutputStream stream, CharsetEncoder encoder) throws IOException {
             Objects.requireNonNull(stream);
-            return make(getBlockSize(stream), 1f / encoder.averageBytesPerChar());
+            return make(BLOCK_SIZER.get().getBlockSize(stream), 1f / encoder.averageBytesPerChar());
         }
 
-        private static BufferSizes make(int blockSize, float averageCharsPerByte) {
-            if (blockSize == UNKNOWN_SIZE) {
+        private static BufferSizes make(long blockSize, float averageCharsPerByte) throws IOException {
+            if (blockSize <= 0) {
                 return EMPTY;
             }
-            int bytes = getByteSizeFromBlockSize(blockSize);
+            if (blockSize > Integer.MAX_VALUE) {
+                throw new IOException("BlockSize overflow: " + blockSize);
+            }
+            int block = (int) blockSize;
+            int bytes = getByteSizeFromBlockSize(block);
             int chars = (int) (bytes * averageCharsPerByte);
-            return new BufferSizes(blockSize, bytes, chars);
+            return new BufferSizes(block, bytes, chars);
         }
 
         final int block;
@@ -1013,12 +1017,20 @@ public final class Csv {
             this.chars = chars;
         }
 
-        java.io.Reader newCharReader(Path file, CharsetDecoder decoder) throws IOException {
-            return Channels.newReader(Files.newByteChannel(file, StandardOpenOption.READ), decoder, getValidSize(bytes, UNKNOWN_SIZE));
+        int getCharBufferSize() {
+            return chars > 0 ? chars : DEFAULT_CHAR_BUFFER_SIZE;
         }
 
-        java.io.Writer newCharWriter(Path file, CharsetEncoder encoder) throws IOException {
-            return Channels.newWriter(Files.newByteChannel(file, StandardOpenOption.WRITE), encoder, getValidSize(bytes, UNKNOWN_SIZE));
+        int getChannelMinBufferCap() {
+            return bytes > 0 ? bytes : IMPL_DEPENDENT_MIN_BUFFER_CAP;
+        }
+
+        java.io.Reader newCharReader(SeekableByteChannel channel, CharsetDecoder decoder) {
+            return Channels.newReader(channel, decoder, getChannelMinBufferCap());
+        }
+
+        java.io.Writer newCharWriter(SeekableByteChannel channel, CharsetEncoder encoder) {
+            return Channels.newWriter(channel, encoder, getChannelMinBufferCap());
         }
 
         private static int getByteSizeFromBlockSize(int blockSize) {
@@ -1035,24 +1047,6 @@ public final class Csv {
             val |= val >> 16;
             return val + 1;
         }
-
-        private static int getBlockSize(Path file) throws IOException {
-            Objects.requireNonNull(file);
-            // FIXME: JDK10 -> https://docs.oracle.com/javase/10/docs/api/java/nio/file/FileStore.html#getBlockSize()
-            return DEFAULT_BLOCK_BUFFER_SIZE;
-        }
-
-        private static int getBlockSize(InputStream stream) throws IOException {
-            return getValidSize(stream.available(), UNKNOWN_SIZE);
-        }
-
-        private static int getBlockSize(OutputStream stream) throws IOException {
-            return stream instanceof BufferedOutputStream ? DEFAULT_BUFFER_OUTPUT_STREAM_SIZE : UNKNOWN_SIZE;
-        }
-
-        static int getValidSize(int size, int defaultValue) {
-            return size > 0 ? size : defaultValue;
-        }
     }
 
     private static Format requireValid(Format format, String message) throws IllegalArgumentException {
@@ -1060,5 +1054,54 @@ public final class Csv {
             throw new IllegalArgumentException(message);
         }
         return format;
+    }
+
+    public static final AtomicReference<BlockSizer> BLOCK_SIZER = new AtomicReference<>(new BlockSizer());
+
+    /**
+     * System-wide utility that gets the number of bytes per block from several byte sources.
+     * May be overridden to deal with new JDK APIs.
+     */
+    public static class BlockSizer {
+
+        public static final long DEFAULT_BLOCK_BUFFER_SIZE = 512;
+        public static final long DEFAULT_BUFFER_OUTPUT_STREAM_SIZE = 8192;
+        public static final long UNKNOWN_SIZE = -1;
+
+        /**
+         * Returns the number of bytes per block in the file store of this file.
+         *
+         * @param file a non-null file as byte source
+         * @return a positive value representing the block size in bytes if available, -1 otherwise
+         * @throws IOException if an I/O error occurs
+         * @see <a href="https://docs.oracle.com/javase/10/docs/api/java/nio/file/FileStore.html#getBlockSize()">https://docs.oracle.com/javase/10/docs/api/java/nio/file/FileStore.html#getBlockSize()</a>
+         */
+        public long getBlockSize(Path file) throws IOException {
+            Objects.requireNonNull(file);
+            return DEFAULT_BLOCK_BUFFER_SIZE;
+        }
+
+        /**
+         * Returns the number of bytes per block in the input stream implementation.
+         *
+         * @param stream a non-null input stream as byte source
+         * @return a positive value representing the block size in bytes if available, -1 otherwise
+         * @throws IOException if an I/O error occurs
+         */
+        public long getBlockSize(InputStream stream) throws IOException {
+            return stream.available();
+        }
+
+        /**
+         * Returns the number of bytes per block in the output stream implementation.
+         *
+         * @param stream a non-null output stream as byte source
+         * @return a positive value representing the block size in bytes if available, -1 otherwise
+         * @throws IOException if an I/O error occurs
+         */
+        public long getBlockSize(OutputStream stream) throws IOException {
+            Objects.requireNonNull(stream);
+            return stream instanceof BufferedOutputStream ? DEFAULT_BUFFER_OUTPUT_STREAM_SIZE : UNKNOWN_SIZE;
+        }
     }
 }

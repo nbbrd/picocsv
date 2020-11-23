@@ -31,8 +31,6 @@ import static _test.QuickWriter.newOutputFile;
 import static _test.QuickWriter.newOutputStream;
 import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static nbbrd.picocsv.Csv.BufferSizes.DEFAULT_BLOCK_BUFFER_SIZE;
-import static nbbrd.picocsv.Csv.BufferSizes.UNKNOWN_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
@@ -122,11 +120,5 @@ public class BufferSizesTest {
                 );
     }
 
-    @Test
-    public void testGetValidSize() throws IOException {
-        assertThat(Csv.BufferSizes.getValidSize(UNKNOWN_SIZE, 123)).isEqualTo(123);
-        assertThat(Csv.BufferSizes.getValidSize(-1, 123)).isEqualTo(123);
-        assertThat(Csv.BufferSizes.getValidSize(0, 123)).isEqualTo(123);
-        assertThat(Csv.BufferSizes.getValidSize(1, 123)).isEqualTo(1);
-    }
+    private static final int DEFAULT_BLOCK_BUFFER_SIZE = (int) Csv.BlockSizer.DEFAULT_BLOCK_BUFFER_SIZE;
 }
