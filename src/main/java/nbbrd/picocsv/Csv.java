@@ -25,10 +25,8 @@ import java.nio.charset.CharsetEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.IntConsumer;
 
 /**
  * @author Philippe Charles
@@ -73,7 +71,7 @@ public final class Csv {
                 .build();
 
         /**
-         * Predefined format as alias to RFC 4180.
+         * Predefined format as alias to {@link Format#RFC4180}.
          */
         public static final Format DEFAULT = RFC4180;
 
@@ -171,7 +169,7 @@ public final class Csv {
 
         @Override
         public String toString() {
-            return "CsvFormat{" + "separator=" + separator + ", delimiter=" + delimiter + ", quote=" + quote + '}';
+            return "Format{" + "separator=" + separator + ", delimiter=" + delimiter + ", quote=" + quote + '}';
         }
 
         public Builder toBuilder() {
@@ -220,17 +218,31 @@ public final class Csv {
      */
     public static final class Parsing {
 
-        public static final Parsing STRICT = new Parsing(false);
-        public static final Parsing LENIENT = new Parsing(true);
+        /**
+         * Predefined parsing options that use a strict separator.
+         */
+        public static final Parsing STRICT = Parsing.builder().lenientSeparator(false).build();
+
+        /**
+         * Predefined parsing options that use a lenient separator.
+         */
+        public static final Parsing LENIENT = Parsing.builder().lenientSeparator(true).build();
+
+        /**
+         * Predefined parsing options as alias to {@link Parsing#STRICT}.
+         */
+        public static final Parsing DEFAULT = STRICT;
 
         private final boolean lenientSeparator;
+        private final int maxCharsPerField;
 
-        private Parsing(boolean lenientSeparator) {
+        private Parsing(boolean lenientSeparator, int maxCharsPerField) {
             this.lenientSeparator = lenientSeparator;
+            this.maxCharsPerField = maxCharsPerField;
         }
 
         /**
-         * Determine if the separator is parsed leniently or not. If set to
+         * Determines if the separator is parsed leniently or not. If set to
          * true, the reader follows the same behavior as BufferedReader: <i>a
          * line is considered to be terminated by any one of a line feed ('\n'),
          * a carriage return ('\r'), a carriage return followed immediately by a
@@ -242,10 +254,23 @@ public final class Csv {
             return lenientSeparator;
         }
 
+        /**
+         * Determines the maximum number of characters to read in each field
+         * to avoid {@link java.lang.OutOfMemoryError} in case a file does not
+         * have a valid format. This sets a limit which avoids unwanted JVM crashes.
+         * The default value is 4096.
+         *
+         * @return the maximum number of characters for a field
+         */
+        public int getMaxCharsPerField() {
+            return maxCharsPerField;
+        }
+
         @Override
         public int hashCode() {
             int hash = 7;
             hash = 37 * hash + Boolean.hashCode(lenientSeparator);
+            hash = 37 * hash + this.maxCharsPerField;
             return hash;
         }
 
@@ -264,12 +289,51 @@ public final class Csv {
             if (this.lenientSeparator != other.lenientSeparator) {
                 return false;
             }
+            if (this.maxCharsPerField != other.maxCharsPerField) {
+                return false;
+            }
             return true;
         }
 
         @Override
         public String toString() {
-            return "ReaderOptions{" + "lenientSeparator=" + lenientSeparator + '}';
+            return "Parsing{" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + '}';
+        }
+
+        public Builder toBuilder() {
+            return builder()
+                    .lenientSeparator(lenientSeparator)
+                    .maxCharsPerField(maxCharsPerField);
+        }
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static final class Builder {
+
+            private static final boolean DEFAULT_LENIENT_SEPARATOR = false;
+            private static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
+
+            private boolean lenientSeparator = DEFAULT_LENIENT_SEPARATOR;
+            private int maxCharsPerField = DEFAULT_MAX_CHARS_PER_FIELD;
+
+            private Builder() {
+            }
+
+            public Builder lenientSeparator(boolean lenientSeparator) {
+                this.lenientSeparator = lenientSeparator;
+                return this;
+            }
+
+            public Builder maxCharsPerField(int maxCharsPerField) {
+                this.maxCharsPerField = maxCharsPerField;
+                return this;
+            }
+
+            public Parsing build() {
+                return new Parsing(lenientSeparator, maxCharsPerField);
+            }
         }
     }
 
@@ -376,27 +440,26 @@ public final class Csv {
             return new Reader(
                     ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBufferSize) : new Input(charReader, charBufferSize),
                     format.getQuote(), format.getDelimiter(),
-                    EndOfLineReader.of(format, options));
+                    EndOfLineReader.of(format, options),
+                    options.getMaxCharsPerField());
         }
 
         private final Input input;
         private final int quoteCode;
         private final int delimiterCode;
         private final EndOfLineReader endOfLine;
-        private char[] fieldChars;
+        private final char[] fieldChars;
         private int fieldLength;
         private boolean fieldQuoted;
         private State state;
         private boolean parsedByLine;
 
-        private static final int INITIAL_FIELD_CAPACITY = 64;
-
-        private Reader(Input input, int quoteCode, int delimiterCode, EndOfLineReader endOfLine) {
+        private Reader(Input input, int quoteCode, int delimiterCode, EndOfLineReader endOfLine, int maxCharsPerField) {
             this.input = input;
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
             this.endOfLine = endOfLine;
-            this.fieldChars = new char[INITIAL_FIELD_CAPACITY];
+            this.fieldChars = new char[maxCharsPerField];
             this.fieldLength = 0;
             this.fieldQuoted = false;
             this.state = State.READY;
@@ -471,7 +534,7 @@ public final class Csv {
             int val;
             resetField();
 
-            IntConsumer fieldBuilder = skip
+            FieldBuilder fieldBuilder = skip
                     ? this::swallow
                     : this::append;
 
@@ -487,7 +550,7 @@ public final class Csv {
                     if (endOfLine.isEndOfLine(val, input)) {
                         return State.LAST;
                     }
-                    fieldBuilder.accept(val);
+                    fieldBuilder.addCharAsCode(val);
                 }
             } else {
                 return State.DONE;
@@ -502,7 +565,7 @@ public final class Csv {
                             escaped = true;
                         } else {
                             escaped = false;
-                            fieldBuilder.accept(val);
+                            fieldBuilder.addCharAsCode(val);
                         }
                         continue;
                     }
@@ -514,7 +577,7 @@ public final class Csv {
                             return State.LAST;
                         }
                     }
-                    fieldBuilder.accept(val);
+                    fieldBuilder.addCharAsCode(val);
                 }
             } else {
                 // subsequent chars without escape
@@ -525,17 +588,11 @@ public final class Csv {
                     if (endOfLine.isEndOfLine(val, input)) {
                         return State.LAST;
                     }
-                    fieldBuilder.accept(val);
+                    fieldBuilder.addCharAsCode(val);
                 }
             }
 
             return isFieldNotNull() ? State.LAST : State.DONE;
-        }
-
-        private void ensureFieldSize() {
-            if (fieldLength == fieldChars.length) {
-                fieldChars = Arrays.copyOf(fieldChars, fieldLength * 2);
-            }
         }
 
         private void resetField() {
@@ -550,9 +607,12 @@ public final class Csv {
             // do nothing
         }
 
-        private void append(int code) {
-            ensureFieldSize();
-            fieldChars[fieldLength++] = (char) code;
+        private void append(int code) throws IOException {
+            try {
+                fieldChars[fieldLength++] = (char) code;
+            } catch (IndexOutOfBoundsException ex) {
+                throw new IOException("Field overflow", ex);
+            }
         }
 
         @Override
@@ -579,6 +639,12 @@ public final class Csv {
                 throw new IndexOutOfBoundsException(String.valueOf(end));
             }
             return new String(fieldChars, start, end - start);
+        }
+
+        @FunctionalInterface
+        private interface FieldBuilder {
+
+            void addCharAsCode(int code) throws IOException;
         }
 
         private static class Input implements Closeable {
