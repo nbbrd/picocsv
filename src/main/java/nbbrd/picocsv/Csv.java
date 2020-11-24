@@ -18,7 +18,8 @@ package nbbrd.picocsv;
 
 import java.io.*;
 import java.nio.channels.Channels;
-import java.nio.channels.SeekableByteChannel;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
@@ -269,7 +270,7 @@ public final class Csv {
         @Override
         public int hashCode() {
             int hash = 7;
-            hash = 37 * hash + Boolean.hashCode(lenientSeparator);
+            hash = 37 * hash + hashCodeOf(lenientSeparator);
             hash = 37 * hash + this.maxCharsPerField;
             return hash;
         }
@@ -371,7 +372,8 @@ public final class Csv {
 
             CharsetDecoder decoder = encoding.newDecoder();
             BufferSizes sizes = BufferSizes.of(file, decoder);
-            SeekableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.READ);
+            ReadableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.READ);
+
             return make(format, sizes.getCharBufferSize(), sizes.newCharReader(channel, decoder), options);
         }
 
@@ -448,6 +450,8 @@ public final class Csv {
         private final int quoteCode;
         private final int delimiterCode;
         private final EndOfLineReader endOfLine;
+        private final FieldBuilder swallow;
+        private final FieldBuilder append;
         private final char[] fieldChars;
         private int fieldLength;
         private boolean fieldQuoted;
@@ -459,6 +463,8 @@ public final class Csv {
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
             this.endOfLine = endOfLine;
+            this.swallow = new SwallowField();
+            this.append = new AppendField();
             this.fieldChars = new char[maxCharsPerField];
             this.fieldLength = 0;
             this.fieldQuoted = false;
@@ -467,7 +473,7 @@ public final class Csv {
         }
 
         private enum State {
-            READY, NOT_LAST, LAST, DONE;
+            READY, NOT_LAST, LAST, DONE
         }
 
         /**
@@ -482,13 +488,12 @@ public final class Csv {
                     return false;
                 case READY:
                 case LAST:
-                    state = parseNextField(false);
+                    state = parseNextField();
                     parsedByLine = true;
                     return state != State.DONE;
                 case NOT_LAST:
-                    while ((state = parseNextField(true)) == State.NOT_LAST) {
-                    }
-                    state = parseNextField(false);
+                    skipRemainingFields();
+                    state = parseNextField();
                     parsedByLine = true;
                     return state != State.DONE;
                 default:
@@ -515,7 +520,7 @@ public final class Csv {
                         parsedByLine = false;
                         return true;
                     }
-                    state = parseNextField(false);
+                    state = parseNextField();
                     return state != State.DONE;
                 case DONE:
                 case READY:
@@ -530,17 +535,23 @@ public final class Csv {
             input.close();
         }
 
-        private State parseNextField(boolean skip) throws IOException {
+        private void skipRemainingFields() throws IOException {
+            while (true) {
+                if ((state = parseNextFieldInto(swallow)) != State.NOT_LAST) break;
+            }
+        }
+
+        private State parseNextField() throws IOException {
+            return parseNextFieldInto(append);
+        }
+
+        private State parseNextFieldInto(FieldBuilder fieldBuilder) throws IOException {
             int val;
             resetField();
 
-            FieldBuilder fieldBuilder = skip
-                    ? this::swallow
-                    : this::append;
-
             // first char        
             fieldQuoted = false;
-            if ((val = input.read()) != Input.EOF) {
+            if ((val = input.read()) != Input.EOF_CODE) {
                 if (val == quoteCode) {
                     fieldQuoted = true;
                 } else {
@@ -559,7 +570,7 @@ public final class Csv {
             if (fieldQuoted) {
                 // subsequent chars with escape
                 boolean escaped = false;
-                while ((val = input.read()) != Input.EOF) {
+                while ((val = input.read()) != Input.EOF_CODE) {
                     if (val == quoteCode) {
                         if (!escaped) {
                             escaped = true;
@@ -581,7 +592,7 @@ public final class Csv {
                 }
             } else {
                 // subsequent chars without escape
-                while ((val = input.read()) != Input.EOF) {
+                while ((val = input.read()) != Input.EOF_CODE) {
                     if (val == delimiterCode) {
                         return State.NOT_LAST;
                     }
@@ -601,18 +612,6 @@ public final class Csv {
 
         private boolean isFieldNotNull() {
             return fieldLength > 0 || fieldQuoted;
-        }
-
-        private void swallow(int code) {
-            // do nothing
-        }
-
-        private void append(int code) throws IOException {
-            try {
-                fieldChars[fieldLength++] = (char) code;
-            } catch (IndexOutOfBoundsException ex) {
-                throw new IOException("Field overflow", ex);
-            }
         }
 
         @Override
@@ -641,15 +640,32 @@ public final class Csv {
             return new String(fieldChars, start, end - start);
         }
 
-        @FunctionalInterface
-        private interface FieldBuilder {
+        private abstract static class FieldBuilder {
 
-            void addCharAsCode(int code) throws IOException;
+            abstract void addCharAsCode(int code) throws IOException;
+        }
+
+        private final static class SwallowField extends FieldBuilder {
+            @Override
+            void addCharAsCode(int code) {
+                // do nothing
+            }
+        }
+
+        private final class AppendField extends FieldBuilder {
+            @Override
+            void addCharAsCode(int code) throws IOException {
+                try {
+                    fieldChars[fieldLength++] = (char) code;
+                } catch (IndexOutOfBoundsException ex) {
+                    throw new IOException("Field overflow", ex);
+                }
+            }
         }
 
         private static class Input implements Closeable {
 
-            public static final int EOF = -1;
+            public static final int EOF_CODE = -1;
 
             private final java.io.Reader charReader;
             private final char[] buffer;
@@ -672,8 +688,8 @@ public final class Csv {
                 if (index < length) {
                     return buffer[index++];
                 }
-                if ((length = charReader.read(buffer)) == EOF) {
-                    return EOF;
+                if ((length = charReader.read(buffer)) == EOF_CODE) {
+                    return EOF_CODE;
                 }
                 index = 1;
                 return buffer[0];
@@ -687,84 +703,92 @@ public final class Csv {
             }
 
             private static final int NULL_CODE = -2;
-            private int readAhead;
+            private int readAheadCode;
 
             private ReadAheadInput(java.io.Reader charReader, int bufferSize) {
                 super(charReader, bufferSize);
-                this.readAhead = NULL_CODE;
+                this.readAheadCode = NULL_CODE;
             }
 
             @Override
             public int read() throws IOException {
-                if (readAhead == NULL_CODE) {
+                if (readAheadCode == NULL_CODE) {
                     return super.read();
                 }
-                int result = readAhead;
-                readAhead = NULL_CODE;
+                int result = readAheadCode;
+                readAheadCode = NULL_CODE;
                 return result;
             }
 
             public boolean peek(int expected) throws IOException {
-                return (readAhead = super.read()) == expected;
+                return (readAheadCode = super.read()) == expected;
             }
 
-            public void discardAheadOfTimeChar() throws IOException {
-                readAhead = NULL_CODE;
+            public void discardAheadOfTimeCode() {
+                readAheadCode = NULL_CODE;
             }
         }
 
-        @FunctionalInterface
-        private interface EndOfLineReader {
+        private enum EndOfLineReader {
 
-            boolean isEndOfLine(int code, Input input) throws IOException;
+            LENIENT {
+                @Override
+                boolean isEndOfLine(int code, Input input) throws IOException {
+                    switch (code) {
+                        case LF_CODE:
+                            return true;
+                        case CR_CODE:
+                            if (((ReadAheadInput) input).peek(LF_CODE)) {
+                                ((ReadAheadInput) input).discardAheadOfTimeCode();
+                            }
+                            return true;
+                        default:
+                            return false;
+                    }
+                }
+            },
+            MACINTOSH {
+                @Override
+                boolean isEndOfLine(int code, Input input) {
+                    return code == CR_CODE;
+                }
+            },
+            UNIX {
+                @Override
+                boolean isEndOfLine(int code, Input input) {
+                    return code == LF_CODE;
+                }
+            },
+            WINDOWS {
+                @Override
+                boolean isEndOfLine(int code, Input input) throws IOException {
+                    if (code == CR_CODE && ((ReadAheadInput) input).peek(LF_CODE)) {
+                        ((ReadAheadInput) input).discardAheadOfTimeCode();
+                        return true;
+                    }
+                    return false;
+                }
+            };
 
-            int CR_CODE = NewLine.CR;
-            int LF_CODE = NewLine.LF;
+            abstract boolean isEndOfLine(int code, Input input) throws IOException;
+
+            static final int CR_CODE = NewLine.CR;
+            static final int LF_CODE = NewLine.LF;
 
             static EndOfLineReader of(Format format, Parsing options) {
                 if (options.isLenientSeparator()) {
-                    return EndOfLineReader::isLenient;
+                    return LENIENT;
                 }
                 switch (format.getSeparator()) {
                     case MACINTOSH:
-                        return EndOfLineReader::isMacintosh;
+                        return MACINTOSH;
                     case UNIX:
-                        return EndOfLineReader::isUnix;
+                        return UNIX;
                     case WINDOWS:
-                        return EndOfLineReader::isWindows;
+                        return WINDOWS;
                     default:
                         throw new RuntimeException();
                 }
-            }
-
-            static boolean isLenient(int code, Input input) throws IOException {
-                switch (code) {
-                    case LF_CODE:
-                        return true;
-                    case CR_CODE:
-                        if (((ReadAheadInput) input).peek(LF_CODE)) {
-                            ((ReadAheadInput) input).discardAheadOfTimeChar();
-                        }
-                        return true;
-                    default:
-                        return false;
-                }
-            }
-
-            static boolean isMacintosh(int code, Input input) throws IOException {
-                return code == CR_CODE;
-            }
-
-            static boolean isUnix(int code, Input input) throws IOException {
-                return code == LF_CODE;
-            }
-
-            static boolean isWindows(int code, Input input) throws IOException {
-                if (code == CR_CODE && ((ReadAheadInput) input).peek(LF_CODE)) {
-                    ((ReadAheadInput) input).discardAheadOfTimeChar();
-                    return true;
-                }
-                return false;
             }
         }
     }
@@ -793,7 +817,8 @@ public final class Csv {
 
             CharsetEncoder encoder = encoding.newEncoder();
             BufferSizes sizes = BufferSizes.of(file, encoder);
-            SeekableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.WRITE);
+            WritableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.WRITE);
+
             return make(format, sizes.getCharBufferSize(), sizes.newCharWriter(channel, encoder));
         }
 
@@ -869,7 +894,7 @@ public final class Csv {
         public void writeField(CharSequence field) throws IOException {
             switch (state) {
                 case NO_FIELD:
-                    if (!isNullOrEmpty(field)) {
+                    if (isNotEmpty(field)) {
                         state = State.MULTI_FIELD;
                         writeNonEmptyField(field);
                     } else {
@@ -879,13 +904,13 @@ public final class Csv {
                 case SINGLE_EMPTY_FIELD:
                     state = State.MULTI_FIELD;
                     output.write(delimiter);
-                    if (!isNullOrEmpty(field)) {
+                    if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
                     }
                     break;
                 case MULTI_FIELD:
                     output.write(delimiter);
-                    if (!isNullOrEmpty(field)) {
+                    if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
                     }
                     break;
@@ -908,8 +933,8 @@ public final class Csv {
             output.close();
         }
 
-        private boolean isNullOrEmpty(CharSequence field) {
-            return field == null || field.length() == 0;
+        private boolean isNotEmpty(CharSequence field) {
+            return field != null && field.length() != 0;
         }
 
         private void writeNonEmptyField(CharSequence field) throws IOException {
@@ -1016,19 +1041,37 @@ public final class Csv {
             }
         }
 
-        @FunctionalInterface
-        private interface EndOfLineWriter {
+        private enum EndOfLineWriter {
 
-            void write(Output output) throws IOException;
+            MACINTOSH {
+                @Override
+                void write(Output output) throws IOException {
+                    output.write(NewLine.CR);
+                }
+            },
+            UNIX {
+                @Override
+                void write(Output output) throws IOException {
+                    output.write(NewLine.LF);
+                }
+            },
+            WINDOWS {
+                @Override
+                void write(Output output) throws IOException {
+                    output.write(NewLine.CRLF);
+                }
+            };
+
+            abstract void write(Output output) throws IOException;
 
             static EndOfLineWriter of(NewLine newLine) {
                 switch (newLine) {
                     case MACINTOSH:
-                        return output -> output.write(NewLine.CR);
+                        return MACINTOSH;
                     case UNIX:
-                        return output -> output.write(NewLine.LF);
+                        return UNIX;
                     case WINDOWS:
-                        return output -> output.write(NewLine.CRLF);
+                        return WINDOWS;
                     default:
                         throw new RuntimeException();
                 }
@@ -1091,11 +1134,11 @@ public final class Csv {
             return bytes > 0 ? bytes : IMPL_DEPENDENT_MIN_BUFFER_CAP;
         }
 
-        java.io.Reader newCharReader(SeekableByteChannel channel, CharsetDecoder decoder) {
+        java.io.Reader newCharReader(ReadableByteChannel channel, CharsetDecoder decoder) {
             return Channels.newReader(channel, decoder, getChannelMinBufferCap());
         }
 
-        java.io.Writer newCharWriter(SeekableByteChannel channel, CharsetEncoder encoder) {
+        java.io.Writer newCharWriter(WritableByteChannel channel, CharsetEncoder encoder) {
             return Channels.newWriter(channel, encoder, getChannelMinBufferCap());
         }
 
@@ -1115,11 +1158,15 @@ public final class Csv {
         }
     }
 
-    private static Format requireValid(Format format, String message) throws IllegalArgumentException {
+    private static void requireValid(Format format, String message) throws IllegalArgumentException {
         if (!format.isValid()) {
             throw new IllegalArgumentException(message);
         }
-        return format;
+    }
+
+    // JDK8
+    private static int hashCodeOf(boolean value) {
+        return value ? 1231 : 1237;
     }
 
     public static final AtomicReference<BlockSizer> BLOCK_SIZER = new AtomicReference<>(new BlockSizer());
