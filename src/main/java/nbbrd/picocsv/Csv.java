@@ -533,85 +533,75 @@ public final class Csv {
 
         private void skipRemainingFields() throws IOException {
             while (true) {
-                if ((state = parseNextFieldInto(true)) != State.NOT_LAST) break;
+                if ((state = parseNextField()) != State.NOT_LAST) break;
             }
         }
 
+        // WARNING: main loop; lots of duplication to maximize perfs
+        // WARNING: comparing ints more performant than comparing chars
         private State parseNextField() throws IOException {
-            return parseNextFieldInto(false);
-        }
-
-        private State parseNextFieldInto(boolean skip) throws IOException {
-            int val;
-            resetField();
-
-            // first char        
-            fieldQuoted = false;
-            if ((val = input.read()) != Input.EOF_CODE) {
-                if (val == quoteCode) {
-                    fieldQuoted = true;
-                } else {
-                    if (val == delimiterCode) {
-                        return State.NOT_LAST;
-                    }
-                    if (endOfLine.isEndOfLine(val, input)) {
-                        return State.LAST;
-                    }
-                    if (!skip) {
-                        addCharAsCode(val);
-                    }
-                }
-            } else {
-                return State.DONE;
-            }
-
-            if (fieldQuoted) {
-                // subsequent chars with escape
-                boolean escaped = false;
-                while ((val = input.read()) != Input.EOF_CODE) {
-                    if (val == quoteCode) {
-                        if (!escaped) {
-                            escaped = true;
-                        } else {
-                            escaped = false;
-                            if (!skip) {
-                                addCharAsCode(val);
-                            }
-                        }
-                        continue;
-                    }
-                    if (escaped) {
-                        if (val == delimiterCode) {
-                            return State.NOT_LAST;
-                        }
-                        if (endOfLine.isEndOfLine(val, input)) {
-                            return State.LAST;
-                        }
-                    }
-                    if (!skip) {
-                        addCharAsCode(val);
-                    }
-                }
-            } else {
-                // subsequent chars without escape
-                while ((val = input.read()) != Input.EOF_CODE) {
-                    if (val == delimiterCode) {
-                        return State.NOT_LAST;
-                    }
-                    if (endOfLine.isEndOfLine(val, input)) {
-                        return State.LAST;
-                    }
-                    if (!skip) {
-                        addCharAsCode(val);
-                    }
-                }
-            }
-
-            return isFieldNotNull() ? State.LAST : State.DONE;
-        }
-
-        private void resetField() {
             fieldLength = 0;
+            int code;
+
+            try {
+
+                // [Step 1]: first char
+                fieldQuoted = false;
+                if (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                    if (code == quoteCode) {
+                        fieldQuoted = true;
+                    } else {
+                        /*-end-of-field-*/
+                        if (code == delimiterCode) return State.NOT_LAST;
+                        else if (endOfLine.isEndOfLine(code, input)) return State.LAST;
+                        /*-append-*/
+                        fieldChars[fieldLength++] = (char) code;
+                    }
+                } else {
+                    // EOF
+                    return State.DONE;
+                }
+
+                if (fieldQuoted) {
+                    // [Step 2A]: subsequent chars with escape
+                    boolean escaped = false;
+                    while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                        if (code == quoteCode) {
+                            if (!escaped) {
+                                escaped = true;
+                            } else {
+                                escaped = false;
+                                /*-append-*/
+                                fieldChars[fieldLength++] = (char) code;
+                            }
+                        } else {
+                            if (escaped) {
+                                /*-end-of-field-*/
+                                if (code == delimiterCode) return State.NOT_LAST;
+                                else if (endOfLine.isEndOfLine(code, input)) return State.LAST;
+                            }
+                            /*-append-*/
+                            fieldChars[fieldLength++] = (char) code;
+                        }
+                    }
+                    // EOF
+                    return State.LAST;
+                } else {
+                    // [Step 2B]: subsequent chars without escape
+                    while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                        /*-end-of-field-*/
+                        if (code == delimiterCode) return State.NOT_LAST;
+                        else if (endOfLine.isEndOfLine(code, input)) return State.LAST;
+                        /*-append-*/
+                        fieldChars[fieldLength++] = (char) code;
+                    }
+                    // EOF
+                    return fieldLength > 0 ? State.LAST : State.DONE;
+                }
+
+            } catch (IndexOutOfBoundsException ex) {
+                throw new IOException("Field overflow", ex);
+            }
         }
 
         private boolean isFieldNotNull() {
@@ -642,14 +632,6 @@ public final class Csv {
                 throw new IndexOutOfBoundsException(String.valueOf(end));
             }
             return new String(fieldChars, start, end - start);
-        }
-
-        private void addCharAsCode(int code) throws IOException {
-            try {
-                fieldChars[fieldLength++] = (char) code;
-            } catch (IndexOutOfBoundsException ex) {
-                throw new IOException("Field overflow", ex);
-            }
         }
 
         private static class Input implements Closeable {
