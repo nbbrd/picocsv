@@ -450,8 +450,6 @@ public final class Csv {
         private final int quoteCode;
         private final int delimiterCode;
         private final EndOfLineReader endOfLine;
-        private final FieldBuilder swallow;
-        private final FieldBuilder append;
         private final char[] fieldChars;
         private int fieldLength;
         private boolean fieldQuoted;
@@ -463,8 +461,6 @@ public final class Csv {
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
             this.endOfLine = endOfLine;
-            this.swallow = new SwallowField();
-            this.append = new AppendField();
             this.fieldChars = new char[maxCharsPerField];
             this.fieldLength = 0;
             this.fieldQuoted = false;
@@ -537,15 +533,15 @@ public final class Csv {
 
         private void skipRemainingFields() throws IOException {
             while (true) {
-                if ((state = parseNextFieldInto(swallow)) != State.NOT_LAST) break;
+                if ((state = parseNextFieldInto(true)) != State.NOT_LAST) break;
             }
         }
 
         private State parseNextField() throws IOException {
-            return parseNextFieldInto(append);
+            return parseNextFieldInto(false);
         }
 
-        private State parseNextFieldInto(FieldBuilder fieldBuilder) throws IOException {
+        private State parseNextFieldInto(boolean skip) throws IOException {
             int val;
             resetField();
 
@@ -561,7 +557,9 @@ public final class Csv {
                     if (endOfLine.isEndOfLine(val, input)) {
                         return State.LAST;
                     }
-                    fieldBuilder.addCharAsCode(val);
+                    if (!skip) {
+                        addCharAsCode(val);
+                    }
                 }
             } else {
                 return State.DONE;
@@ -576,7 +574,9 @@ public final class Csv {
                             escaped = true;
                         } else {
                             escaped = false;
-                            fieldBuilder.addCharAsCode(val);
+                            if (!skip) {
+                                addCharAsCode(val);
+                            }
                         }
                         continue;
                     }
@@ -588,7 +588,9 @@ public final class Csv {
                             return State.LAST;
                         }
                     }
-                    fieldBuilder.addCharAsCode(val);
+                    if (!skip) {
+                        addCharAsCode(val);
+                    }
                 }
             } else {
                 // subsequent chars without escape
@@ -599,7 +601,9 @@ public final class Csv {
                     if (endOfLine.isEndOfLine(val, input)) {
                         return State.LAST;
                     }
-                    fieldBuilder.addCharAsCode(val);
+                    if (!skip) {
+                        addCharAsCode(val);
+                    }
                 }
             }
 
@@ -640,26 +644,11 @@ public final class Csv {
             return new String(fieldChars, start, end - start);
         }
 
-        private abstract static class FieldBuilder {
-
-            abstract void addCharAsCode(int code) throws IOException;
-        }
-
-        private final static class SwallowField extends FieldBuilder {
-            @Override
-            void addCharAsCode(int code) {
-                // do nothing
-            }
-        }
-
-        private final class AppendField extends FieldBuilder {
-            @Override
-            void addCharAsCode(int code) throws IOException {
-                try {
-                    fieldChars[fieldLength++] = (char) code;
-                } catch (IndexOutOfBoundsException ex) {
-                    throw new IOException("Field overflow", ex);
-                }
+        private void addCharAsCode(int code) throws IOException {
+            try {
+                fieldChars[fieldLength++] = (char) code;
+            } catch (IndexOutOfBoundsException ex) {
+                throw new IOException("Field overflow", ex);
             }
         }
 
