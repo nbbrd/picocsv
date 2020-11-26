@@ -493,7 +493,7 @@ public final class Csv {
                     parsedByLine = true;
                     return state != State.DONE;
                 default:
-                    throw new RuntimeException();
+                    throw new RuntimeException("Unreachable");
             }
         }
 
@@ -522,7 +522,7 @@ public final class Csv {
                 case READY:
                     throw new IllegalStateException();
                 default:
-                    throw new RuntimeException();
+                    throw new RuntimeException("Unreachable");
             }
         }
 
@@ -758,7 +758,7 @@ public final class Csv {
                     case WINDOWS:
                         return WINDOWS;
                     default:
-                        throw new RuntimeException();
+                        throw new RuntimeException("Unreachable");
                 }
             }
         }
@@ -1044,7 +1044,7 @@ public final class Csv {
                     case WINDOWS:
                         return WINDOWS;
                     default:
-                        throw new RuntimeException();
+                        throw new RuntimeException("Unreachable");
                 }
             }
         }
@@ -1074,12 +1074,9 @@ public final class Csv {
             return make(BLOCK_SIZER.get().getBlockSize(stream), 1f / encoder.averageBytesPerChar());
         }
 
-        private static BufferSizes make(long blockSize, float averageCharsPerByte) throws IOException {
-            if (blockSize <= 0) {
+        private static BufferSizes make(long blockSize, float averageCharsPerByte) {
+            if (blockSize <= 0 || blockSize > Integer.MAX_VALUE) {
                 return EMPTY;
-            }
-            if (blockSize > Integer.MAX_VALUE) {
-                throw new IOException("BlockSize overflow: " + blockSize);
             }
             int block = (int) blockSize;
             int bytes = getByteSizeFromBlockSize(block);

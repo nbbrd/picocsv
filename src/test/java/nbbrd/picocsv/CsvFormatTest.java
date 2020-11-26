@@ -48,8 +48,14 @@ public class CsvFormatTest {
                 .isEqualTo(Csv.Format.DEFAULT)
                 .hasSameHashCodeAs(Csv.Format.DEFAULT)
                 .isNotEqualTo(Csv.Format.EXCEL)
+                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().quote('x').build())
+                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().separator(Csv.NewLine.MACINTOSH).build())
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
+
+        assertThat(Csv.Format.DEFAULT.equals(Csv.Format.DEFAULT)).isTrue();
+        assertThat(Csv.Format.DEFAULT.equals(null)).isFalse();
+        assertThat(Csv.Format.DEFAULT.equals(Csv.Format.DEFAULT.toBuilder().build())).isTrue();
     }
 
     @Test

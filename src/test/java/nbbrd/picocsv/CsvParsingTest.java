@@ -35,6 +35,10 @@ public class CsvParsingTest {
                 .isEqualTo(Csv.Parsing.DEFAULT)
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
+
+        assertThat(Csv.Parsing.STRICT.equals(Csv.Parsing.STRICT)).isTrue();
+        assertThat(Csv.Parsing.STRICT.equals(null)).isFalse();
+        assertThat(Csv.Parsing.STRICT.equals(Csv.Parsing.STRICT.toBuilder().build())).isTrue();
     }
 
     @Test
