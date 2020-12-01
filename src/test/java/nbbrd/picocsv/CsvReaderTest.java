@@ -1,17 +1,17 @@
 /*
  * Copyright 2019 National Bank of Belgium
- * 
- * Licensed under the EUPL, Version 1.1 or - as soon they will be approved 
+ *
+ * Licensed under the EUPL, Version 1.1 or - as soon they will be approved
  * by the European Commission - subsequent versions of the EUPL (the "Licence");
  * You may not use this work except in compliance with the Licence.
  * You may obtain a copy of the Licence at:
- * 
+ *
  * http://ec.europa.eu/idabc/eupl
- * 
- * Unless required by applicable law or agreed to in writing, software 
+ *
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the Licence is distributed on an "AS IS" basis,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the Licence for the specific language governing permissions and 
+ * See the Licence for the specific language governing permissions and
  * limitations under the Licence.
  */
 package nbbrd.picocsv;
@@ -20,23 +20,24 @@ import _test.QuickReader;
 import _test.QuickReader.VoidParser;
 import _test.Row;
 import _test.Sample;
-import static _test.Sample.ILLEGAL_FORMAT;
+import org.junit.Test;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.nio.charset.Charset;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static _test.Sample.ILLEGAL_FORMAT;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static nbbrd.picocsv.Csv.Format.RFC4180;
 import static org.assertj.core.api.Assertions.*;
-import org.junit.Test;
 
 /**
- *
  * @author Philippe Charles
  */
 public class CsvReaderTest {
@@ -289,6 +290,27 @@ public class CsvReaderTest {
                 assertThatExceptionOfType(IndexOutOfBoundsException.class)
                         .isThrownBy(() -> chars.subSequence(1, 0));
             }
+        }
+    }
+
+    @Test
+    public void testFieldOverflow() throws IOException {
+        Csv.Parsing valid = Csv.Parsing.STRICT.toBuilder().maxCharsPerField(2).build();
+        try (Reader charReader = new StringReader(Sample.SIMPLE.getContent())) {
+            assertThatCode(() -> {
+                try (Csv.Reader reader = Csv.Reader.of(charReader, Sample.SIMPLE.getFormat(), valid)) {
+                    Row.read(reader);
+                }
+            }).doesNotThrowAnyException();
+        }
+
+        Csv.Parsing invalid = Csv.Parsing.STRICT.toBuilder().maxCharsPerField(1).build();
+        try (Reader charReader = new StringReader(Sample.SIMPLE.getContent())) {
+            assertThatIOException().isThrownBy(() -> {
+                try (Csv.Reader reader = Csv.Reader.of(charReader, Sample.SIMPLE.getFormat(), invalid)) {
+                    Row.read(reader);
+                }
+            }).withMessageContaining("Field overflow");
         }
     }
 

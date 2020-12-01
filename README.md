@@ -5,10 +5,10 @@
 This Java library provides a reader and a writer for CSV files.
 
 Key points:
-- ligthweight library with no dependency
+- lightweight library with no dependency
 - Java 8 minimum requirement
-- designed to be embeddable into other libraries
-- has an automatic module name that makes it compatible with [JPMS](https://www.baeldung.com/java-9-modularity) 
+- designed to be embedded into other libraries as an external dependency or as source
+- has a module-info that makes it compatible with [JPMS](https://www.baeldung.com/java-9-modularity) 
 
 Features:
 - reads/writes CSV from/to files and streams
@@ -22,13 +22,12 @@ Read example:
 
 ```java
 Path input = ...;
-try (Csv.Reader reader = Csv.Reader.of(input, Charset.forName("windows-1252"), Csv.Format.EXCEL)) {
+try (Csv.Reader reader = Csv.Reader.of(input, StandardCharsets.UTF_8, Csv.Format.RFC4180)) {
   while (reader.readLine()) {
-    System.out.print(" | ");
     while (reader.readField()) {
-      System.out.print(reader + " | ");
+      CharSequence field = reader;
+      ...
     }
-    System.out.println("");
   }
 }
 ```
@@ -38,8 +37,7 @@ Write example:
 ```java
 Path output = ...;
 try (Csv.Writer writer = Csv.Writer.of(output, StandardCharsets.UTF_8, Csv.Format.RFC4180)) {
-  writer.writeField("hello");
-  writer.writeField("wo\"rld");
+  writer.writeField("...");
   writer.writeEndOfLine();
 }
 ```
