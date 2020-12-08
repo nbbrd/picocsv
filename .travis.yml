@@ -1,8 +1,0 @@
-version: ~> 1.0
-import:
-  - nbbrd/travis-ci:config/java8_library.yml@main
-
-env:
-  global:
-    - DEPLOY_JOB_NAME=linux-amd64-openjdk11
-    - DEPLOY_REPO=nbbrd/picocsv
