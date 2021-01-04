@@ -111,7 +111,7 @@ public class CsvStream {
             IntPredicate fieldFilter = getFieldFilter(reader, selector, row);
             if (fieldFilter == null) return Collections.emptyIterator();
 
-            return new AbstractIterator<>() {
+            return new AbstractIterator<Row>() {
                 @Override
                 protected Row get() {
                     return row;
