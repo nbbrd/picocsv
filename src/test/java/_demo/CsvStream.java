@@ -3,12 +3,11 @@ package _demo;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.function.Consumer;
+import java.io.UncheckedIOException;
+import java.util.*;
 import java.util.function.IntPredicate;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 @lombok.experimental.UtilityClass
 public class CsvStream {
@@ -76,82 +75,146 @@ public class CsvStream {
         }
     }
 
-    interface Row extends Iterable<String> {
+    public static final class Row implements Iterable<String> {
 
-        int getNumber();
+        private final List<String> fields = new ArrayList<>();
+        private int lineNumber = 0;
 
-        int getSize();
-
-        String get(int index);
-    }
-
-    private static final class RowImpl implements Row {
-
-        private final List<String> data = new ArrayList<>();
-        private int index = 0;
-
-        @Override
-        public int getNumber() {
-            return index + 1;
+        public int getFieldCount() {
+            return fields.size();
         }
 
-        @Override
-        public int getSize() {
-            return data.size();
-        }
-
-        @Override
-        public String get(int index) {
-            return data.get(index);
+        public String getField(int index) {
+            return fields.get(index);
         }
 
         @Override
         public Iterator<String> iterator() {
-            return data.iterator();
+            return fields.iterator();
+        }
+
+        public int getLineNumber() {
+            return lineNumber;
         }
     }
 
-    static void forEach(Csv.Reader reader, boolean ignoreEmptyLines, int skipLines, Columns selector, Consumer<Row> func) throws IOException {
-        RowImpl row = new RowImpl();
+    public static Stream<Row> asStream(Csv.Reader reader, boolean ignoreEmptyLines, int skipLines, Columns selector) {
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(asIterator(reader, ignoreEmptyLines, skipLines, selector), 0), false);
+    }
 
+    public static Iterator<Row> asIterator(Csv.Reader reader, boolean ignoreEmptyLines, int skipLines, Columns selector) {
+        Row row = new Row();
+
+        try {
+            if (!skipLines(reader, skipLines, row)) return Collections.emptyIterator();
+
+            IntPredicate fieldFilter = getFieldFilter(reader, selector, row);
+            if (fieldFilter == null) return Collections.emptyIterator();
+
+            return new AbstractIterator<>() {
+                @Override
+                protected Row get() {
+                    return row;
+                }
+
+                @Override
+                protected boolean moveNext() {
+                    try {
+                        while (reader.readLine()) {
+                            if (readFields(reader, ignoreEmptyLines, row, fieldFilter)) return true;
+                        }
+                    } catch (IOException ex) {
+                        throw new UncheckedIOException(ex);
+                    }
+                    return false;
+                }
+            };
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+    }
+
+    private static boolean skipLines(Csv.Reader reader, int skipLines, Row row) throws IOException {
         for (int i = 0; i < skipLines; i++) {
             if (!reader.readLine()) {
-                return;
+                return false;
             }
-            row.index++;
+            row.lineNumber++;
         }
+        return true;
+    }
 
-        IntPredicate fieldFilter;
+    private static IntPredicate getFieldFilter(Csv.Reader reader, Columns selector, Row row) throws IOException {
         if (selector.hasHeader()) {
             if (!reader.readLine()) {
-                return;
+                return null;
             }
-            row.index++;
+            row.lineNumber++;
             List<String> columnNames = new ArrayList<>();
             while (reader.readField()) {
                 columnNames.add(reader.toString());
             }
-            fieldFilter = selector.getFilter(columnNames);
+            return selector.getFilter(columnNames);
         } else {
-            fieldFilter = selector.getFilter(Collections.emptyList());
+            return selector.getFilter(Collections.emptyList());
+        }
+    }
+
+    private static boolean readFields(Csv.Reader reader, boolean ignoreEmptyLines, Row row, IntPredicate fieldFilter) throws IOException {
+        row.fields.clear();
+        row.lineNumber++;
+
+        int fieldIndex = 0;
+        if (reader.readField()) {
+            do {
+                if (fieldFilter.test(fieldIndex)) {
+                    row.fields.add(reader.toString());
+                }
+                fieldIndex++;
+            } while (reader.readField());
+            return true;
+        } else if (!ignoreEmptyLines) {
+            return true;
+        }
+        return false;
+    }
+
+    private static abstract class AbstractIterator<E> implements Iterator<E> {
+
+        abstract protected E get();
+
+        abstract protected boolean moveNext();
+
+        private enum State {
+            COMPUTED, NOT_COMPUTED, DONE
         }
 
-        while (reader.readLine()) {
-            int fieldIndex = 0;
-            if (reader.readField()) {
-                do {
-                    if (fieldFilter.test(fieldIndex)) {
-                        row.data.add(reader.toString());
+        private State state = State.NOT_COMPUTED;
+
+        @Override
+        public boolean hasNext() {
+            switch (state) {
+                case COMPUTED:
+                    return true;
+                case DONE:
+                    return false;
+                default:
+                    if (moveNext()) {
+                        state = State.COMPUTED;
+                        return true;
                     }
-                    fieldIndex++;
-                }
-                while (reader.readField());
-                func.accept(row);
-            } else if (!ignoreEmptyLines) {
-                func.accept(row);
+                    state = State.DONE;
+                    return false;
             }
-            row.data.clear();
-            row.index++;
+        }
+
+        @Override
+        public E next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            state = State.NOT_COMPUTED;
+            return get();
         }
     }
 }
