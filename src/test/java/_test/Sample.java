@@ -1,20 +1,22 @@
 /*
  * Copyright 2019 National Bank of Belgium
- * 
- * Licensed under the EUPL, Version 1.1 or - as soon they will be approved 
+ *
+ * Licensed under the EUPL, Version 1.1 or - as soon they will be approved
  * by the European Commission - subsequent versions of the EUPL (the "Licence");
  * You may not use this work except in compliance with the Licence.
  * You may obtain a copy of the Licence at:
- * 
+ *
  * http://ec.europa.eu/idabc/eupl
- * 
- * Unless required by applicable law or agreed to in writing, software 
+ *
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the Licence is distributed on an "AS IS" basis,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the Licence for the specific language governing permissions and 
+ * See the Licence for the specific language governing permissions and
  * limitations under the Licence.
  */
 package _test;
+
+import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -25,10 +27,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import nbbrd.picocsv.Csv;
 
 /**
- *
  * @author Philippe Charles
  */
 @lombok.Value
@@ -254,7 +254,7 @@ public class Sample {
 
     private static String toString(Csv.Format format, Row... rows) {
         StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(result, format)) {
+        try (Csv.Writer writer = Csv.Writer.of(result, Csv.DEFAULT_CHAR_BUFFER_SIZE, Csv.Formatting.DEFAULT.toBuilder().format(format).build())) {
             Row.write(Arrays.asList(rows), writer);
         } catch (IOException ex) {
             throw new RuntimeException(ex);

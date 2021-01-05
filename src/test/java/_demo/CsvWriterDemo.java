@@ -28,7 +28,7 @@ public class CsvWriterDemo {
 
     public static void main(String[] args) throws IOException {
         StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(result, Csv.Format.RFC4180)) {
+        try (Csv.Writer writer = Csv.Writer.of(result, Csv.DEFAULT_CHAR_BUFFER_SIZE, Csv.Formatting.DEFAULT)) {
             writer.writeField("hello");
             writer.writeField("wo\"rld");
             writer.writeEndOfLine();

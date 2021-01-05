@@ -27,28 +27,28 @@ public class CsvParsingTest {
 
     @Test
     public void testEqualsAndHashcode() {
-        assertThat(Csv.Parsing.STRICT)
-                .isEqualTo(Csv.Parsing.STRICT)
-                .hasSameHashCodeAs(Csv.Parsing.STRICT)
-                .isNotEqualTo(Csv.Parsing.LENIENT)
-                .isNotEqualTo(strict10)
+        assertThat(Csv.Parsing.DEFAULT)
                 .isEqualTo(Csv.Parsing.DEFAULT)
+                .hasSameHashCodeAs(Csv.Parsing.DEFAULT)
+                .isNotEqualTo(Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build())
+                .isNotEqualTo(strict10)
+                .isEqualTo(Csv.Parsing.DEFAULT.toBuilder().build())
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
 
-        assertThat(Csv.Parsing.STRICT.equals(Csv.Parsing.STRICT)).isTrue();
-        assertThat(Csv.Parsing.STRICT.equals(null)).isFalse();
-        assertThat(Csv.Parsing.STRICT.equals(Csv.Parsing.STRICT.toBuilder().build())).isTrue();
+        assertThat(Csv.Parsing.DEFAULT.equals(Csv.Parsing.DEFAULT)).isTrue();
+        assertThat(Csv.Parsing.DEFAULT.equals(null)).isFalse();
+        assertThat(Csv.Parsing.DEFAULT.equals(Csv.Parsing.DEFAULT.toBuilder().build())).isTrue();
     }
 
     @Test
     public void testToString() {
-        assertThat(Csv.Parsing.STRICT.toString())
-                .isEqualTo(Csv.Parsing.STRICT.toString())
-                .isNotEqualTo(Csv.Parsing.LENIENT.toString())
+        assertThat(Csv.Parsing.DEFAULT.toString())
+                .isEqualTo(Csv.Parsing.DEFAULT.toString())
+                .isNotEqualTo(Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build().toString())
                 .isNotEqualTo(strict10.toString())
                 .isEqualTo(Csv.Parsing.DEFAULT.toString());
     }
 
-    private final Csv.Parsing strict10 = Csv.Parsing.STRICT.toBuilder().maxCharsPerField(10).build();
+    private final Csv.Parsing strict10 = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(10).build();
 }

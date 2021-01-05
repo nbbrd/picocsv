@@ -1,17 +1,17 @@
 /*
  * Copyright 2018 National Bank of Belgium
  *
- * Licensed under the EUPL, Version 1.1 or – as soon they will be approved 
+ * Licensed under the EUPL, Version 1.1 or – as soon they will be approved
  * by the European Commission - subsequent versions of the EUPL (the "Licence");
  * You may not use this work except in compliance with the Licence.
  * You may obtain a copy of the Licence at:
  *
  * http://ec.europa.eu/idabc/eupl
  *
- * Unless required by applicable law or agreed to in writing, software 
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the Licence is distributed on an "AS IS" basis,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the Licence for the specific language governing permissions and 
+ * See the Licence for the specific language governing permissions and
  * limitations under the Licence.
  */
 package _benchmark;
@@ -19,21 +19,13 @@ package _benchmark;
 import _benchmark.de.siegmar.csvbenchmark.Constant;
 import _benchmark.de.siegmar.csvbenchmark.util.InfiniteDataReader;
 import nbbrd.picocsv.Csv;
-import java.io.IOException;
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
-import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
-import nbbrd.picocsv.Csv;
+
+import java.io.IOException;
 
 /**
- *
  * @author Philippe Charles
  */
 @Fork(value = 1, warmups = 1)
@@ -55,7 +47,12 @@ public class CsvStreamBenchmark {
                     .quote(Constant.DELIMITER)
                     .build();
 
-            input = Csv.Reader.of(new InfiniteDataReader(Constant.data), format);
+            Csv.Parsing options = Csv.Parsing.DEFAULT
+                    .toBuilder()
+                    .format(format)
+                    .build();
+
+            input = Csv.Reader.of(new InfiniteDataReader(Constant.data), Csv.DEFAULT_CHAR_BUFFER_SIZE, options);
         }
 
         @TearDown

@@ -18,10 +18,10 @@ package _test;
 
 import nbbrd.picocsv.Csv;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 /**
  * @author Philippe Charles
@@ -29,41 +29,11 @@ import java.nio.file.Path;
 @lombok.AllArgsConstructor
 public enum QuickReader {
 
-    BYTE_ARRAY(StreamType.STREAM) {
-        @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
-            try (InputStream stream = newInputStream(input, encoding)) {
-                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format, options)) {
-                    return parser.accept(reader);
-                }
-            }
-        }
-    },
-    FILE(StreamType.FILE) {
-        @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
-            Path file = newInputFile(input, encoding);
-            try (Csv.Reader reader = Csv.Reader.of(file, encoding, format, options)) {
-                return parser.accept(reader);
-            }
-        }
-    },
-    FILE_STREAM(StreamType.STREAM) {
-        @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
-            Path file = newInputFile(input, encoding);
-            try (InputStream stream = Files.newInputStream(file)) {
-                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format, options)) {
-                    return parser.accept(reader);
-                }
-            }
-        }
-    },
     CHAR_READER(StreamType.OBJECT) {
         @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
-            try (Reader object = newCharReader(input)) {
-                try (Csv.Reader reader = Csv.Reader.of(object, format, options)) {
+        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, String input, Csv.Parsing options) throws IOException {
+            try (Reader object = new StringReader(input)) {
+                try (Csv.Reader reader = Csv.Reader.of(object, Csv.DEFAULT_CHAR_BUFFER_SIZE, options)) {
                     return parser.accept(reader);
                 }
             }
@@ -73,13 +43,13 @@ public enum QuickReader {
     @lombok.Getter
     private final StreamType type;
 
-    abstract public <T> T readValue(Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException;
+    abstract public <T> T readValue(Parser<T> parser, Charset encoding, String input, Csv.Parsing options) throws IOException;
 
-    public void read(VoidParser parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
+    public void read(VoidParser parser, Charset encoding, String input, Csv.Parsing options) throws IOException {
         readValue(stream -> {
             parser.accept(stream);
             return null;
-        }, encoding, format, input, options);
+        }, encoding, input, options);
     }
 
     @FunctionalInterface
@@ -97,20 +67,5 @@ public enum QuickReader {
             return reader -> {
             };
         }
-    }
-
-    public static Path newInputFile(String content, Charset charset) throws IOException {
-        File result = File.createTempFile("input", ".csv");
-        result.deleteOnExit();
-        Files.write(result.toPath(), content.getBytes(charset));
-        return result.toPath();
-    }
-
-    public static InputStream newInputStream(String content, Charset charset) {
-        return new ByteArrayInputStream(content.getBytes(charset));
-    }
-
-    public static Reader newCharReader(String content) {
-        return new StringReader(content);
     }
 }

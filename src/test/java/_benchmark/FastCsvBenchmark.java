@@ -45,6 +45,7 @@ public class FastCsvBenchmark {
             input = CsvReader.builder()
                     .fieldSeparator(Constant.SEPARATOR)
                     .quoteCharacter(Constant.DELIMITER)
+                    .skipEmptyRows(false)
                     .build(new InfiniteDataReader(Constant.data))
                     .iterator();
         }

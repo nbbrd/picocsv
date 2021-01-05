@@ -16,18 +16,9 @@
  */
 package nbbrd.picocsv;
 
-import java.io.*;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CharsetEncoder;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author Philippe Charles
@@ -220,26 +211,27 @@ public final class Csv {
     public static final class Parsing {
 
         /**
-         * Predefined parsing options that use a strict separator.
+         * Default parsing options.
          */
-        public static final Parsing STRICT = Parsing.builder().lenientSeparator(false).build();
+        public static final Parsing DEFAULT = Parsing.builder().build();
 
-        /**
-         * Predefined parsing options that use a lenient separator.
-         */
-        public static final Parsing LENIENT = Parsing.builder().lenientSeparator(true).build();
-
-        /**
-         * Predefined parsing options as alias to {@link Parsing#STRICT}.
-         */
-        public static final Parsing DEFAULT = STRICT;
-
+        private final Format format;
         private final boolean lenientSeparator;
         private final int maxCharsPerField;
 
-        private Parsing(boolean lenientSeparator, int maxCharsPerField) {
+        private Parsing(Format format, boolean lenientSeparator, int maxCharsPerField) {
+            this.format = format;
             this.lenientSeparator = lenientSeparator;
             this.maxCharsPerField = maxCharsPerField;
+        }
+
+        /**
+         * Determines the CSV format used by this reader.
+         *
+         * @return a non-null format
+         */
+        public Format getFormat() {
+            return format;
         }
 
         /**
@@ -270,6 +262,7 @@ public final class Csv {
         @Override
         public int hashCode() {
             int hash = 7;
+            hash = 37 * hash + format.hashCode();
             hash = 37 * hash + hashCodeOf(lenientSeparator);
             hash = 37 * hash + this.maxCharsPerField;
             return hash;
@@ -287,6 +280,9 @@ public final class Csv {
                 return false;
             }
             final Parsing other = (Parsing) obj;
+            if (!this.format.equals(other.format)) {
+                return false;
+            }
             if (this.lenientSeparator != other.lenientSeparator) {
                 return false;
             }
@@ -298,11 +294,12 @@ public final class Csv {
 
         @Override
         public String toString() {
-            return "Parsing{" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + '}';
+            return "Parsing{" + "format=" + format + ", lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + '}';
         }
 
         public Builder toBuilder() {
             return builder()
+                    .format(format)
                     .lenientSeparator(lenientSeparator)
                     .maxCharsPerField(maxCharsPerField);
         }
@@ -316,10 +313,16 @@ public final class Csv {
             private static final boolean DEFAULT_LENIENT_SEPARATOR = false;
             private static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
 
+            private Format format = Format.DEFAULT;
             private boolean lenientSeparator = DEFAULT_LENIENT_SEPARATOR;
             private int maxCharsPerField = DEFAULT_MAX_CHARS_PER_FIELD;
 
             private Builder() {
+            }
+
+            public Builder format(Format format) {
+                this.format = Objects.requireNonNull(format);
+                return this;
             }
 
             public Builder lenientSeparator(boolean lenientSeparator) {
@@ -333,7 +336,7 @@ public final class Csv {
             }
 
             public Parsing build() {
-                return new Parsing(lenientSeparator, maxCharsPerField);
+                return new Parsing(format, lenientSeparator, maxCharsPerField);
             }
         }
     }
@@ -344,105 +347,25 @@ public final class Csv {
     public static final class Reader implements Closeable, CharSequence {
 
         /**
-         * @deprecated replaced by {@link #of(Path, Charset, Format, Parsing)}
-         */
-        @Deprecated
-        public static Reader of(Path file, Charset encoding, Format format) throws IllegalArgumentException, IOException {
-            return of(file, encoding, format, Parsing.STRICT);
-        }
-
-        /**
-         * Creates a new instance from a file.
-         *
-         * @param file     a non-null file
-         * @param encoding a non-null encoding
-         * @param format   a non-null format
-         * @param options  non-null options
-         * @return a new CSV reader
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Reader of(Path file, Charset encoding, Format format, Parsing options) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(file, "file");
-            Objects.requireNonNull(encoding, "encoding");
-            Objects.requireNonNull(format, "format");
-            Objects.requireNonNull(options, "options");
-            requireValid(format, "format");
-
-            CharsetDecoder decoder = encoding.newDecoder();
-            BufferSizes sizes = BufferSizes.of(file, decoder);
-            ReadableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.READ);
-
-            return make(format, sizes.getCharBufferSize(), sizes.newCharReader(channel, decoder), options);
-        }
-
-        /**
-         * @deprecated replaced by {@link #of(InputStream, Charset, Format, Parsing)}
-         */
-        @Deprecated
-        public static Reader of(InputStream stream, Charset encoding, Format format) throws IllegalArgumentException, IOException {
-            return of(stream, encoding, format, Parsing.STRICT);
-        }
-
-        /**
-         * Creates a new instance from a stream.
-         *
-         * @param stream   a non-null stream
-         * @param encoding a non-null encoding
-         * @param format   a non-null format
-         * @param options  non-null options
-         * @return a new CSV reader
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Reader of(InputStream stream, Charset encoding, Format format, Parsing options) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(stream, "stream");
-            Objects.requireNonNull(encoding, "encoding");
-            Objects.requireNonNull(format, "format");
-            Objects.requireNonNull(options, "options");
-            requireValid(format, "format");
-
-            CharsetDecoder decoder = encoding.newDecoder();
-            BufferSizes sizes = BufferSizes.of(stream, decoder);
-            return make(format, sizes.getCharBufferSize(), new InputStreamReader(stream, decoder), options);
-        }
-
-        /**
-         * @deprecated replaced by {@link #of(java.io.Reader, Format, Parsing)}
-         */
-        @Deprecated
-        public static Reader of(java.io.Reader charReader, Format format) throws IllegalArgumentException, IOException {
-            return of(charReader, format, Parsing.STRICT);
-        }
-
-        /**
          * Creates a new instance from a char reader.
          *
          * @param charReader a non-null char reader
-         * @param format     a non-null format
          * @param options    non-null options
          * @return a new CSV reader
          * @throws IllegalArgumentException if the format contains an invalid
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Reader of(java.io.Reader charReader, Format format, Parsing options) throws IllegalArgumentException, IOException {
+        public static Reader of(java.io.Reader charReader, int charBufferSize, Parsing options) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(charReader, "charReader");
-            Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
-            requireValid(format, "format");
+            requireValidCharBufferSize(charBufferSize, "charBufferSize");
+            requireValidFormat(options.getFormat(), "format");
 
-            BufferSizes sizes = BufferSizes.EMPTY;
-            return make(format, sizes.getCharBufferSize(), charReader, options);
-        }
-
-        private static Reader make(Format format, int charBufferSize, java.io.Reader charReader, Parsing options) {
             return new Reader(
-                    ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBufferSize) : new Input(charReader, charBufferSize),
-                    format.getQuote(), format.getDelimiter(),
-                    EndOfLineReader.of(format, options),
+                    ReadAheadInput.isNeeded(options) ? new ReadAheadInput(charReader, charBufferSize) : new Input(charReader, charBufferSize),
+                    options.getFormat().getQuote(), options.getFormat().getDelimiter(),
+                    EndOfLineReader.of(options),
                     options.getMaxCharsPerField());
         }
 
@@ -669,8 +592,8 @@ public final class Csv {
 
         private static final class ReadAheadInput extends Input {
 
-            static boolean isNeeded(Format format, Parsing options) {
-                return options.isLenientSeparator() || format.getSeparator() == NewLine.WINDOWS;
+            static boolean isNeeded(Parsing options) {
+                return options.isLenientSeparator() || options.getFormat().getSeparator() == NewLine.WINDOWS;
             }
 
             private static final int NULL_CODE = -2;
@@ -746,11 +669,11 @@ public final class Csv {
             static final int CR_CODE = NewLine.CR;
             static final int LF_CODE = NewLine.LF;
 
-            static EndOfLineReader of(Format format, Parsing options) {
+            static EndOfLineReader of(Parsing options) {
                 if (options.isLenientSeparator()) {
                     return LENIENT;
                 }
-                switch (format.getSeparator()) {
+                switch (options.getFormat().getSeparator()) {
                     case MACINTOSH:
                         return MACINTOSH;
                     case UNIX:
@@ -765,80 +688,112 @@ public final class Csv {
     }
 
     /**
+     * Specifies the writer options.
+     */
+    public static final class Formatting {
+
+        /**
+         * Default formatting options.
+         */
+        public static final Formatting DEFAULT = Formatting.builder().build();
+
+        private final Format format;
+
+        private Formatting(Format format) {
+            this.format = format;
+        }
+
+        /**
+         * Determines the CSV format used by this writer.
+         *
+         * @return a non-null format
+         */
+        public Format getFormat() {
+            return format;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 37 * hash + format.hashCode();
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final Parsing other = (Parsing) obj;
+            if (!this.format.equals(other.format)) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return "Parsing{" + "format=" + format + '}';
+        }
+
+        public Builder toBuilder() {
+            return builder()
+                    .format(format);
+        }
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static final class Builder {
+
+            private Format format = Format.DEFAULT;
+
+            private Builder() {
+            }
+
+            public Builder format(Format format) {
+                this.format = Objects.requireNonNull(format);
+                return this;
+            }
+
+            public Formatting build() {
+                return new Formatting(format);
+            }
+        }
+    }
+
+    /**
      * Writes CSV files.
      */
     public static final class Writer implements Closeable {
 
         /**
-         * Creates a new instance from a file.
-         *
-         * @param file     a non-null file
-         * @param encoding a non-null encoding
-         * @param format   a non-null format
-         * @return a new CSV writer
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Writer of(Path file, Charset encoding, Format format) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(file, "file");
-            Objects.requireNonNull(encoding, "encoding");
-            Objects.requireNonNull(format, "format");
-            requireValid(format, "format");
-
-            CharsetEncoder encoder = encoding.newEncoder();
-            BufferSizes sizes = BufferSizes.of(file, encoder);
-            WritableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.WRITE);
-
-            return make(format, sizes.getCharBufferSize(), sizes.newCharWriter(channel, encoder));
-        }
-
-        /**
-         * Creates a new instance from a stream.
-         *
-         * @param stream   a non-null stream
-         * @param encoding a non-null encoding
-         * @param format   a non-null format
-         * @return a new CSV writer
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Writer of(OutputStream stream, Charset encoding, Format format) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(stream, "stream");
-            Objects.requireNonNull(encoding, "encoding");
-            Objects.requireNonNull(format, "format");
-            requireValid(format, "format");
-
-            CharsetEncoder encoder = encoding.newEncoder();
-            BufferSizes sizes = BufferSizes.of(stream, encoder);
-            return make(format, sizes.getCharBufferSize(), new OutputStreamWriter(stream, encoder));
-        }
-
-        /**
          * Creates a new instance from a char writer.
          *
          * @param charWriter a non-null char writer
-         * @param format     a non-null format
+         * @param options    a non-null options
          * @return a new CSV writer
          * @throws IllegalArgumentException if the format contains an invalid
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Writer of(java.io.Writer charWriter, Format format) throws IllegalArgumentException, IOException {
+        public static Writer of(java.io.Writer charWriter, int charBufferSize, Formatting options) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(charWriter, "charWriter");
-            Objects.requireNonNull(format, "format");
-            requireValid(format, "format");
+            Objects.requireNonNull(options, "options");
+            requireValidCharBufferSize(charBufferSize, "charBufferSize");
+            requireValidFormat(options.getFormat(), "format");
 
-            BufferSizes sizes = BufferSizes.EMPTY;
-            return make(format, sizes.getCharBufferSize(), charWriter);
-        }
-
-        private static Writer make(Format format, int charBufferSize, java.io.Writer charWriter) {
             return new Writer(
                     new Output(charWriter, charBufferSize),
-                    format.getQuote(), format.getDelimiter(),
-                    EndOfLineWriter.of(format.getSeparator())
+                    options.getFormat().getQuote(), options.getFormat().getDelimiter(),
+                    EndOfLineWriter.of(options)
             );
         }
 
@@ -1035,8 +990,8 @@ public final class Csv {
 
             abstract void write(Output output) throws IOException;
 
-            static EndOfLineWriter of(NewLine newLine) {
-                switch (newLine) {
+            static EndOfLineWriter of(Formatting options) {
+                switch (options.getFormat().getSeparator()) {
                     case MACINTOSH:
                         return MACINTOSH;
                     case UNIX:
@@ -1050,83 +1005,13 @@ public final class Csv {
         }
     }
 
-    static final class BufferSizes {
-
-        static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
-        static final int IMPL_DEPENDENT_MIN_BUFFER_CAP = -1;
-
-        static final BufferSizes EMPTY = new BufferSizes(-1, -1, -1);
-
-        static BufferSizes of(Path file, CharsetDecoder decoder) throws IOException {
-            return make(BLOCK_SIZER.get().getBlockSize(file), decoder.averageCharsPerByte());
-        }
-
-        static BufferSizes of(Path file, CharsetEncoder encoder) throws IOException {
-            return make(BLOCK_SIZER.get().getBlockSize(file), 1f / encoder.averageBytesPerChar());
-        }
-
-        static BufferSizes of(InputStream stream, CharsetDecoder decoder) throws IOException {
-            return make(BLOCK_SIZER.get().getBlockSize(stream), decoder.averageCharsPerByte());
-        }
-
-        static BufferSizes of(OutputStream stream, CharsetEncoder encoder) throws IOException {
-            Objects.requireNonNull(stream);
-            return make(BLOCK_SIZER.get().getBlockSize(stream), 1f / encoder.averageBytesPerChar());
-        }
-
-        private static BufferSizes make(long blockSize, float averageCharsPerByte) {
-            if (blockSize <= 0 || blockSize > Integer.MAX_VALUE) {
-                return EMPTY;
-            }
-            int block = (int) blockSize;
-            int bytes = getByteSizeFromBlockSize(block);
-            int chars = (int) (bytes * averageCharsPerByte);
-            return new BufferSizes(block, bytes, chars);
-        }
-
-        final int block;
-        final int bytes;
-        final int chars;
-
-        BufferSizes(int block, int bytes, int chars) {
-            this.block = block;
-            this.bytes = bytes;
-            this.chars = chars;
-        }
-
-        int getCharBufferSize() {
-            return chars > 0 ? chars : DEFAULT_CHAR_BUFFER_SIZE;
-        }
-
-        int getChannelMinBufferCap() {
-            return bytes > 0 ? bytes : IMPL_DEPENDENT_MIN_BUFFER_CAP;
-        }
-
-        java.io.Reader newCharReader(ReadableByteChannel channel, CharsetDecoder decoder) {
-            return Channels.newReader(channel, decoder, getChannelMinBufferCap());
-        }
-
-        java.io.Writer newCharWriter(WritableByteChannel channel, CharsetEncoder encoder) {
-            return Channels.newWriter(channel, encoder, getChannelMinBufferCap());
-        }
-
-        private static int getByteSizeFromBlockSize(int blockSize) {
-            int tmp = getNextHighestPowerOfTwo(blockSize);
-            return tmp == blockSize ? blockSize * 64 : blockSize;
-        }
-
-        private static int getNextHighestPowerOfTwo(int val) {
-            val = val - 1;
-            val |= val >> 1;
-            val |= val >> 2;
-            val |= val >> 4;
-            val |= val >> 8;
-            val |= val >> 16;
-            return val + 1;
+    private static void requireValidCharBufferSize(int charBufferSize, String message) throws IllegalArgumentException {
+        if (charBufferSize <= 0) {
+            throw new IllegalArgumentException(message);
         }
     }
 
-    private static void requireValid(Format format, String message) throws IllegalArgumentException {
+    private static void requireValidFormat(Format format, String message) throws IllegalArgumentException {
         if (!format.isValid()) {
             throw new IllegalArgumentException(message);
         }
@@ -1137,52 +1022,5 @@ public final class Csv {
         return value ? 1231 : 1237;
     }
 
-    public static final AtomicReference<BlockSizer> BLOCK_SIZER = new AtomicReference<>(new BlockSizer());
-
-    /**
-     * System-wide utility that gets the number of bytes per block from several byte sources.
-     * May be overridden to deal with new JDK APIs.
-     */
-    public static class BlockSizer {
-
-        public static final long DEFAULT_BLOCK_BUFFER_SIZE = 512;
-        public static final long DEFAULT_BUFFER_OUTPUT_STREAM_SIZE = 8192;
-        public static final long UNKNOWN_SIZE = -1;
-
-        /**
-         * Returns the number of bytes per block in the file store of this file.
-         *
-         * @param file a non-null file as byte source
-         * @return a positive value representing the block size in bytes if available, -1 otherwise
-         * @throws IOException if an I/O error occurs
-         * @see <a href="https://docs.oracle.com/javase/10/docs/api/java/nio/file/FileStore.html#getBlockSize()">https://docs.oracle.com/javase/10/docs/api/java/nio/file/FileStore.html#getBlockSize()</a>
-         */
-        public long getBlockSize(Path file) throws IOException {
-            Objects.requireNonNull(file);
-            return DEFAULT_BLOCK_BUFFER_SIZE;
-        }
-
-        /**
-         * Returns the number of bytes per block in the input stream implementation.
-         *
-         * @param stream a non-null input stream as byte source
-         * @return a positive value representing the block size in bytes if available, -1 otherwise
-         * @throws IOException if an I/O error occurs
-         */
-        public long getBlockSize(InputStream stream) throws IOException {
-            return stream.available();
-        }
-
-        /**
-         * Returns the number of bytes per block in the output stream implementation.
-         *
-         * @param stream a non-null output stream as byte source
-         * @return a positive value representing the block size in bytes if available, -1 otherwise
-         * @throws IOException if an I/O error occurs
-         */
-        public long getBlockSize(OutputStream stream) throws IOException {
-            Objects.requireNonNull(stream);
-            return stream instanceof BufferedOutputStream ? DEFAULT_BUFFER_OUTPUT_STREAM_SIZE : UNKNOWN_SIZE;
-        }
-    }
+    public static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
 }

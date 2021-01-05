@@ -1,17 +1,17 @@
 /*
  * Copyright 2019 National Bank of Belgium
- * 
- * Licensed under the EUPL, Version 1.1 or - as soon they will be approved 
+ *
+ * Licensed under the EUPL, Version 1.1 or - as soon they will be approved
  * by the European Commission - subsequent versions of the EUPL (the "Licence");
  * You may not use this work except in compliance with the Licence.
  * You may obtain a copy of the Licence at:
- * 
+ *
  * http://ec.europa.eu/idabc/eupl
- * 
- * Unless required by applicable law or agreed to in writing, software 
+ *
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the Licence is distributed on an "AS IS" basis,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the Licence for the specific language governing permissions and 
+ * See the Licence for the specific language governing permissions and
  * limitations under the Licence.
  */
 package nbbrd.picocsv;
@@ -19,75 +19,34 @@ package nbbrd.picocsv;
 import _test.QuickWriter;
 import _test.Row;
 import _test.Sample;
-import static _test.Sample.ILLEGAL_FORMAT;
+import org.junit.Test;
+
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import java.nio.file.Path;
 import java.util.Arrays;
-import static nbbrd.picocsv.Csv.BufferSizes.DEFAULT_CHAR_BUFFER_SIZE;
-import org.junit.Test;
+
+import static _test.Sample.ILLEGAL_FORMAT;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 import static nbbrd.picocsv.Csv.Format.RFC4180;
 import static org.assertj.core.api.Assertions.*;
 
-/**
- *
- * @author Philippe Charles
- */
 public class CsvWriterTest {
-
-    @Test
-    public void testPathFactory() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of((Path) null, UTF_8, RFC4180))
-                .withMessageContaining("file");
-
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), null, RFC4180))
-                .withMessageContaining("encoding");
-
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), UTF_8, null))
-                .withMessageContaining("format");
-
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), UTF_8, ILLEGAL_FORMAT))
-                .withMessageContaining("format");
-    }
-
-    @Test
-    public void testStreamFactory() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of((OutputStream) null, UTF_8, RFC4180))
-                .withMessageContaining("stream");
-
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), null, RFC4180))
-                .withMessageContaining("encoding");
-
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), UTF_8, null))
-                .withMessageContaining("format");
-
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), UTF_8, ILLEGAL_FORMAT))
-                .withMessageContaining("format");
-    }
 
     @Test
     public void testWriterFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of((Writer) null, RFC4180))
+                .isThrownBy(() -> Csv.Writer.of((Writer) null, DEFAULT_CHAR_BUFFER_SIZE, Csv.Formatting.DEFAULT))
                 .withMessageContaining("charWriter");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newCharWriter(), null))
-                .withMessageContaining("format");
+                .isThrownBy(() -> Csv.Writer.of(new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE, null))
+                .withMessageContaining("options");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newCharWriter(), ILLEGAL_FORMAT))
+                .isThrownBy(() -> Csv.Writer.of(new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE, Csv.Formatting.DEFAULT.toBuilder().format(ILLEGAL_FORMAT).build()))
                 .withMessageContaining("format");
     }
 
@@ -171,19 +130,19 @@ public class CsvWriterTest {
 
     @Test
     public void testOutputBuffer() throws IOException {
-        assertValid(QuickWriter.BYTE_ARRAY, UTF_8, getOverflowSample(
+        assertValid(QuickWriter.CHAR_WRITER, UTF_8, getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE - 1),
                 "\"",
                 repeat('C', 10)
         ));
 
-        assertValid(QuickWriter.BYTE_ARRAY, UTF_8, getOverflowSample(
+        assertValid(QuickWriter.CHAR_WRITER, UTF_8, getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE),
                 "\"",
                 repeat('C', 10)
         ));
 
-        assertValid(QuickWriter.BYTE_ARRAY, UTF_8, getOverflowSample(
+        assertValid(QuickWriter.CHAR_WRITER, UTF_8, getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE + 1),
                 "\"",
                 repeat('C', 10)
