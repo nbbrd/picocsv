@@ -23,12 +23,11 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.io.Writer;
-import java.nio.charset.Charset;
 import java.util.Arrays;
 
-import static _test.Sample.ILLEGAL_FORMAT;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static _test.QuickWriter.write;
+import static _test.QuickWriter.writeValue;
+import static _test.Sample.INVALID_FORMAT;
 import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 import static nbbrd.picocsv.Csv.Format.RFC4180;
 import static org.assertj.core.api.Assertions.*;
@@ -38,40 +37,42 @@ public class CsvWriterTest {
     @Test
     public void testWriterFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of((Writer) null, DEFAULT_CHAR_BUFFER_SIZE, Csv.Formatting.DEFAULT))
+                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, Csv.Formatting.DEFAULT, null, DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("charWriter");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE, null))
+                .isThrownBy(() -> Csv.Writer.of(null, Csv.Formatting.DEFAULT, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
+                .withMessageContaining("format");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, null, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("options");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE, Csv.Formatting.DEFAULT.toBuilder().format(ILLEGAL_FORMAT).build()))
+                .isThrownBy(() -> Csv.Writer.of(INVALID_FORMAT, Csv.Formatting.DEFAULT, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("format");
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, Csv.Formatting.DEFAULT, new StringWriter(), 0))
+                .withMessageContaining("charBufferSize");
     }
 
     @Test
     public void testAllSamples() throws IOException {
-        for (QuickWriter writer : QuickWriter.values()) {
-            for (Charset encoding : Sample.CHARSETS) {
-                for (Sample sample : Sample.SAMPLES) {
-                    assertValid(writer, encoding, sample);
-                }
-            }
+        for (Sample sample : Sample.SAMPLES) {
+            assertValid(sample, Csv.Formatting.DEFAULT);
         }
     }
 
     @Test
     public void testMissingEndLine() throws IOException {
-        for (QuickWriter writer : QuickWriter.values()) {
-            assertThat(
-                    writer.write(o -> {
-                        o.writeField("A1");
-                        o.writeField("");
-                        o.writeField("C1");
-                    }, UTF_8, RFC4180)
-            ).isEqualTo("A1,,C1");
-        }
+        assertThat(
+                write(o -> {
+                    o.writeField("A1");
+                    o.writeField("");
+                    o.writeField("C1");
+                }, RFC4180, Csv.Formatting.DEFAULT)
+        ).isEqualTo("A1,,C1");
     }
 
     @Test
@@ -130,23 +131,23 @@ public class CsvWriterTest {
 
     @Test
     public void testOutputBuffer() throws IOException {
-        assertValid(QuickWriter.CHAR_WRITER, UTF_8, getOverflowSample(
+        assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE - 1),
                 "\"",
                 repeat('C', 10)
-        ));
+        ), Csv.Formatting.DEFAULT);
 
-        assertValid(QuickWriter.CHAR_WRITER, UTF_8, getOverflowSample(
+        assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE),
                 "\"",
                 repeat('C', 10)
-        ));
+        ), Csv.Formatting.DEFAULT);
 
-        assertValid(QuickWriter.CHAR_WRITER, UTF_8, getOverflowSample(
+        assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE + 1),
                 "\"",
                 repeat('C', 10)
-        ));
+        ), Csv.Formatting.DEFAULT);
     }
 
     private static Sample getOverflowSample(String... fields) {
@@ -160,7 +161,7 @@ public class CsvWriterTest {
     }
 
     private static String writeToString(QuickWriter.VoidFormatter formatter) throws IOException {
-        return QuickWriter.CHAR_WRITER.write(formatter, null, Csv.Format.RFC4180);
+        return write(formatter, Csv.Format.RFC4180, Csv.Formatting.DEFAULT);
     }
 
     private static String repeat(char c, int length) {
@@ -169,9 +170,9 @@ public class CsvWriterTest {
         return String.valueOf(result);
     }
 
-    private static void assertValid(QuickWriter writer, Charset encoding, Sample sample) throws IOException {
-        assertThat(writer.writeValue(sample.getRows(), Row::write, encoding, sample.getFormat()))
-                .describedAs("Writing '%s' with '%s'", sample.getName(), writer)
+    private static void assertValid(Sample sample, Csv.Formatting options) throws IOException {
+        assertThat(writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), options))
+                .describedAs(sample.asDescription("Writing"))
                 .isEqualTo(sample.getContent() + getMissingEOL(sample));
     }
 

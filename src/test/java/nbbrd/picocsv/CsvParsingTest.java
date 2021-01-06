@@ -27,28 +27,37 @@ public class CsvParsingTest {
 
     @Test
     public void testEqualsAndHashcode() {
-        assertThat(Csv.Parsing.DEFAULT)
-                .isEqualTo(Csv.Parsing.DEFAULT)
-                .hasSameHashCodeAs(Csv.Parsing.DEFAULT)
-                .isNotEqualTo(Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build())
+        assertThat(strict)
+                .isEqualTo(strict)
+                .hasSameHashCodeAs(strict)
+                .isNotEqualTo(lenient)
                 .isNotEqualTo(strict10)
-                .isEqualTo(Csv.Parsing.DEFAULT.toBuilder().build())
+                .isEqualTo(strict.toBuilder().build())
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
 
-        assertThat(Csv.Parsing.DEFAULT.equals(Csv.Parsing.DEFAULT)).isTrue();
-        assertThat(Csv.Parsing.DEFAULT.equals(null)).isFalse();
-        assertThat(Csv.Parsing.DEFAULT.equals(Csv.Parsing.DEFAULT.toBuilder().build())).isTrue();
+        assertThat(strict.equals(strict)).isTrue();
+        assertThat(strict.equals(null)).isFalse();
+        assertThat(strict.equals(strict.toBuilder().build())).isTrue();
     }
 
     @Test
     public void testToString() {
-        assertThat(Csv.Parsing.DEFAULT.toString())
-                .isEqualTo(Csv.Parsing.DEFAULT.toString())
-                .isNotEqualTo(Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build().toString())
+        assertThat(strict.toString())
+                .isEqualTo(strict.toString())
+                .isNotEqualTo(lenient.toString())
                 .isNotEqualTo(strict10.toString())
-                .isEqualTo(Csv.Parsing.DEFAULT.toString());
+                .isEqualTo(strict.toBuilder().build().toString())
+                .isNotEqualTo(null)
+                .isNotEqualTo("")
+                .contains(
+                        "Parsing",
+                        String.valueOf(strict.isLenientSeparator()),
+                        String.valueOf(strict.getMaxCharsPerField())
+                );
     }
 
+    private final Csv.Parsing strict = Csv.Parsing.DEFAULT;
+    private final Csv.Parsing lenient = Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build();
     private final Csv.Parsing strict10 = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(10).build();
 }

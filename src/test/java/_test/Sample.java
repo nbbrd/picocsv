@@ -17,11 +17,11 @@
 package _test;
 
 import nbbrd.picocsv.Csv;
+import org.assertj.core.description.Description;
+import org.assertj.core.description.TextDescription;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -53,6 +53,10 @@ public class Sample {
 
     public Sample withNewLine(Csv.NewLine newLine) {
         return withFormat(getFormat().toBuilder().separator(newLine).build());
+    }
+
+    public Description asDescription(String prefix) {
+        return new TextDescription(prefix + " '%s'", getName());
     }
 
     public static final class Builder {
@@ -254,8 +258,8 @@ public class Sample {
 
     private static String toString(Csv.Format format, Row... rows) {
         StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(result, Csv.DEFAULT_CHAR_BUFFER_SIZE, Csv.Formatting.DEFAULT.toBuilder().format(format).build())) {
-            Row.write(Arrays.asList(rows), writer);
+        try (Csv.Writer writer = Csv.Writer.of(format, Csv.Formatting.DEFAULT, result)) {
+            Row.writeAll(Arrays.asList(rows), writer);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
@@ -304,7 +308,5 @@ public class Sample {
 
     public static final List<Sample> SAMPLES = Stream.concat(getPredefinedSamples().stream(), getGeneratedSamples().stream()).collect(Collectors.toList());
 
-    public static final List<Charset> CHARSETS = Arrays.asList(StandardCharsets.UTF_8, StandardCharsets.UTF_16, StandardCharsets.US_ASCII);
-
-    public static final Csv.Format ILLEGAL_FORMAT = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
+    public static final Csv.Format INVALID_FORMAT = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
 }

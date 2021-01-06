@@ -20,34 +20,24 @@ import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.io.Writer;
-import java.nio.charset.Charset;
 
 /**
  * @author Philippe Charles
  */
-@lombok.AllArgsConstructor
-public enum QuickWriter {
+@lombok.experimental.UtilityClass
+public class QuickWriter {
 
-    CHAR_WRITER(StreamType.OBJECT) {
-        @Override
-        public <T> String writeValue(T value, QuickWriter.Formatter<T> formatter, Charset encoding, Csv.Format format) throws IOException {
-            try (Writer result = new StringWriter()) {
-                try (Csv.Writer writer = Csv.Writer.of(result, Csv.DEFAULT_CHAR_BUFFER_SIZE, Csv.Formatting.builder().format(format).build())) {
-                    formatter.accept(value, writer);
-                }
-                return result.toString();
+    public static <T> String writeValue(T value, Formatter<T> formatter, Csv.Format format, Csv.Formatting formatting) throws IOException {
+        try (java.io.Writer charWriter = new StringWriter()) {
+            try (Csv.Writer writer = Csv.Writer.of(format, formatting, charWriter, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+                formatter.accept(value, writer);
             }
+            return charWriter.toString();
         }
-    };
+    }
 
-    @lombok.Getter
-    private final StreamType type;
-
-    abstract public <T> String writeValue(T value, Formatter<T> formatter, Charset encoding, Csv.Format format) throws IOException;
-
-    public String write(VoidFormatter formatter, Charset encoding, Csv.Format format) throws IOException {
-        return writeValue(null, (value, stream) -> formatter.accept(stream), encoding, format);
+    public static String write(VoidFormatter formatter, Csv.Format format, Csv.Formatting formatting) throws IOException {
+        return writeValue(null, (value, stream) -> formatter.accept(stream), format, formatting);
     }
 
     @FunctionalInterface

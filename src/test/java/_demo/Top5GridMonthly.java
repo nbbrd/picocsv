@@ -10,10 +10,10 @@ class Top5GridMonthly {
 
     private final static byte[] CONTENT = getResourcesAsBytes(Top5GridMonthly.class, "/Top5-Grid-Monthly.csv");
     private final static Charset ENCODING = Charset.forName("windows-1252");
-    private final static Csv.Parsing OPTIONS = Csv.Parsing.DEFAULT.toBuilder().format(Csv.Format.EXCEL).lenientSeparator(true).build();
+    private final static Csv.Parsing OPTIONS = Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build();
 
     static Csv.Reader open() throws IOException {
-        return Csv.Reader.of(new InputStreamReader(new ByteArrayInputStream(CONTENT), ENCODING), Csv.DEFAULT_CHAR_BUFFER_SIZE, OPTIONS);
+        return Csv.Reader.of(Csv.Format.EXCEL, OPTIONS, new InputStreamReader(new ByteArrayInputStream(CONTENT), ENCODING));
     }
 
     private static byte[] getResourcesAsBytes(Class<?> anchor, String name) {

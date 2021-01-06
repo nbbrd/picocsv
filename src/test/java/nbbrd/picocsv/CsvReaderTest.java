@@ -16,22 +16,20 @@
  */
 package nbbrd.picocsv;
 
-import _test.QuickReader;
 import _test.QuickReader.VoidParser;
 import _test.Row;
 import _test.Sample;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.io.StringReader;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static _test.Sample.ILLEGAL_FORMAT;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static _test.QuickReader.read;
+import static _test.QuickReader.readValue;
+import static _test.Sample.INVALID_FORMAT;
 import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 import static org.assertj.core.api.Assertions.*;
 
@@ -43,72 +41,75 @@ public class CsvReaderTest {
     @Test
     public void testReaderFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Reader.of((Reader) null, DEFAULT_CHAR_BUFFER_SIZE, Csv.Parsing.DEFAULT))
+                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, Csv.Parsing.DEFAULT, null, DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("charReader");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Reader.of(new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE, null))
+                .isThrownBy(() -> Csv.Reader.of(null, Csv.Parsing.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
+                .withMessageContaining("format");
+
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, null, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("options");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Reader.of(new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE, Csv.Parsing.DEFAULT.toBuilder().format(ILLEGAL_FORMAT).build()))
+                .isThrownBy(() -> Csv.Reader.of(INVALID_FORMAT, Csv.Parsing.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("format");
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, Csv.Parsing.DEFAULT, new StringReader(""), 0))
+                .withMessageContaining("charBufferSize");
+
+        Csv.Parsing invalidOptions = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(0).build();
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, invalidOptions, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
+                .withMessageContaining("options must be valid");
     }
 
     @Test
     public void testAllSamples() throws IOException {
-        for (QuickReader reader : QuickReader.values()) {
-            for (Charset encoding : Sample.CHARSETS) {
-                for (Sample sample : Sample.SAMPLES) {
-                    assertValid(reader, encoding, sample, Csv.Parsing.DEFAULT);
-                    for (Csv.NewLine newLine : Csv.NewLine.values()) {
-                        assertValid(reader, encoding, sample.withNewLine(newLine), Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build());
-                    }
-                }
+        for (Sample sample : Sample.SAMPLES) {
+            assertValid(sample, Csv.Parsing.DEFAULT);
+            for (Csv.NewLine newLine : Csv.NewLine.values()) {
+                assertValid(sample.withNewLine(newLine), Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build());
             }
         }
     }
 
     @Test
     public void testSkip() throws IOException {
-        for (QuickReader reader : QuickReader.values()) {
-            for (Charset encoding : Sample.CHARSETS) {
-                for (Sample sample : Sample.SAMPLES) {
-                    Csv.Parsing options = Csv.Parsing.DEFAULT.toBuilder().format(sample.getFormat()).build();
-                    switch (sample.getRows().size()) {
-                        case 0:
-                        case 1:
-                            assertThat(reader.readValue(this::skipFirst, encoding, sample.getContent(), options))
-                                    .isEmpty();
-                            break;
-                        default:
-                            assertThat(reader.readValue(this::skipFirst, encoding, sample.getContent(), options))
-                                    .element(0)
-                                    .isEqualTo(sample.getRows().get(1));
-                            break;
-                    }
-                }
+        for (Sample sample : Sample.SAMPLES) {
+            switch (sample.getRows().size()) {
+                case 0:
+                case 1:
+                    assertThat(readValue(this::skipFirst, sample.getContent(), sample.getFormat(), Csv.Parsing.DEFAULT))
+                            .describedAs(sample.asDescription("Reading"))
+                            .isEmpty();
+                    break;
+                default:
+                    assertThat(readValue(this::skipFirst, sample.getContent(), sample.getFormat(), Csv.Parsing.DEFAULT))
+                            .describedAs(sample.asDescription("Reading"))
+                            .element(0)
+                            .isEqualTo(sample.getRows().get(1));
+                    break;
             }
         }
     }
 
     private List<Row> skipFirst(Csv.Reader reader) throws IOException {
         reader.readLine();
-        return Row.read(reader);
+        return Row.readAll(reader);
     }
 
     @Test
     public void testReadFieldBeforeLine() throws IOException {
         VoidParser readFieldBeforeLine = Csv.Reader::readField;
 
-        for (QuickReader reader : QuickReader.values()) {
-            for (Charset encoding : Sample.CHARSETS) {
-                for (Sample sample : Sample.SAMPLES) {
-                    Csv.Parsing options = Csv.Parsing.DEFAULT.toBuilder().format(sample.getFormat()).build();
-                    assertThatIllegalStateException()
-                            .isThrownBy(() -> reader.read(readFieldBeforeLine, encoding, sample.getContent(), options));
-                }
-            }
+        for (Sample sample : Sample.SAMPLES) {
+            assertThatIllegalStateException()
+                    .describedAs(sample.asDescription("Reading"))
+                    .isThrownBy(() -> read(readFieldBeforeLine, sample.getContent(), sample.getFormat(), Csv.Parsing.DEFAULT));
         }
     }
 
@@ -122,9 +123,7 @@ public class CsvReaderTest {
                 .rowOf("\r")
                 .build();
 
-        for (QuickReader type : QuickReader.values()) {
-            assertValid(type, UTF_8, invalidButStillOk, Csv.Parsing.DEFAULT);
-        }
+        assertValid(invalidButStillOk, Csv.Parsing.DEFAULT);
     }
 
     @Test
@@ -139,96 +138,81 @@ public class CsvReaderTest {
                 .rowOf(field1, field2)
                 .build();
 
-        for (QuickReader type : QuickReader.values()) {
-            assertValid(type, UTF_8, overflow, Csv.Parsing.DEFAULT);
-        }
+        assertValid(overflow, Csv.Parsing.DEFAULT);
     }
 
     @Test
     public void testEmptyLine() throws IOException {
-        Csv.Parsing options = Csv.Parsing.DEFAULT.toBuilder().format(Sample.EMPTY_LINES.getFormat()).build();
-        try (Reader charReader = new StringReader(Sample.EMPTY_LINES.getContent())) {
-            try (Csv.Reader reader = Csv.Reader.of(charReader, DEFAULT_CHAR_BUFFER_SIZE, options)) {
-                assertThat(reader.readLine()).isTrue();
-                assertThat(reader.readField()).isFalse();
-                assertThat(reader.readLine()).isTrue();
-                assertThat(reader.readField()).isFalse();
-                assertThat(reader.readLine()).isFalse();
-            }
+        Sample sample = Sample.EMPTY_LINES;
+        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.Parsing.DEFAULT, new StringReader(sample.getContent()))) {
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isFalse();
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isFalse();
+            assertThat(reader.readLine()).isFalse();
         }
     }
 
     @Test
     public void testEmptyFirstField() throws IOException {
         assertValid(Sample
-                .builder()
-                .name("Empty first field")
-                .format(Csv.Format.RFC4180)
-                .content(",B1\r\nA2,B2\r\n")
-                .rowOf("", "B1")
-                .rowOf("A2", "B2")
-                .build());
+                        .builder()
+                        .name("Empty first field")
+                        .format(Csv.Format.RFC4180)
+                        .content(",B1\r\nA2,B2\r\n")
+                        .rowOf("", "B1")
+                        .rowOf("A2", "B2")
+                        .build(),
+                Csv.Parsing.DEFAULT);
     }
 
     @Test
     public void testCharSequence() throws IOException {
-        Csv.Parsing options = Csv.Parsing.DEFAULT.toBuilder().format(Sample.SIMPLE.getFormat()).build();
-        try (Reader charReader = new StringReader(Sample.SIMPLE.getContent())) {
-            try (Csv.Reader reader = Csv.Reader.of(charReader,DEFAULT_CHAR_BUFFER_SIZE, options)) {
-                CharSequence chars = reader;
-                reader.readLine();
-                reader.readField();
+        Sample sample = Sample.SIMPLE;
+        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.Parsing.DEFAULT, new StringReader(sample.getContent()))) {
+            CharSequence chars = reader;
+            reader.readLine();
+            reader.readField();
 
-                assertThat(chars).hasSize(2);
+            assertThat(chars).hasSize(2);
 
-                assertThat(chars.charAt(0)).isEqualTo('A');
-                assertThat(chars.charAt(1)).isEqualTo('1');
-                assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                        .isThrownBy(() -> chars.charAt(-1));
-                assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                        .isThrownBy(() -> chars.charAt(2));
+            assertThat(chars.charAt(0)).isEqualTo('A');
+            assertThat(chars.charAt(1)).isEqualTo('1');
+            assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                    .isThrownBy(() -> chars.charAt(-1));
+            assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                    .isThrownBy(() -> chars.charAt(2));
 
-                assertThat(chars.subSequence(0, 2)).isEqualTo("A1");
-                assertThat(chars.subSequence(1, 2)).isEqualTo("1");
-                assertThat(chars.subSequence(2, 2)).isEmpty();
-                assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                        .isThrownBy(() -> chars.subSequence(-1, 2));
-                assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                        .isThrownBy(() -> chars.subSequence(0, 3));
-                assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                        .isThrownBy(() -> chars.subSequence(1, 0));
-            }
+            assertThat(chars.subSequence(0, 2)).isEqualTo("A1");
+            assertThat(chars.subSequence(1, 2)).isEqualTo("1");
+            assertThat(chars.subSequence(2, 2)).isEmpty();
+            assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                    .isThrownBy(() -> chars.subSequence(-1, 2));
+            assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                    .isThrownBy(() -> chars.subSequence(0, 3));
+            assertThatExceptionOfType(IndexOutOfBoundsException.class)
+                    .isThrownBy(() -> chars.subSequence(1, 0));
         }
     }
 
     @Test
-    public void testFieldOverflow() throws IOException {
-        Csv.Parsing valid = Csv.Parsing.DEFAULT.toBuilder().format(Sample.SIMPLE.getFormat()).maxCharsPerField(2).build();
-        try (Reader charReader = new StringReader(Sample.SIMPLE.getContent())) {
-            assertThatCode(() -> {
-                try (Csv.Reader reader = Csv.Reader.of(charReader,DEFAULT_CHAR_BUFFER_SIZE, valid)) {
-                    Row.read(reader);
-                }
-            }).doesNotThrowAnyException();
-        }
+    public void testFieldOverflow() {
+        Sample sample = Sample.SIMPLE;
 
-        Csv.Parsing invalid = Csv.Parsing.DEFAULT.toBuilder().format(Sample.SIMPLE.getFormat()).maxCharsPerField(1).build();
-        try (Reader charReader = new StringReader(Sample.SIMPLE.getContent())) {
-            assertThatIOException().isThrownBy(() -> {
-                try (Csv.Reader reader = Csv.Reader.of(charReader,DEFAULT_CHAR_BUFFER_SIZE, invalid)) {
-                    Row.read(reader);
-                }
-            }).withMessageContaining("Field overflow");
-        }
+        Csv.Parsing valid = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(2).build();
+        assertThatCode(() -> readValue(Row::readAll, sample.getContent(), sample.getFormat(), valid))
+                .describedAs(sample.asDescription("Reading"))
+                .doesNotThrowAnyException();
+
+        Csv.Parsing invalid = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(1).build();
+        assertThatIOException().isThrownBy(() -> readValue(Row::readAll, sample.getContent(), sample.getFormat(), invalid))
+                .describedAs(sample.asDescription("Reading"))
+                .withMessageContaining("Field overflow");
     }
 
-    private static void assertValid(Sample sample) throws IOException {
-        assertValid(QuickReader.CHAR_READER, UTF_8, sample, Csv.Parsing.DEFAULT);
-    }
-
-    private static void assertValid(QuickReader r, Charset encoding, Sample sample, Csv.Parsing options) throws IOException {
-        assertThat(r.readValue(Row::read, encoding, sample.getContent(), options.toBuilder().format(sample.getFormat()).build()))
-                .describedAs("Reading '%s' with '%s'", sample.getName(), r)
+    private static void assertValid(Sample sample, Csv.Parsing options) throws IOException {
+        assertThat(readValue(Row::readAll, sample.getContent(), sample.getFormat(), options))
+                .describedAs(sample.asDescription("Reading"))
                 .containsExactlyElementsOf(sample.getRows());
     }
 }

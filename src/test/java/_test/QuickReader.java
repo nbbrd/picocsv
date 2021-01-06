@@ -19,37 +19,27 @@ package _test;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.io.StringReader;
-import java.nio.charset.Charset;
 
 /**
  * @author Philippe Charles
  */
-@lombok.AllArgsConstructor
-public enum QuickReader {
+@lombok.experimental.UtilityClass
+public class QuickReader {
 
-    CHAR_READER(StreamType.OBJECT) {
-        @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, String input, Csv.Parsing options) throws IOException {
-            try (Reader object = new StringReader(input)) {
-                try (Csv.Reader reader = Csv.Reader.of(object, Csv.DEFAULT_CHAR_BUFFER_SIZE, options)) {
-                    return parser.accept(reader);
-                }
+    public static <T> T readValue(Parser<T> parser, String input, Csv.Format format, Csv.Parsing options) throws IOException {
+        try (java.io.Reader charReader = new StringReader(input)) {
+            try (Csv.Reader reader = Csv.Reader.of(format, options, charReader, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+                return parser.accept(reader);
             }
         }
-    };
+    }
 
-    @lombok.Getter
-    private final StreamType type;
-
-    abstract public <T> T readValue(Parser<T> parser, Charset encoding, String input, Csv.Parsing options) throws IOException;
-
-    public void read(VoidParser parser, Charset encoding, String input, Csv.Parsing options) throws IOException {
+    public static void read(VoidParser parser, String input, Csv.Format format, Csv.Parsing options) throws IOException {
         readValue(stream -> {
             parser.accept(stream);
             return null;
-        }, encoding, input, options);
+        }, input, format, options);
     }
 
     @FunctionalInterface
@@ -62,10 +52,5 @@ public enum QuickReader {
     public interface VoidParser {
 
         void accept(Csv.Reader reader) throws IOException;
-
-        static VoidParser noOp() {
-            return reader -> {
-            };
-        }
     }
 }

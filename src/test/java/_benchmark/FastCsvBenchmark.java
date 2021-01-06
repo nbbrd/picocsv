@@ -31,7 +31,7 @@ import java.io.IOException;
  * @author Philippe Charles
  */
 @Fork(value = 1, warmups = 1)
-@Warmup(iterations = 10)
+@Warmup(iterations = 3)
 @BenchmarkMode(Mode.Throughput)
 public class FastCsvBenchmark {
 

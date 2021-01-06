@@ -137,25 +137,13 @@ public final class Csv {
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
+            if (this == obj) return true;
+            if (obj == null) return false;
+            if (getClass() != obj.getClass()) return false;
             final Format other = (Format) obj;
-            if (this.delimiter != other.delimiter) {
-                return false;
-            }
-            if (this.quote != other.quote) {
-                return false;
-            }
-            if (this.separator != other.separator) {
-                return false;
-            }
+            if (this.separator != other.separator) return false;
+            if (this.delimiter != other.delimiter) return false;
+            if (this.quote != other.quote) return false;
             return true;
         }
 
@@ -215,23 +203,15 @@ public final class Csv {
          */
         public static final Parsing DEFAULT = Parsing.builder().build();
 
-        private final Format format;
+        private static final boolean DEFAULT_LENIENT_SEPARATOR = false;
+        private static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
+
         private final boolean lenientSeparator;
         private final int maxCharsPerField;
 
-        private Parsing(Format format, boolean lenientSeparator, int maxCharsPerField) {
-            this.format = format;
+        private Parsing(boolean lenientSeparator, int maxCharsPerField) {
             this.lenientSeparator = lenientSeparator;
             this.maxCharsPerField = maxCharsPerField;
-        }
-
-        /**
-         * Determines the CSV format used by this reader.
-         *
-         * @return a non-null format
-         */
-        public Format getFormat() {
-            return format;
         }
 
         /**
@@ -240,6 +220,7 @@ public final class Csv {
          * line is considered to be terminated by any one of a line feed ('\n'),
          * a carriage return ('\r'), a carriage return followed immediately by a
          * line feed, or by reaching the end-of-file (EOF)</i>.
+         * The default value is false.
          *
          * @return true if lenient parsing of separator, false otherwise
          */
@@ -259,10 +240,21 @@ public final class Csv {
             return maxCharsPerField;
         }
 
+        /**
+         * Checks if the current options follows theses rules:
+         * <ul>
+         * <li>maximum number of characters for a field must be positive
+         * </ul>
+         *
+         * @return true if valid, false otherwise
+         */
+        public boolean isValid() {
+            return maxCharsPerField > 0;
+        }
+
         @Override
         public int hashCode() {
             int hash = 7;
-            hash = 37 * hash + format.hashCode();
             hash = 37 * hash + hashCodeOf(lenientSeparator);
             hash = 37 * hash + this.maxCharsPerField;
             return hash;
@@ -270,36 +262,22 @@ public final class Csv {
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
+            if (this == obj) return true;
+            if (obj == null) return false;
+            if (getClass() != obj.getClass()) return false;
             final Parsing other = (Parsing) obj;
-            if (!this.format.equals(other.format)) {
-                return false;
-            }
-            if (this.lenientSeparator != other.lenientSeparator) {
-                return false;
-            }
-            if (this.maxCharsPerField != other.maxCharsPerField) {
-                return false;
-            }
+            if (this.lenientSeparator != other.lenientSeparator) return false;
+            if (this.maxCharsPerField != other.maxCharsPerField) return false;
             return true;
         }
 
         @Override
         public String toString() {
-            return "Parsing{" + "format=" + format + ", lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + '}';
+            return "Parsing{" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + '}';
         }
 
         public Builder toBuilder() {
             return builder()
-                    .format(format)
                     .lenientSeparator(lenientSeparator)
                     .maxCharsPerField(maxCharsPerField);
         }
@@ -310,19 +288,10 @@ public final class Csv {
 
         public static final class Builder {
 
-            private static final boolean DEFAULT_LENIENT_SEPARATOR = false;
-            private static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
-
-            private Format format = Format.DEFAULT;
             private boolean lenientSeparator = DEFAULT_LENIENT_SEPARATOR;
             private int maxCharsPerField = DEFAULT_MAX_CHARS_PER_FIELD;
 
             private Builder() {
-            }
-
-            public Builder format(Format format) {
-                this.format = Objects.requireNonNull(format);
-                return this;
             }
 
             public Builder lenientSeparator(boolean lenientSeparator) {
@@ -336,7 +305,7 @@ public final class Csv {
             }
 
             public Parsing build() {
-                return new Parsing(format, lenientSeparator, maxCharsPerField);
+                return new Parsing(lenientSeparator, maxCharsPerField);
             }
         }
     }
@@ -349,23 +318,41 @@ public final class Csv {
         /**
          * Creates a new instance from a char reader.
          *
+         * @param format     a non-null format
+         * @param options    a non-null options
          * @param charReader a non-null char reader
-         * @param options    non-null options
          * @return a new CSV reader
          * @throws IllegalArgumentException if the format contains an invalid
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Reader of(java.io.Reader charReader, int charBufferSize, Parsing options) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(charReader, "charReader");
+        public static Reader of(Format format, Parsing options, java.io.Reader charReader) throws IllegalArgumentException, IOException {
+            return of(format, options, charReader, DEFAULT_CHAR_BUFFER_SIZE);
+        }
+
+        /**
+         * Creates a new instance from a char reader.
+         *
+         * @param format     a non-null format
+         * @param options    a non-null options
+         * @param charReader a non-null char reader
+         * @return a new CSV reader
+         * @throws IllegalArgumentException if the format contains an invalid
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
+         */
+        public static Reader of(Format format, Parsing options, java.io.Reader charReader, int charBufferSize) throws IllegalArgumentException, IOException {
+            Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
-            requireValidCharBufferSize(charBufferSize, "charBufferSize");
-            requireValidFormat(options.getFormat(), "format");
+            Objects.requireNonNull(charReader, "charReader");
+            requireArgument(charBufferSize > 0, "charBufferSize");
+            requireArgument(format.isValid(), "format must be valid");
+            requireArgument(options.isValid(), "options must be valid");
 
             return new Reader(
-                    ReadAheadInput.isNeeded(options) ? new ReadAheadInput(charReader, charBufferSize) : new Input(charReader, charBufferSize),
-                    options.getFormat().getQuote(), options.getFormat().getDelimiter(),
-                    EndOfLineReader.of(options),
+                    ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBufferSize) : new Input(charReader, charBufferSize),
+                    format.getQuote(), format.getDelimiter(),
+                    EndOfLineReader.of(format, options),
                     options.getMaxCharsPerField());
         }
 
@@ -407,12 +394,12 @@ public final class Csv {
                     return false;
                 case READY:
                 case LAST:
-                    state = parseNextField();
+                    parseNextField();
                     parsedByLine = true;
                     return state != State.DONE;
                 case NOT_LAST:
                     skipRemainingFields();
-                    state = parseNextField();
+                    parseNextField();
                     parsedByLine = true;
                     return state != State.DONE;
                 default:
@@ -439,7 +426,7 @@ public final class Csv {
                         parsedByLine = false;
                         return true;
                     }
-                    state = parseNextField();
+                    parseNextField();
                     return state != State.DONE;
                 case DONE:
                 case READY:
@@ -455,18 +442,18 @@ public final class Csv {
         }
 
         private void skipRemainingFields() throws IOException {
-            while (true) {
-                if ((state = parseNextField()) != State.NOT_LAST) break;
-            }
+            do {
+                parseNextField();
+            } while (state == State.NOT_LAST);
         }
 
         // WARNING: main loop; lots of duplication to maximize perfs
         // WARNING: comparing ints more performant than comparing chars
-        private State parseNextField() throws IOException {
-            fieldLength = 0;
+        private void parseNextField() throws IOException {
             int code;
 
             try {
+                fieldLength = 0;
 
                 // [Step 1]: first char
                 fieldQuoted = false;
@@ -475,14 +462,22 @@ public final class Csv {
                         fieldQuoted = true;
                     } else {
                         /*-end-of-field-*/
-                        if (code == delimiterCode) return State.NOT_LAST;
-                        else if (endOfLine.isEndOfLine(code, input)) return State.LAST;
+                        if (code == delimiterCode) {
+                            state = State.NOT_LAST;
+                            return;
+                        } else if (endOfLine.isEndOfLine(code, input)) {
+                            state = State.LAST;
+                            return;
+                        }
                         /*-append-*/
                         fieldChars[fieldLength++] = (char) code;
                     }
                 } else {
                     // EOF
-                    return State.DONE;
+                    {
+                        state = State.DONE;
+                        return;
+                    }
                 }
 
                 if (fieldQuoted) {
@@ -500,26 +495,42 @@ public final class Csv {
                         } else {
                             if (escaped) {
                                 /*-end-of-field-*/
-                                if (code == delimiterCode) return State.NOT_LAST;
-                                else if (endOfLine.isEndOfLine(code, input)) return State.LAST;
+                                if (code == delimiterCode) {
+                                    state = State.NOT_LAST;
+                                    return;
+                                } else if (endOfLine.isEndOfLine(code, input)) {
+                                    state = State.LAST;
+                                    return;
+                                }
                             }
                             /*-append-*/
                             fieldChars[fieldLength++] = (char) code;
                         }
                     }
                     // EOF
-                    return State.LAST;
+                    {
+                        state = State.LAST;
+                        return;
+                    }
                 } else {
                     // [Step 2B]: subsequent chars without escape
                     while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                         /*-end-of-field-*/
-                        if (code == delimiterCode) return State.NOT_LAST;
-                        else if (endOfLine.isEndOfLine(code, input)) return State.LAST;
+                        if (code == delimiterCode) {
+                            state = State.NOT_LAST;
+                            return;
+                        } else if (endOfLine.isEndOfLine(code, input)) {
+                            state = State.LAST;
+                            return;
+                        }
                         /*-append-*/
                         fieldChars[fieldLength++] = (char) code;
                     }
                     // EOF
-                    return fieldLength > 0 ? State.LAST : State.DONE;
+                    {
+                        state = fieldLength > 0 ? State.LAST : State.DONE;
+                        return;
+                    }
                 }
 
             } catch (IndexOutOfBoundsException ex) {
@@ -592,8 +603,8 @@ public final class Csv {
 
         private static final class ReadAheadInput extends Input {
 
-            static boolean isNeeded(Parsing options) {
-                return options.isLenientSeparator() || options.getFormat().getSeparator() == NewLine.WINDOWS;
+            static boolean isNeeded(Format format, Parsing options) {
+                return options.isLenientSeparator() || format.getSeparator() == NewLine.WINDOWS;
             }
 
             private static final int NULL_CODE = -2;
@@ -669,11 +680,11 @@ public final class Csv {
             static final int CR_CODE = NewLine.CR;
             static final int LF_CODE = NewLine.LF;
 
-            static EndOfLineReader of(Parsing options) {
+            static EndOfLineReader of(Format format, Parsing options) {
                 if (options.isLenientSeparator()) {
                     return LENIENT;
                 }
-                switch (options.getFormat().getSeparator()) {
+                switch (format.getSeparator()) {
                     case MACINTOSH:
                         return MACINTOSH;
                     case UNIX:
@@ -697,54 +708,31 @@ public final class Csv {
          */
         public static final Formatting DEFAULT = Formatting.builder().build();
 
-        private final Format format;
-
-        private Formatting(Format format) {
-            this.format = format;
-        }
-
-        /**
-         * Determines the CSV format used by this writer.
-         *
-         * @return a non-null format
-         */
-        public Format getFormat() {
-            return format;
+        private Formatting() {
         }
 
         @Override
         public int hashCode() {
             int hash = 7;
-            hash = 37 * hash + format.hashCode();
             return hash;
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
-            final Parsing other = (Parsing) obj;
-            if (!this.format.equals(other.format)) {
-                return false;
-            }
+            if (this == obj) return true;
+            if (obj == null) return false;
+            if (getClass() != obj.getClass()) return false;
+            final Formatting other = (Formatting) obj;
             return true;
         }
 
         @Override
         public String toString() {
-            return "Parsing{" + "format=" + format + '}';
+            return "Formatting{" + '}';
         }
 
         public Builder toBuilder() {
-            return builder()
-                    .format(format);
+            return builder();
         }
 
         public static Builder builder() {
@@ -753,18 +741,11 @@ public final class Csv {
 
         public static final class Builder {
 
-            private Format format = Format.DEFAULT;
-
             private Builder() {
             }
 
-            public Builder format(Format format) {
-                this.format = Objects.requireNonNull(format);
-                return this;
-            }
-
             public Formatting build() {
-                return new Formatting(format);
+                return new Formatting();
             }
         }
     }
@@ -777,23 +758,40 @@ public final class Csv {
         /**
          * Creates a new instance from a char writer.
          *
-         * @param charWriter a non-null char writer
+         * @param format     a non-null format
          * @param options    a non-null options
+         * @param charWriter a non-null char writer
          * @return a new CSV writer
          * @throws IllegalArgumentException if the format contains an invalid
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Writer of(java.io.Writer charWriter, int charBufferSize, Formatting options) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(charWriter, "charWriter");
+        public static Writer of(Format format, Formatting options, java.io.Writer charWriter) throws IllegalArgumentException, IOException {
+            return of(format, options, charWriter, DEFAULT_CHAR_BUFFER_SIZE);
+        }
+
+        /**
+         * Creates a new instance from a char writer.
+         *
+         * @param format     a non-null format
+         * @param options    a non-null options
+         * @param charWriter a non-null char writer
+         * @return a new CSV writer
+         * @throws IllegalArgumentException if the format contains an invalid
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
+         */
+        public static Writer of(Format format, Formatting options, java.io.Writer charWriter, int charBufferSize) throws IllegalArgumentException, IOException {
+            Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
-            requireValidCharBufferSize(charBufferSize, "charBufferSize");
-            requireValidFormat(options.getFormat(), "format");
+            Objects.requireNonNull(charWriter, "charWriter");
+            requireArgument(charBufferSize > 0, "charBufferSize");
+            requireArgument(format.isValid(), "format must be valid");
 
             return new Writer(
                     new Output(charWriter, charBufferSize),
-                    options.getFormat().getQuote(), options.getFormat().getDelimiter(),
-                    EndOfLineWriter.of(options)
+                    format.getQuote(), format.getDelimiter(),
+                    EndOfLineWriter.of(format)
             );
         }
 
@@ -990,8 +988,8 @@ public final class Csv {
 
             abstract void write(Output output) throws IOException;
 
-            static EndOfLineWriter of(Formatting options) {
-                switch (options.getFormat().getSeparator()) {
+            static EndOfLineWriter of(Format format) {
+                switch (format.getSeparator()) {
                     case MACINTOSH:
                         return MACINTOSH;
                     case UNIX:
@@ -1005,14 +1003,8 @@ public final class Csv {
         }
     }
 
-    private static void requireValidCharBufferSize(int charBufferSize, String message) throws IllegalArgumentException {
-        if (charBufferSize <= 0) {
-            throw new IllegalArgumentException(message);
-        }
-    }
-
-    private static void requireValidFormat(Format format, String message) throws IllegalArgumentException {
-        if (!format.isValid()) {
+    private static void requireArgument(boolean condition, String message) throws IllegalArgumentException {
+        if (!condition) {
             throw new IllegalArgumentException(message);
         }
     }

@@ -29,9 +29,9 @@ import java.io.IOException;
  * @author Philippe Charles
  */
 @Fork(value = 1, warmups = 1)
-@Warmup(iterations = 10)
+@Warmup(iterations = 3)
 @BenchmarkMode(Mode.Throughput)
-public class CsvStreamBenchmark {
+public class ByFieldBenchmark {
 
     @State(Scope.Benchmark)
     public static class ReadState {
@@ -47,12 +47,7 @@ public class CsvStreamBenchmark {
                     .quote(Constant.DELIMITER)
                     .build();
 
-            Csv.Parsing options = Csv.Parsing.DEFAULT
-                    .toBuilder()
-                    .format(format)
-                    .build();
-
-            input = Csv.Reader.of(new InfiniteDataReader(Constant.data), Csv.DEFAULT_CHAR_BUFFER_SIZE, options);
+            input = Csv.Reader.of(format, Csv.Parsing.DEFAULT, new InfiniteDataReader(Constant.data));
         }
 
         @TearDown
@@ -63,10 +58,9 @@ public class CsvStreamBenchmark {
 
     @Benchmark
     public void readLine(ReadState state, Blackhole blackhole) throws IOException {
-        if (state.input.readLine()) {
-            while (state.input.readField()) {
-                blackhole.consume(state.input.toString());
-            }
+        state.input.readLine();
+        while (state.input.readField()) {
+            blackhole.consume(state.input.toString());
         }
     }
 }
