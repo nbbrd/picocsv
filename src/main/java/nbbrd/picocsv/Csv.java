@@ -67,13 +67,6 @@ public final class Csv {
          */
         public static final Format DEFAULT = RFC4180;
 
-        public static final Format EXCEL = Format
-                .builder()
-                .separator(NewLine.WINDOWS) // FIXME: ?
-                .delimiter(';')
-                .quote('"')
-                .build();
-
         private final NewLine separator;
         private final char delimiter;
         private final char quote;
