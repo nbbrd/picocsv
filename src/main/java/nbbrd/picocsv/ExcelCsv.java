@@ -50,14 +50,6 @@ public final class ExcelCsv {
         return Locale.getDefault(Locale.Category.FORMAT);
     }
 
-    private static final boolean isWindows() {
-        return System.getProperty("os.name").toLowerCase().contains("win");
-    }
-
-    private static final boolean isMac() {
-        return System.getProperty("os.name").toLowerCase().contains("mac");
-    }
-
     private static Csv.NewLine getSeparator() {
         return Csv.NewLine.WINDOWS;
     }
@@ -68,18 +60,32 @@ public final class ExcelCsv {
         return COMMA;
     }
 
+    private static final boolean isWindows() {
+        return System.getProperty("os.name").toLowerCase().contains("win");
+    }
+
+    private static final boolean isMac() {
+        return System.getProperty("os.name").toLowerCase().contains("mac");
+    }
+
+    private static final char COMMA = ',';
+    private static final char SEMICOLON = ';';
+
     private static char getDecimalSeparator() {
         return new DecimalFormatSymbols(getLocale()).getDecimalSeparator();
     }
 
-    private static char getWindowsListSeparator() throws IOException {
-        String query = "reg query \"HKEY_CURRENT_USER\\Control Panel\\International\" /v sList | findstr \"REG_SZ\"";
-        String result = execToString(query);
-        int idx = result.lastIndexOf("    ");
-        if (idx != -1 && result.length() > idx + 4) {
-            return result.charAt(idx + 4);
+    static char getWindowsListSeparator() throws IOException {
+        return parseWindowsListSeparator(execToString("reg query \"HKCU\\Control Panel\\International\" /v sList"));
+    }
+
+    private static char parseWindowsListSeparator(String result) throws IOException {
+        String anchor = "    sList    REG_SZ    ";
+        int idx = result.lastIndexOf(anchor);
+        if (idx != -1 && result.length() > idx + anchor.length()) {
+            return result.charAt(idx + anchor.length());
         }
-        throw new IOException("Cannot parse windows list separator");
+        throw new IOException("Cannot parse windows list separator: " + result);
     }
 
     private static String execToString(String command) throws IOException {
@@ -98,13 +104,10 @@ public final class ExcelCsv {
     private static String readerToString(java.io.Reader reader) throws IOException {
         StringBuilder result = new StringBuilder();
         char[] buffer = new char[8 * 1024];
-        int count = 0;
-        while ((count = reader.read(buffer)) != -1) {
-            result.append(buffer, 0, count);
+        int read = 0;
+        while ((read = reader.read(buffer)) != -1) {
+            result.append(buffer, 0, read);
         }
         return result.toString();
     }
-
-    private static final char COMMA = ',';
-    private static final char SEMICOLON = ';';
 }

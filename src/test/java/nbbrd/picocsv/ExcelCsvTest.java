@@ -5,6 +5,7 @@ import org.junit.Test;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatCode;
 
 public class ExcelCsvTest {
 
@@ -22,5 +23,11 @@ public class ExcelCsvTest {
     @Test
     public void testGetLocale() {
         assertThat(ExcelCsv.getLocale()).isNotNull();
+    }
+
+    @Test
+    public void testGetWindowsListSeparator() {
+        assertThatCode(() -> ExcelCsv.getWindowsListSeparator())
+                .doesNotThrowAnyException();
     }
 }
