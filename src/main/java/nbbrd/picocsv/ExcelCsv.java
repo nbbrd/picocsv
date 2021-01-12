@@ -60,7 +60,7 @@ public final class ExcelCsv {
         return COMMA;
     }
 
-    private static final boolean isWindows() {
+    static final boolean isWindows() {
         return System.getProperty("os.name").toLowerCase().contains("win");
     }
 

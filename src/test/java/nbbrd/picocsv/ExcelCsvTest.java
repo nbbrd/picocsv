@@ -6,6 +6,7 @@ import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatCode;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 public class ExcelCsvTest {
 
@@ -27,6 +28,7 @@ public class ExcelCsvTest {
 
     @Test
     public void testGetWindowsListSeparator() {
+        assumeThat(ExcelCsv.isWindows()).isTrue();
         assertThatCode(() -> ExcelCsv.getWindowsListSeparator())
                 .doesNotThrowAnyException();
     }
