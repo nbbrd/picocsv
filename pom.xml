@@ -145,9 +145,9 @@
             </build>
         </profile>
 
-        <!-- Run Java8 build with JPMS on JDK9+ -->
+        <!-- Run Java7 build with JPMS on JDK9+ -->
         <profile>
-            <id>java8-with-jpms</id>
+            <id>java7-with-jpms</id>
             <activation>
                 <jdk>[9,)</jdk>
             </activation>
@@ -169,15 +169,16 @@
                                     <release>9</release>
                                 </configuration>
                             </execution>
-                            <!-- Second: recompile all but module-info as Java8 -->
+                            <!-- Second: recompile all but module-info as Java7 -->
                             <execution>
                                 <id>base-compile</id>
                                 <goals>
                                     <goal>compile</goal>
                                 </goals>
                                 <configuration>
-                                    <source>8</source>
-                                    <target>8</target>
+                                    <source>7</source>
+                                    <target>7</target>
+                                    <release>7</release>
                                     <excludes>
                                         <exclude>module-info.java</exclude>
                                     </excludes>
@@ -268,7 +269,7 @@
                         <artifactId>modernizer-maven-plugin</artifactId>
                         <version>2.1.0</version>
                         <configuration>
-                            <javaVersion>1.8</javaVersion>
+                            <javaVersion>1.7</javaVersion>
                         </configuration>
                         <executions>
                             <execution>
