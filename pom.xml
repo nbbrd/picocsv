@@ -99,7 +99,7 @@
                 </property>
             </activation>
             <properties>
-                <lombok.version>1.18.16</lombok.version>
+                <lombok.version>1.18.18</lombok.version>
                 <jmh.version>1.27</jmh.version>
             </properties>
             <dependencyManagement>
