@@ -40,7 +40,7 @@ jobs:
       - name: Build and (headless) test with Maven
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: mvn -B package --file pom.xml
+          run: mvn -B -ntp package
 
   snapshot-job:
     needs: build-and-test-job
@@ -72,10 +72,10 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Build with Maven
-        run: mvn -B package --file pom.xml -DskipTests=true
+        run: mvn -B -ntp package -DskipTests=true
 
       - name: Deploy snapshot with Maven if settings defined
-        run: test -f ci.settings.xml && mvn -B deploy -Dmaven.test.skip -s ci.settings.xml -P deploy-snapshots
+        run: test -f ci.settings.xml && mvn -B -ntp deploy -Dmaven.test.skip -s ci.settings.xml -P deploy-snapshots
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
@@ -112,10 +112,10 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Build with Maven
-        run: mvn -B package --file pom.xml -DskipTests=true
+        run: mvn -B -ntp package -DskipTests=true
 
       - name: Deploy with Maven if settings defined
-        run: test -f ci.settings.xml && mvn -B deploy -Dmaven.test.skip -s ci.settings.xml -P deploy-releases
+        run: test -f ci.settings.xml && mvn -B -ntp deploy -Dmaven.test.skip -s ci.settings.xml -P deploy-releases
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
