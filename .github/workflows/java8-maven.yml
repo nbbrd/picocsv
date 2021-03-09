@@ -44,7 +44,7 @@ jobs:
 
   snapshot-job:
     needs: build-and-test-job
-    if: startsWith(github.repository, 'nbbrd/') && startsWith(github.ref, 'refs/head/develop')
+    if: startsWith(github.repository, 'nbbrd/') && startsWith(github.ref, 'refs/heads/develop')
     strategy:
       matrix:
         java: [ 11 ]
