@@ -311,24 +311,10 @@ public final class Csv {
         /**
          * Creates a new instance from a char reader.
          *
-         * @param format     a non-null format
-         * @param options    a non-null options
-         * @param charReader a non-null char reader
-         * @return a new CSV reader
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Reader of(Format format, Parsing options, java.io.Reader charReader) throws IllegalArgumentException, IOException {
-            return of(format, options, charReader, DEFAULT_CHAR_BUFFER_SIZE);
-        }
-
-        /**
-         * Creates a new instance from a char reader.
-         *
-         * @param format     a non-null format
-         * @param options    a non-null options
-         * @param charReader a non-null char reader
+         * @param format         a non-null format
+         * @param options        a non-null options
+         * @param charReader     a non-null char reader
+         * @param charBufferSize the size of the internal char buffer
          * @return a new CSV reader
          * @throws IllegalArgumentException if the format contains an invalid
          *                                  combination of options
@@ -763,24 +749,10 @@ public final class Csv {
         /**
          * Creates a new instance from a char writer.
          *
-         * @param format     a non-null format
-         * @param options    a non-null options
-         * @param charWriter a non-null char writer
-         * @return a new CSV writer
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Writer of(Format format, Formatting options, java.io.Writer charWriter) throws IllegalArgumentException, IOException {
-            return of(format, options, charWriter, DEFAULT_CHAR_BUFFER_SIZE);
-        }
-
-        /**
-         * Creates a new instance from a char writer.
-         *
-         * @param format     a non-null format
-         * @param options    a non-null options
-         * @param charWriter a non-null char writer
+         * @param format         a non-null format
+         * @param options        a non-null options
+         * @param charWriter     a non-null char writer
+         * @param charBufferSize the size of the internal buffer
          * @return a new CSV writer
          * @throws IllegalArgumentException if the format contains an invalid
          *                                  combination of options

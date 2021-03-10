@@ -5,6 +5,8 @@ import nbbrd.picocsv.Csv;
 import java.io.*;
 import java.nio.charset.Charset;
 
+import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
+
 @lombok.experimental.UtilityClass
 class Top5GridMonthly {
 
@@ -14,7 +16,7 @@ class Top5GridMonthly {
     private final static Csv.Parsing OPTIONS = Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build();
 
     static Csv.Reader open() throws IOException {
-        return Csv.Reader.of(FORMAT, OPTIONS, new InputStreamReader(new ByteArrayInputStream(CONTENT), ENCODING));
+        return Csv.Reader.of(FORMAT, OPTIONS, new InputStreamReader(new ByteArrayInputStream(CONTENT), ENCODING), DEFAULT_CHAR_BUFFER_SIZE);
     }
 
     private static byte[] getResourcesAsBytes(Class<?> anchor, String name) {
