@@ -71,9 +71,7 @@ public class CsvReaderTest {
     public void testAllSamples() throws IOException {
         for (Sample sample : Sample.SAMPLES) {
             assertValid(sample, Csv.Parsing.DEFAULT);
-            for (Csv.NewLine newLine : Csv.NewLine.values()) {
-                assertValid(sample.withNewLine(newLine), Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build());
-            }
+            assertValid(sample.withSeparator(Csv.Format.WINDOWS_SEPARATOR), Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build());
         }
     }
 
@@ -208,6 +206,33 @@ public class CsvReaderTest {
         assertThatIOException().isThrownBy(() -> readValue(Row::readAll, sample.getContent(), sample.getFormat(), invalid))
                 .describedAs(sample.asDescription("Reading"))
                 .withMessageContaining("Field overflow");
+    }
+
+    @Test
+    public void testKeyValuePairs() throws IOException {
+        Sample keyValuePairs1 = Sample
+                .builder()
+                .name("keyValuePairs1")
+                .format(Csv.Format.builder().delimiter('=').separator(",").build())
+                .content("key1=value1,key2=value2")
+                .rowOf("key1", "value1")
+                .rowOf("key2", "value2")
+                .build();
+
+        assertValid(keyValuePairs1, Csv.Parsing.DEFAULT);
+
+        Sample keyValuePairs2 = Sample
+                .builder()
+                .name("keyValuePairs2")
+                .format(Csv.Format.builder().delimiter('=').separator(", ").build())
+                .content("key1=value1, key2=value2")
+                .rowOf("key1", "value1")
+                .rowOf("key2", "value2")
+                .build();
+
+        assertValid(keyValuePairs2, Csv.Parsing.DEFAULT);
+        assertValid(keyValuePairs2, Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build());
+        assertValid(keyValuePairs2.withContent("key1=value1,key2=value2"), Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build());
     }
 
     private static void assertValid(Sample sample, Csv.Parsing options) throws IOException {

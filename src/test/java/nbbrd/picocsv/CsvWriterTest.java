@@ -177,19 +177,6 @@ public class CsvWriterTest {
     }
 
     private static String getMissingEOL(Sample sample) {
-        return sample.isWithoutEOL() ? getEOLString(sample.getFormat().getSeparator()) : "";
-    }
-
-    private static String getEOLString(Csv.NewLine newLine) {
-        switch (newLine) {
-            case MACINTOSH:
-                return "\r";
-            case UNIX:
-                return "\n";
-            case WINDOWS:
-                return "\r\n";
-            default:
-                throw new RuntimeException();
-        }
+        return sample.isWithoutEOL() ? sample.getFormat().getSeparator() : "";
     }
 }

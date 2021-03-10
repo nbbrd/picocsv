@@ -37,21 +37,21 @@ import java.util.stream.Stream;
 public class Sample {
 
     @lombok.NonNull
-    private String name;
+    String name;
 
     @lombok.NonNull
-    private Csv.Format format;
+    Csv.Format format;
 
     @lombok.NonNull
-    private String content;
+    String content;
 
     @lombok.NonNull
     @lombok.Singular
-    private List<Row> rows;
+    List<Row> rows;
 
-    private boolean withoutEOL;
+    boolean withoutEOL;
 
-    public Sample withNewLine(Csv.NewLine newLine) {
+    public Sample withSeparator(String newLine) {
         return withFormat(getFormat().toBuilder().separator(newLine).build());
     }
 
@@ -218,14 +218,20 @@ public class Sample {
 
     private static final char[] SPECIAL_CHARS = {',', '\t', ';', '\r', '\n', '\'', '"'};
 
+    public static final List<String> SEPARATORS = Arrays.asList(
+            Csv.Format.WINDOWS_SEPARATOR,
+            Csv.Format.UNIX_SEPARATOR,
+            Csv.Format.MACINTOSH_SEPARATOR
+    );
+
     private static List<Csv.Format> generateFormats() {
         List<Csv.Format> result = new ArrayList<>();
-        for (Csv.NewLine newLine : Csv.NewLine.values()) {
+        for (String separator : SEPARATORS) {
             for (char delimiter : SPECIAL_CHARS) {
                 for (char quote : SPECIAL_CHARS) {
                     result.add(Csv.Format
                             .builder()
-                            .separator(newLine)
+                            .separator(separator)
                             .delimiter(delimiter)
                             .quote(quote)
                             .build()

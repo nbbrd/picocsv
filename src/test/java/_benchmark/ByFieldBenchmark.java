@@ -43,11 +43,11 @@ public class ByFieldBenchmark {
             Csv.Format format = Csv.Format.DEFAULT
                     .toBuilder()
                     .delimiter(Constant.SEPARATOR)
-                    .separator(Csv.NewLine.UNIX)
+                    .separator(Csv.Format.UNIX_SEPARATOR)
                     .quote(Constant.DELIMITER)
                     .build();
 
-            input = Csv.Reader.of(format, Csv.Parsing.DEFAULT, new InfiniteDataReader(Constant.data));
+            input = Csv.Reader.of(format, Csv.Parsing.DEFAULT, new InfiniteDataReader(Constant.data), Constant.data.length() * 32);
         }
 
         @TearDown
