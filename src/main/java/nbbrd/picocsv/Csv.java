@@ -34,7 +34,8 @@ public final class Csv {
     public static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
 
     /**
-     * Specifies the format used to read and write CSV.
+     * Format used to read and write CSV.
+     * <p>
      * This format is independent from the source of data (stream or files).
      * Therefore it doesn't deal with encoding.
      */
@@ -44,9 +45,9 @@ public final class Csv {
         public static final String UNIX_SEPARATOR = "\n";
         public static final String MACINTOSH_SEPARATOR = "\r";
 
-        public static final String DEFAULT_SEPARATOR = WINDOWS_SEPARATOR;
-        public static final char DEFAULT_DELIMITER = ',';
-        public static final char DEFAULT_QUOTE = '"';
+        private static final String DEFAULT_SEPARATOR = WINDOWS_SEPARATOR;
+        private static final char DEFAULT_DELIMITER = ',';
+        private static final char DEFAULT_QUOTE = '"';
 
         /**
          * Predefined format as defined by <a href="https://tools.ietf.org/html/rfc4180">RFC 4180</a>.
@@ -70,6 +71,8 @@ public final class Csv {
 
         /**
          * Characters used to separate lines.
+         * <p>
+         * The default value is "\r\n".
          *
          * @return a non-null line separator
          * @see <a href="https://en.wikipedia.org/wiki/Newline">Newline</a>
@@ -80,6 +83,8 @@ public final class Csv {
 
         /**
          * Character used to delimit the values.
+         * <p>
+         * The default value is ','.
          *
          * @return the delimiting character
          */
@@ -89,6 +94,8 @@ public final class Csv {
 
         /**
          * Character used to encapsulate values containing special characters.
+         * <p>
+         * The default value is '\"'.
          *
          * @return the quoting character
          */
@@ -97,10 +104,12 @@ public final class Csv {
         }
 
         /**
-         * Checks if the current format follows theses rules:
+         * Checks if the current format is valid.
+         * <p>
+         * Validation rules:
          * <ul>
-         * <li>Separator length range is [1, 3[
-         * <li>delimiter != quote != separators chars
+         * <li>Separator is one or two chars
+         * <li>delimiter != quote != separator chars
          * </ul>
          *
          * @return true if valid, false otherwise
@@ -149,6 +158,9 @@ public final class Csv {
             return DEFAULT.toBuilder();
         }
 
+        /**
+         * {@link Format} builder.
+         */
         public static final class Builder {
 
             private String separator;
@@ -180,12 +192,12 @@ public final class Csv {
     }
 
     /**
-     * Specifies the reader options.
+     * CSV reader options.
      */
     public static final class Parsing {
 
-        public static final boolean DEFAULT_LENIENT_SEPARATOR = false;
-        public static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
+        private static final boolean DEFAULT_LENIENT_SEPARATOR = false;
+        private static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
 
         /**
          * Default parsing options.
@@ -217,7 +229,7 @@ public final class Csv {
          * a carriage return ('\r'), a carriage return followed immediately by a
          * line feed, or by reaching the end-of-file (EOF)"</i>.
          * <p>
-         * The default value is {@link Parsing#DEFAULT_LENIENT_SEPARATOR}.
+         * The default value is {@value Parsing#DEFAULT_LENIENT_SEPARATOR}.
          *
          * @return true if lenient parsing of separator, false otherwise
          */
@@ -230,7 +242,7 @@ public final class Csv {
          * to avoid {@link java.lang.OutOfMemoryError} in case a file does not
          * have a valid format. This sets a limit which avoids unwanted JVM crashes.
          * <p>
-         * The default value is {@link Parsing#DEFAULT_MAX_CHARS_PER_FIELD}.
+         * The default value is {@value Parsing#DEFAULT_MAX_CHARS_PER_FIELD}.
          *
          * @return the maximum number of characters for a field
          */
@@ -239,7 +251,9 @@ public final class Csv {
         }
 
         /**
-         * Checks if the current options follows theses rules:
+         * Checks if the current options are valid.
+         * <p>
+         * Validation rules:
          * <ul>
          * <li>maximum number of characters for a field must be positive
          * </ul>
@@ -284,6 +298,9 @@ public final class Csv {
             return DEFAULT.toBuilder();
         }
 
+        /**
+         * {@link Parsing} builder.
+         */
         public static final class Builder {
 
             private boolean lenientSeparator;
@@ -309,7 +326,7 @@ public final class Csv {
     }
 
     /**
-     * Reads CSV files.
+     * CSV reader.
      */
     public static final class Reader implements Closeable, CharSequence {
 
@@ -692,7 +709,7 @@ public final class Csv {
     }
 
     /**
-     * Specifies the writer options.
+     * CSV writer options.
      */
     public static final class Formatting {
 
@@ -732,6 +749,9 @@ public final class Csv {
             return DEFAULT.toBuilder();
         }
 
+        /**
+         * {@link Formatting} builder.
+         */
         public static final class Builder {
 
             private Builder() {
@@ -744,7 +764,7 @@ public final class Csv {
     }
 
     /**
-     * Writes CSV files.
+     * CSV writer.
      */
     public static final class Writer implements Closeable {
 
