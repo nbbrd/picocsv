@@ -47,7 +47,7 @@ public class ByFieldBenchmark {
                     .quote(Constant.DELIMITER)
                     .build();
 
-            input = Csv.Reader.of(format, Csv.Parsing.DEFAULT, new InfiniteDataReader(Constant.data), Constant.data.length() * 32);
+            input = Csv.Reader.of(format, Csv.ReaderOptions.DEFAULT, new InfiniteDataReader(Constant.data), Constant.data.length() * 32);
         }
 
         @TearDown

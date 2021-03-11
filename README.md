@@ -6,9 +6,9 @@ This Java library provides a reader and a writer for CSV content.
 
 Key points:
 - lightweight library with no dependency
-- Java 7 minimum requirement
 - designed to be embedded into other libraries as an external dependency or [as source](https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java)
 - has a module-info that makes it compatible with [JPMS](https://www.baeldung.com/java-9-modularity) 
+- Java 7 minimum requirement
 
 Features:
 - reads/writes CSV from/to character streams
@@ -21,7 +21,7 @@ Read example:
 
 ```java
 StringReader input = new StringReader("...");
-try (Csv.Reader reader = Csv.Reader.of(Csv.Format.DEFAULT, Csv.Parsing.DEFAULT, input, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+try (Csv.Reader reader = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, input, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
   while (reader.readLine()) {
     while (reader.readField()) {
       CharSequence field = reader;
@@ -35,7 +35,7 @@ Write example:
 
 ```java
 StringWriter output = new StringWriter();
-try (Csv.Writer writer = Csv.Writer.of(Csv.Format.DEFAULT, Csv.Formatting.DEFAULT, output, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+try (Csv.Writer writer = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, output, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
   writer.writeField("...");
   writer.writeEndOfLine();
 }

@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @author Philippe Charles
  */
-public class CsvParsingTest {
+public class CsvReaderOptionsTest {
 
     @Test
     public void testEqualsAndHashcode() {
@@ -51,13 +51,13 @@ public class CsvParsingTest {
                 .isNotEqualTo(null)
                 .isNotEqualTo("")
                 .contains(
-                        "Parsing",
+                        "ReaderOptions",
                         String.valueOf(strict.isLenientSeparator()),
                         String.valueOf(strict.getMaxCharsPerField())
                 );
     }
 
-    private final Csv.Parsing strict = Csv.Parsing.DEFAULT;
-    private final Csv.Parsing lenient = Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build();
-    private final Csv.Parsing strict10 = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(10).build();
+    private final Csv.ReaderOptions strict = Csv.ReaderOptions.DEFAULT;
+    private final Csv.ReaderOptions lenient = Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(true).build();
+    private final Csv.ReaderOptions strict10 = Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(10).build();
 }

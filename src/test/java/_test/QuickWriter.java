@@ -27,17 +27,17 @@ import java.io.StringWriter;
 @lombok.experimental.UtilityClass
 public class QuickWriter {
 
-    public static <T> String writeValue(T value, Formatter<T> formatter, Csv.Format format, Csv.Formatting formatting) throws IOException {
+    public static <T> String writeValue(T value, Formatter<T> formatter, Csv.Format format, Csv.WriterOptions writerOptions) throws IOException {
         try (java.io.Writer charWriter = new StringWriter()) {
-            try (Csv.Writer writer = Csv.Writer.of(format, formatting, charWriter, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+            try (Csv.Writer writer = Csv.Writer.of(format, writerOptions, charWriter, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
                 formatter.accept(value, writer);
             }
             return charWriter.toString();
         }
     }
 
-    public static String write(VoidFormatter formatter, Csv.Format format, Csv.Formatting formatting) throws IOException {
-        return writeValue(null, (value, stream) -> formatter.accept(stream), format, formatting);
+    public static String write(VoidFormatter formatter, Csv.Format format, Csv.WriterOptions writerOptions) throws IOException {
+        return writeValue(null, (value, stream) -> formatter.accept(stream), format, writerOptions);
     }
 
     @FunctionalInterface

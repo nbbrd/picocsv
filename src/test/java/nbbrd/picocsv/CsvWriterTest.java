@@ -37,11 +37,11 @@ public class CsvWriterTest {
     @Test
     public void testWriterFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, Csv.Formatting.DEFAULT, null, DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, null, DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("charWriter");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(null, Csv.Formatting.DEFAULT, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() -> Csv.Writer.of(null, Csv.WriterOptions.DEFAULT, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("format");
 
         assertThatNullPointerException()
@@ -49,18 +49,18 @@ public class CsvWriterTest {
                 .withMessageContaining("options");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(INVALID_FORMAT, Csv.Formatting.DEFAULT, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() -> Csv.Writer.of(INVALID_FORMAT, Csv.WriterOptions.DEFAULT, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("Invalid format: " + INVALID_FORMAT);
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, Csv.Formatting.DEFAULT, new StringWriter(), 0))
+                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, new StringWriter(), 0))
                 .withMessageContaining("Invalid charBufferSize: 0");
     }
 
     @Test
     public void testAllSamples() throws IOException {
         for (Sample sample : Sample.SAMPLES) {
-            assertValid(sample, Csv.Formatting.DEFAULT);
+            assertValid(sample, Csv.WriterOptions.DEFAULT);
         }
     }
 
@@ -71,7 +71,7 @@ public class CsvWriterTest {
                     o.writeField("A1");
                     o.writeField("");
                     o.writeField("C1");
-                }, RFC4180, Csv.Formatting.DEFAULT)
+                }, RFC4180, Csv.WriterOptions.DEFAULT)
         ).isEqualTo("A1,,C1");
     }
 
@@ -135,19 +135,19 @@ public class CsvWriterTest {
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE - 1),
                 "\"",
                 repeat('C', 10)
-        ), Csv.Formatting.DEFAULT);
+        ), Csv.WriterOptions.DEFAULT);
 
         assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE),
                 "\"",
                 repeat('C', 10)
-        ), Csv.Formatting.DEFAULT);
+        ), Csv.WriterOptions.DEFAULT);
 
         assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE + 1),
                 "\"",
                 repeat('C', 10)
-        ), Csv.Formatting.DEFAULT);
+        ), Csv.WriterOptions.DEFAULT);
     }
 
     private static Sample getOverflowSample(String... fields) {
@@ -161,7 +161,7 @@ public class CsvWriterTest {
     }
 
     private static String writeToString(QuickWriter.VoidFormatter formatter) throws IOException {
-        return write(formatter, Csv.Format.RFC4180, Csv.Formatting.DEFAULT);
+        return write(formatter, Csv.Format.RFC4180, Csv.WriterOptions.DEFAULT);
     }
 
     private static String repeat(char c, int length) {
@@ -170,7 +170,7 @@ public class CsvWriterTest {
         return String.valueOf(result);
     }
 
-    private static void assertValid(Sample sample, Csv.Formatting options) throws IOException {
+    private static void assertValid(Sample sample, Csv.WriterOptions options) throws IOException {
         assertThat(writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), options))
                 .describedAs(sample.asDescription("Writing"))
                 .isEqualTo(sample.getContent() + getMissingEOL(sample));

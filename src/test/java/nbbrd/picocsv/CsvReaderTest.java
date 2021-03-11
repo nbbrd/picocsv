@@ -44,11 +44,11 @@ public class CsvReaderTest {
     @Test
     public void testReaderFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, Csv.Parsing.DEFAULT, null, DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, null, DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("charReader");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Reader.of(null, Csv.Parsing.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() -> Csv.Reader.of(null, Csv.ReaderOptions.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("format");
 
         assertThatNullPointerException()
@@ -56,14 +56,14 @@ public class CsvReaderTest {
                 .withMessageContaining("options");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Reader.of(INVALID_FORMAT, Csv.Parsing.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() -> Csv.Reader.of(INVALID_FORMAT, Csv.ReaderOptions.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("Invalid format: " + INVALID_FORMAT);
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, Csv.Parsing.DEFAULT, new StringReader(""), 0))
+                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, new StringReader(""), 0))
                 .withMessageContaining("Invalid charBufferSize: 0");
 
-        Csv.Parsing invalidOptions = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(0).build();
+        Csv.ReaderOptions invalidOptions = Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(0).build();
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, invalidOptions, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
@@ -74,8 +74,8 @@ public class CsvReaderTest {
     public void testAllSamples() {
         for (Sample sample : Sample.SAMPLES) {
             assertThat(sample)
-                    .is(validWithStrictParsing)
-                    .is(validWithLenientParsing);
+                    .is(validWithStrictOptions)
+                    .is(validWithLenientOptions);
         }
     }
 
@@ -85,12 +85,12 @@ public class CsvReaderTest {
             switch (sample.getRows().size()) {
                 case 0:
                 case 1:
-                    assertThat(readValue(this::skipFirst, sample.getContent(), sample.getFormat(), Csv.Parsing.DEFAULT))
+                    assertThat(readValue(this::skipFirst, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
                             .describedAs(sample.asDescription("Reading"))
                             .isEmpty();
                     break;
                 default:
-                    assertThat(readValue(this::skipFirst, sample.getContent(), sample.getFormat(), Csv.Parsing.DEFAULT))
+                    assertThat(readValue(this::skipFirst, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
                             .describedAs(sample.asDescription("Reading"))
                             .element(0)
                             .isEqualTo(sample.getRows().get(1));
@@ -111,7 +111,7 @@ public class CsvReaderTest {
         for (Sample sample : Sample.SAMPLES) {
             assertThatIllegalStateException()
                     .describedAs(sample.asDescription("Reading"))
-                    .isThrownBy(() -> read(readFieldBeforeLine, sample.getContent(), sample.getFormat(), Csv.Parsing.DEFAULT));
+                    .isThrownBy(() -> read(readFieldBeforeLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT));
         }
     }
 
@@ -124,7 +124,7 @@ public class CsvReaderTest {
                 .content("\r\r\n")
                 .rowOf("\r")
                 .build()
-        ).is(validWithStrictParsing);
+        ).is(validWithStrictOptions);
     }
 
     @Test
@@ -139,13 +139,13 @@ public class CsvReaderTest {
                 .content(field1 + "," + field2)
                 .rowOf(field1, field2)
                 .build()
-        ).is(validWithStrictParsing);
+        ).is(validWithStrictOptions);
     }
 
     @Test
     public void testEmptyLine() throws IOException {
         Sample sample = Sample.EMPTY_LINES;
-        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.Parsing.DEFAULT, new StringReader(sample.getContent()), DEFAULT_CHAR_BUFFER_SIZE)) {
+        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()), DEFAULT_CHAR_BUFFER_SIZE)) {
             assertThat(reader.readLine()).isTrue();
             assertThat(reader.readField()).isFalse();
             assertThat(reader.readLine()).isTrue();
@@ -164,13 +164,13 @@ public class CsvReaderTest {
                 .rowOf("", "B1")
                 .rowOf("A2", "B2")
                 .build()
-        ).is(validWithStrictParsing);
+        ).is(validWithStrictOptions);
     }
 
     @Test
     public void testCharSequence() throws IOException {
         Sample sample = Sample.SIMPLE;
-        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.Parsing.DEFAULT, new StringReader(sample.getContent()), DEFAULT_CHAR_BUFFER_SIZE)) {
+        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()), DEFAULT_CHAR_BUFFER_SIZE)) {
             CharSequence chars = reader;
             reader.readLine();
             reader.readField();
@@ -200,12 +200,12 @@ public class CsvReaderTest {
     public void testFieldOverflow() {
         Sample sample = Sample.SIMPLE;
 
-        Csv.Parsing valid = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(2).build();
+        Csv.ReaderOptions valid = Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(2).build();
         assertThatCode(() -> readValue(Row::readAll, sample.getContent(), sample.getFormat(), valid))
                 .describedAs(sample.asDescription("Reading"))
                 .doesNotThrowAnyException();
 
-        Csv.Parsing invalid = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(1).build();
+        Csv.ReaderOptions invalid = Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(1).build();
         assertThatIOException().isThrownBy(() -> readValue(Row::readAll, sample.getContent(), sample.getFormat(), invalid))
                 .describedAs(sample.asDescription("Reading"))
                 .withMessageContaining("Field overflow");
@@ -216,16 +216,16 @@ public class CsvReaderTest {
         Sample.Builder base = Sample.builder().name("lenient").format(Csv.Format.DEFAULT).rowOf("R1").rowOf("R2");
 
         assertThat(base.content("R1" + WINDOWS_SEPARATOR + "R2").build())
-                .is(validWithStrictParsing)
-                .is(validWithLenientParsing);
+                .is(validWithStrictOptions)
+                .is(validWithLenientOptions);
 
         assertThat(base.content("R1" + UNIX_SEPARATOR + "R2").build())
-                .isNot(validWithStrictParsing)
-                .is(validWithLenientParsing);
+                .isNot(validWithStrictOptions)
+                .is(validWithLenientOptions);
 
         assertThat(base.content("R1" + MACINTOSH_SEPARATOR + "R2").build())
-                .isNot(validWithStrictParsing)
-                .is(validWithLenientParsing);
+                .isNot(validWithStrictOptions)
+                .is(validWithLenientOptions);
     }
 
     @Test
@@ -235,34 +235,34 @@ public class CsvReaderTest {
                 .format(Csv.Format.builder().delimiter('=').separator(",").build())
                 .content("k1=v1,k2=v2").rowOf("k1", "v1").rowOf("k2", "v2")
                 .build()
-        ).is(validWithStrictParsing).is(validWithLenientParsing);
+        ).is(validWithStrictOptions).is(validWithLenientOptions);
 
         assertThat(Sample
                 .builder()
                 .format(Csv.Format.builder().delimiter('=').separator(", ").build())
                 .content("k1=v1, k2=v2").rowOf("k1", "v1").rowOf("k2", "v2")
                 .build()
-        ).is(validWithStrictParsing).is(validWithLenientParsing);
+        ).is(validWithStrictOptions).is(validWithLenientOptions);
 
         assertThat(Sample
                 .builder()
                 .format(Csv.Format.builder().delimiter('=').separator(", ").build())
                 .content("k1=v1,k2=v2").rowOf("k1", "v1").rowOf("k2", "v2")
                 .build()
-        ).isNot(validWithStrictParsing).is(validWithLenientParsing);
+        ).isNot(validWithStrictOptions).is(validWithLenientOptions);
     }
 
-    private final Csv.Parsing strictParsing = Csv.Parsing.builder().lenientSeparator(false).build();
-    private final Csv.Parsing lenientParsing = Csv.Parsing.builder().lenientSeparator(true).build();
+    private final Csv.ReaderOptions strictOptions = Csv.ReaderOptions.builder().lenientSeparator(false).build();
+    private final Csv.ReaderOptions lenientOptions = Csv.ReaderOptions.builder().lenientSeparator(true).build();
 
-    private final Condition<Sample> validWithStrictParsing = validWith(strictParsing);
-    private final Condition<Sample> validWithLenientParsing = validWith(lenientParsing);
+    private final Condition<Sample> validWithStrictOptions = validWith(strictOptions);
+    private final Condition<Sample> validWithLenientOptions = validWith(lenientOptions);
 
-    private static Condition<Sample> validWith(Csv.Parsing options) {
+    private static Condition<Sample> validWith(Csv.ReaderOptions options) {
         return new Condition<>(sample -> readAll(sample, options).equals(sample.getRows()), "Must have the some content");
     }
 
-    private static List<Row> readAll(Sample sample, Csv.Parsing options) {
+    private static List<Row> readAll(Sample sample, Csv.ReaderOptions options) {
         try {
             return readValue(Row::readAll, sample.getContent(), sample.getFormat(), options);
         } catch (IOException ex) {

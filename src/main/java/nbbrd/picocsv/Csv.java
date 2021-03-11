@@ -34,9 +34,10 @@ public final class Csv {
     public static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
 
     /**
-     * Format used to read and write CSV.
+     * CSV format.
      * <p>
-     * This format is independent from the source of data (stream or files).
+     * This format is used both by reader and writer
+     * but is independent from the source of data (stream or files).
      * Therefore it doesn't deal with encoding.
      */
     public static final class Format {
@@ -108,7 +109,7 @@ public final class Csv {
          * <p>
          * Validation rules:
          * <ul>
-         * <li>Separator is one or two chars
+         * <li>Separator has one or two chars
          * <li>delimiter != quote != separator chars
          * </ul>
          *
@@ -159,7 +160,7 @@ public final class Csv {
         }
 
         /**
-         * {@link Format} builder.
+         * CSV format builder.
          */
         public static final class Builder {
 
@@ -194,20 +195,20 @@ public final class Csv {
     /**
      * CSV reader options.
      */
-    public static final class Parsing {
+    public static final class ReaderOptions {
 
         private static final boolean DEFAULT_LENIENT_SEPARATOR = false;
         private static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
 
         /**
-         * Default parsing options.
+         * Default reader options.
          */
-        public static final Parsing DEFAULT = new Parsing(DEFAULT_LENIENT_SEPARATOR, DEFAULT_MAX_CHARS_PER_FIELD);
+        public static final ReaderOptions DEFAULT = new ReaderOptions(DEFAULT_LENIENT_SEPARATOR, DEFAULT_MAX_CHARS_PER_FIELD);
 
         private final boolean lenientSeparator;
         private final int maxCharsPerField;
 
-        private Parsing(boolean lenientSeparator, int maxCharsPerField) {
+        private ReaderOptions(boolean lenientSeparator, int maxCharsPerField) {
             this.lenientSeparator = lenientSeparator;
             this.maxCharsPerField = maxCharsPerField;
         }
@@ -229,7 +230,7 @@ public final class Csv {
          * a carriage return ('\r'), a carriage return followed immediately by a
          * line feed, or by reaching the end-of-file (EOF)"</i>.
          * <p>
-         * The default value is {@value Parsing#DEFAULT_LENIENT_SEPARATOR}.
+         * The default value is {@value ReaderOptions#DEFAULT_LENIENT_SEPARATOR}.
          *
          * @return true if lenient parsing of separator, false otherwise
          */
@@ -242,7 +243,7 @@ public final class Csv {
          * to avoid {@link java.lang.OutOfMemoryError} in case a file does not
          * have a valid format. This sets a limit which avoids unwanted JVM crashes.
          * <p>
-         * The default value is {@value Parsing#DEFAULT_MAX_CHARS_PER_FIELD}.
+         * The default value is {@value ReaderOptions#DEFAULT_MAX_CHARS_PER_FIELD}.
          *
          * @return the maximum number of characters for a field
          */
@@ -277,7 +278,7 @@ public final class Csv {
             if (this == obj) return true;
             if (obj == null) return false;
             if (getClass() != obj.getClass()) return false;
-            final Parsing other = (Parsing) obj;
+            final ReaderOptions other = (ReaderOptions) obj;
             if (this.lenientSeparator != other.lenientSeparator) return false;
             if (this.maxCharsPerField != other.maxCharsPerField) return false;
             return true;
@@ -285,7 +286,7 @@ public final class Csv {
 
         @Override
         public String toString() {
-            return "Parsing{" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + '}';
+            return "ReaderOptions{" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + '}';
         }
 
         public Builder toBuilder() {
@@ -299,7 +300,7 @@ public final class Csv {
         }
 
         /**
-         * {@link Parsing} builder.
+         * CSV reader options builder.
          */
         public static final class Builder {
 
@@ -319,8 +320,8 @@ public final class Csv {
                 return this;
             }
 
-            public Parsing build() {
-                return new Parsing(lenientSeparator, maxCharsPerField);
+            public ReaderOptions build() {
+                return new ReaderOptions(lenientSeparator, maxCharsPerField);
             }
         }
     }
@@ -342,7 +343,7 @@ public final class Csv {
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Reader of(Format format, Parsing options, java.io.Reader charReader, int charBufferSize) throws IllegalArgumentException, IOException {
+        public static Reader of(Format format, ReaderOptions options, java.io.Reader charReader, int charBufferSize) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
             Objects.requireNonNull(charReader, "charReader");
@@ -602,7 +603,7 @@ public final class Csv {
 
         private static final class ReadAheadInput extends Input {
 
-            static boolean isNeeded(Format format, Parsing options) {
+            static boolean isNeeded(Format format, ReaderOptions options) {
                 return options.isLenientSeparator() || format.getSeparator().length() > 1;
             }
 
@@ -636,7 +637,7 @@ public final class Csv {
 
             abstract public boolean isEndOfLine(int code, Input input) throws IOException;
 
-            public static EndOfLineDecoder of(Format format, Parsing options) {
+            public static EndOfLineDecoder of(Format format, ReaderOptions options) {
                 String eol = format.getSeparator();
                 switch (eol.length()) {
                     case 1:
@@ -711,14 +712,14 @@ public final class Csv {
     /**
      * CSV writer options.
      */
-    public static final class Formatting {
+    public static final class WriterOptions {
 
         /**
-         * Default formatting options.
+         * Default writer options.
          */
-        public static final Formatting DEFAULT = new Formatting();
+        public static final WriterOptions DEFAULT = new WriterOptions();
 
-        private Formatting() {
+        private WriterOptions() {
         }
 
         @Override
@@ -732,13 +733,13 @@ public final class Csv {
             if (this == obj) return true;
             if (obj == null) return false;
             if (getClass() != obj.getClass()) return false;
-            final Formatting other = (Formatting) obj;
+            final WriterOptions other = (WriterOptions) obj;
             return true;
         }
 
         @Override
         public String toString() {
-            return "Formatting{" + '}';
+            return "WriterOptions{" + '}';
         }
 
         public Builder toBuilder() {
@@ -750,15 +751,15 @@ public final class Csv {
         }
 
         /**
-         * {@link Formatting} builder.
+         * CSV writer options builder.
          */
         public static final class Builder {
 
             private Builder() {
             }
 
-            public Formatting build() {
-                return new Formatting();
+            public WriterOptions build() {
+                return new WriterOptions();
             }
         }
     }
@@ -780,7 +781,7 @@ public final class Csv {
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Writer of(Format format, Formatting options, java.io.Writer charWriter, int charBufferSize) throws IllegalArgumentException, IOException {
+        public static Writer of(Format format, WriterOptions options, java.io.Writer charWriter, int charBufferSize) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
             Objects.requireNonNull(charWriter, "charWriter");

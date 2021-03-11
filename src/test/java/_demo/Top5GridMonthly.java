@@ -13,7 +13,7 @@ class Top5GridMonthly {
     private final static byte[] CONTENT = getResourcesAsBytes(Top5GridMonthly.class, "/Top5-Grid-Monthly.csv");
     private final static Charset ENCODING = Charset.forName("windows-1252");
     private final static Csv.Format FORMAT = Csv.Format.builder().separator(Csv.Format.WINDOWS_SEPARATOR).delimiter(';').quote('"').build();
-    private final static Csv.Parsing OPTIONS = Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build();
+    private final static Csv.ReaderOptions OPTIONS = Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(true).build();
 
     static Csv.Reader open() throws IOException {
         return Csv.Reader.of(FORMAT, OPTIONS, new InputStreamReader(new ByteArrayInputStream(CONTENT), ENCODING), DEFAULT_CHAR_BUFFER_SIZE);

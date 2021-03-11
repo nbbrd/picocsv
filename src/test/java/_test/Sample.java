@@ -267,7 +267,7 @@ public class Sample {
 
     private static String toString(Csv.Format format, Row... rows) {
         StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(format, Csv.Formatting.DEFAULT, result, DEFAULT_CHAR_BUFFER_SIZE)) {
+        try (Csv.Writer writer = Csv.Writer.of(format, Csv.WriterOptions.DEFAULT, result, DEFAULT_CHAR_BUFFER_SIZE)) {
             Row.writeAll(Arrays.asList(rows), writer);
         } catch (IOException ex) {
             throw new RuntimeException(ex);

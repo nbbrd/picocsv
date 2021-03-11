@@ -27,7 +27,7 @@ import java.io.StringReader;
 @lombok.experimental.UtilityClass
 public class QuickReader {
 
-    public static <T> T readValue(Parser<T> parser, String input, Csv.Format format, Csv.Parsing options) throws IOException {
+    public static <T> T readValue(Parser<T> parser, String input, Csv.Format format, Csv.ReaderOptions options) throws IOException {
         try (java.io.Reader charReader = new StringReader(input)) {
             try (Csv.Reader reader = Csv.Reader.of(format, options, charReader, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
                 return parser.accept(reader);
@@ -35,7 +35,7 @@ public class QuickReader {
         }
     }
 
-    public static void read(VoidParser parser, String input, Csv.Format format, Csv.Parsing options) throws IOException {
+    public static void read(VoidParser parser, String input, Csv.Format format, Csv.ReaderOptions options) throws IOException {
         readValue(stream -> {
             parser.accept(stream);
             return null;

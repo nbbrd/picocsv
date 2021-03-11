@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @author Philippe Charles
  */
-public class CsvFormattingTest {
+public class CsvWriterOptionsTest {
 
     @Test
     public void testEqualsAndHashcode() {
@@ -47,9 +47,9 @@ public class CsvFormattingTest {
                 .isNotEqualTo(null)
                 .isNotEqualTo("")
                 .contains(
-                        "Formatting"
+                        "WriterOptions"
                 );
     }
 
-    private final Csv.Formatting auto = Csv.Formatting.DEFAULT;
+    private final Csv.WriterOptions auto = Csv.WriterOptions.DEFAULT;
 }
