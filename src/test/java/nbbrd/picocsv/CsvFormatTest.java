@@ -46,6 +46,7 @@ public class CsvFormatTest {
     public void testEqualsAndHashcode() {
         assertThat(Csv.Format.DEFAULT)
                 .isEqualTo(Csv.Format.DEFAULT)
+                .isEqualTo(Csv.Format.DEFAULT.toBuilder().separator(new String("\r\n")).build())
                 .hasSameHashCodeAs(Csv.Format.DEFAULT)
                 .isNotEqualTo(other)
                 .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().quote('x').build())

@@ -116,10 +116,19 @@ public final class Csv {
          * @return true if valid, false otherwise
          */
         public boolean isValid() {
-            return hasSizeRange(separator, 1, 3)
+            return hasValidSize(separator)
                     && delimiter != quote
-                    && !contains(separator, delimiter)
-                    && !contains(separator, quote);
+                    && doesNotContain(separator, delimiter)
+                    && doesNotContain(separator, quote);
+        }
+
+        private static boolean hasValidSize(String text) {
+            int length = text.length();
+            return 1 <= length && length < 3;
+        }
+
+        private static boolean doesNotContain(String text, char c) {
+            return text.indexOf(c) == -1;
         }
 
         @Override
@@ -137,7 +146,7 @@ public final class Csv {
             if (obj == null) return false;
             if (getClass() != obj.getClass()) return false;
             final Format other = (Format) obj;
-            if (this.separator != other.separator) return false;
+            if (!this.separator.equals(other.separator)) return false;
             if (this.delimiter != other.delimiter) return false;
             if (this.quote != other.quote) return false;
             return true;
@@ -448,7 +457,7 @@ public final class Csv {
             } while (state == State.NOT_LAST);
         }
 
-        // WARNING: main loop; lots of duplication to maximize perfs
+        // WARNING: main loop; lots of duplication to maximize performances
         // WARNING: comparing ints more performant than comparing chars
         private void parseNextField() throws IOException {
             int code;
@@ -1039,15 +1048,6 @@ public final class Csv {
     // JDK8
     private static int hashCodeOf(boolean value) {
         return value ? 1231 : 1237;
-    }
-
-    private static boolean hasSizeRange(String text, int lower, int upper) {
-        int length = text.length();
-        return lower <= length && length < upper;
-    }
-
-    private static boolean contains(String text, char c) {
-        return text.indexOf(c) != -1;
     }
 
     private static String prettyPrint(String text) {
