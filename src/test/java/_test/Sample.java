@@ -39,7 +39,8 @@ import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 public class Sample {
 
     @lombok.NonNull
-    String name;
+    @lombok.Builder.Default
+    String name = "";
 
     @lombok.NonNull
     Csv.Format format;

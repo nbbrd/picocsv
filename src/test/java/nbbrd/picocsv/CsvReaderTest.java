@@ -19,10 +19,12 @@ package nbbrd.picocsv;
 import _test.QuickReader.VoidParser;
 import _test.Row;
 import _test.Sample;
+import org.assertj.core.api.Condition;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -31,6 +33,7 @@ import static _test.QuickReader.read;
 import static _test.QuickReader.readValue;
 import static _test.Sample.INVALID_FORMAT;
 import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
+import static nbbrd.picocsv.Csv.Format.*;
 import static org.assertj.core.api.Assertions.*;
 
 /**
@@ -54,24 +57,25 @@ public class CsvReaderTest {
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Reader.of(INVALID_FORMAT, Csv.Parsing.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
-                .withMessageContaining("format");
+                .withMessageContaining("Invalid format: " + INVALID_FORMAT);
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, Csv.Parsing.DEFAULT, new StringReader(""), 0))
-                .withMessageContaining("charBufferSize");
+                .withMessageContaining("Invalid charBufferSize: 0");
 
         Csv.Parsing invalidOptions = Csv.Parsing.DEFAULT.toBuilder().maxCharsPerField(0).build();
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, invalidOptions, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
-                .withMessageContaining("options must be valid");
+                .withMessageContaining("Invalid options: " + invalidOptions);
     }
 
     @Test
-    public void testAllSamples() throws IOException {
+    public void testAllSamples() {
         for (Sample sample : Sample.SAMPLES) {
-            assertValid(sample, Csv.Parsing.DEFAULT);
-            assertValid(sample.withSeparator(Csv.Format.WINDOWS_SEPARATOR), Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build());
+            assertThat(sample)
+                    .is(validWithStrictParsing)
+                    .is(validWithLenientParsing);
         }
     }
 
@@ -101,7 +105,7 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testReadFieldBeforeLine() throws IOException {
+    public void testReadFieldBeforeLine() {
         VoidParser readFieldBeforeLine = Csv.Reader::readField;
 
         for (Sample sample : Sample.SAMPLES) {
@@ -112,31 +116,30 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testNonQuotedNonNewLineChar() throws IOException {
-        Sample invalidButStillOk = Sample
+    public void testNonQuotedNonNewLineChar() {
+        assertThat(Sample
                 .builder()
                 .name("Invalid but still ok")
                 .format(Csv.Format.RFC4180)
                 .content("\r\r\n")
                 .rowOf("\r")
-                .build();
-
-        assertValid(invalidButStillOk, Csv.Parsing.DEFAULT);
+                .build()
+        ).is(validWithStrictParsing);
     }
 
     @Test
-    public void testReusableFieldOverflow() throws IOException {
+    public void testReusableFieldOverflow() {
         String field1 = IntStream.range(0, 70).mapToObj(i -> "A").collect(Collectors.joining());
         String field2 = IntStream.range(0, 10).mapToObj(i -> "B").collect(Collectors.joining());
-        Sample overflow = Sample
+
+        assertThat(Sample
                 .builder()
                 .name("overflow")
                 .format(Csv.Format.RFC4180)
                 .content(field1 + "," + field2)
                 .rowOf(field1, field2)
-                .build();
-
-        assertValid(overflow, Csv.Parsing.DEFAULT);
+                .build()
+        ).is(validWithStrictParsing);
     }
 
     @Test
@@ -152,16 +155,16 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testEmptyFirstField() throws IOException {
-        assertValid(Sample
-                        .builder()
-                        .name("Empty first field")
-                        .format(Csv.Format.RFC4180)
-                        .content(",B1\r\nA2,B2\r\n")
-                        .rowOf("", "B1")
-                        .rowOf("A2", "B2")
-                        .build(),
-                Csv.Parsing.DEFAULT);
+    public void testEmptyFirstField() {
+        assertThat(Sample
+                .builder()
+                .name("Empty first field")
+                .format(Csv.Format.RFC4180)
+                .content(",B1\r\nA2,B2\r\n")
+                .rowOf("", "B1")
+                .rowOf("A2", "B2")
+                .build()
+        ).is(validWithStrictParsing);
     }
 
     @Test
@@ -209,35 +212,61 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testKeyValuePairs() throws IOException {
-        Sample keyValuePairs1 = Sample
-                .builder()
-                .name("keyValuePairs1")
-                .format(Csv.Format.builder().delimiter('=').separator(",").build())
-                .content("key1=value1,key2=value2")
-                .rowOf("key1", "value1")
-                .rowOf("key2", "value2")
-                .build();
+    public void testLenientParsing() {
+        Sample.Builder base = Sample.builder().name("lenient").format(Csv.Format.DEFAULT).rowOf("R1").rowOf("R2");
 
-        assertValid(keyValuePairs1, Csv.Parsing.DEFAULT);
+        assertThat(base.content("R1" + WINDOWS_SEPARATOR + "R2").build())
+                .is(validWithStrictParsing)
+                .is(validWithLenientParsing);
 
-        Sample keyValuePairs2 = Sample
-                .builder()
-                .name("keyValuePairs2")
-                .format(Csv.Format.builder().delimiter('=').separator(", ").build())
-                .content("key1=value1, key2=value2")
-                .rowOf("key1", "value1")
-                .rowOf("key2", "value2")
-                .build();
+        assertThat(base.content("R1" + UNIX_SEPARATOR + "R2").build())
+                .isNot(validWithStrictParsing)
+                .is(validWithLenientParsing);
 
-        assertValid(keyValuePairs2, Csv.Parsing.DEFAULT);
-        assertValid(keyValuePairs2, Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build());
-        assertValid(keyValuePairs2.withContent("key1=value1,key2=value2"), Csv.Parsing.DEFAULT.toBuilder().lenientSeparator(true).build());
+        assertThat(base.content("R1" + MACINTOSH_SEPARATOR + "R2").build())
+                .isNot(validWithStrictParsing)
+                .is(validWithLenientParsing);
     }
 
-    private static void assertValid(Sample sample, Csv.Parsing options) throws IOException {
-        assertThat(readValue(Row::readAll, sample.getContent(), sample.getFormat(), options))
-                .describedAs(sample.asDescription("Reading"))
-                .containsExactlyElementsOf(sample.getRows());
+    @Test
+    public void testKeyValuePairs() {
+        assertThat(Sample
+                .builder()
+                .format(Csv.Format.builder().delimiter('=').separator(",").build())
+                .content("k1=v1,k2=v2").rowOf("k1", "v1").rowOf("k2", "v2")
+                .build()
+        ).is(validWithStrictParsing).is(validWithLenientParsing);
+
+        assertThat(Sample
+                .builder()
+                .format(Csv.Format.builder().delimiter('=').separator(", ").build())
+                .content("k1=v1, k2=v2").rowOf("k1", "v1").rowOf("k2", "v2")
+                .build()
+        ).is(validWithStrictParsing).is(validWithLenientParsing);
+
+        assertThat(Sample
+                .builder()
+                .format(Csv.Format.builder().delimiter('=').separator(", ").build())
+                .content("k1=v1,k2=v2").rowOf("k1", "v1").rowOf("k2", "v2")
+                .build()
+        ).isNot(validWithStrictParsing).is(validWithLenientParsing);
+    }
+
+    private final Csv.Parsing strictParsing = Csv.Parsing.builder().lenientSeparator(false).build();
+    private final Csv.Parsing lenientParsing = Csv.Parsing.builder().lenientSeparator(true).build();
+
+    private final Condition<Sample> validWithStrictParsing = validWith(strictParsing);
+    private final Condition<Sample> validWithLenientParsing = validWith(lenientParsing);
+
+    private static Condition<Sample> validWith(Csv.Parsing options) {
+        return new Condition<>(sample -> readAll(sample, options).equals(sample.getRows()), "Must have the some content");
+    }
+
+    private static List<Row> readAll(Sample sample, Csv.Parsing options) {
+        try {
+            return readValue(Row::readAll, sample.getContent(), sample.getFormat(), options);
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
     }
 }

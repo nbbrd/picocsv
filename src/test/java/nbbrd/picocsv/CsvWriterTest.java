@@ -50,11 +50,11 @@ public class CsvWriterTest {
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Writer.of(INVALID_FORMAT, Csv.Formatting.DEFAULT, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
-                .withMessageContaining("format");
+                .withMessageContaining("Invalid format: " + INVALID_FORMAT);
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, Csv.Formatting.DEFAULT, new StringWriter(), 0))
-                .withMessageContaining("charBufferSize");
+                .withMessageContaining("Invalid charBufferSize: 0");
     }
 
     @Test

@@ -62,7 +62,8 @@ public class CsvFormatTest {
     public void testToString() {
         assertThat(Csv.Format.DEFAULT.toString())
                 .isEqualTo(Csv.Format.DEFAULT.toString())
-                .isNotEqualTo(other.toString());
+                .isNotEqualTo(other.toString())
+                .isEqualTo("Format{separator=\\r\\n, delimiter=,, quote=\\\"}");
     }
 
     @Test
