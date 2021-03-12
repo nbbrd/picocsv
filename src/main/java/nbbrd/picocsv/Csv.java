@@ -377,7 +377,7 @@ public final class Csv {
 
         private int fieldLength = 0;
         private boolean fieldQuoted = false;
-        private State state = State.READY;
+        private int state = STATE_READY;
         private boolean parsedByLine = false;
 
         private Reader(Input input, int quoteCode, int delimiterCode, EndOfLineDecoder eolDecoder, char[] fieldChars) {
@@ -388,9 +388,10 @@ public final class Csv {
             this.fieldChars = fieldChars;
         }
 
-        private enum State {
-            READY, NOT_LAST, LAST, DONE
-        }
+        private static final int STATE_READY = 0;
+        private static final int STATE_NOT_LAST = 1;
+        private static final int STATE_LAST = 2;
+        private static final int STATE_DONE = 3;
 
         /**
          * Reads the next line.
@@ -400,18 +401,18 @@ public final class Csv {
          */
         public boolean readLine() throws IOException {
             switch (state) {
-                case DONE:
+                case STATE_DONE:
                     return false;
-                case READY:
-                case LAST:
+                case STATE_READY:
+                case STATE_LAST:
                     parseNextField();
                     parsedByLine = true;
-                    return state != State.DONE;
-                case NOT_LAST:
+                    return state != STATE_DONE;
+                case STATE_NOT_LAST:
                     skipRemainingFields();
                     parseNextField();
                     parsedByLine = true;
-                    return state != State.DONE;
+                    return state != STATE_DONE;
                 default:
                     throw newUnreachable();
             }
@@ -425,21 +426,21 @@ public final class Csv {
          */
         public boolean readField() throws IOException {
             switch (state) {
-                case LAST:
+                case STATE_LAST:
                     if (parsedByLine) {
                         parsedByLine = false;
                         return isFieldNotNull();
                     }
                     return false;
-                case NOT_LAST:
+                case STATE_NOT_LAST:
                     if (parsedByLine) {
                         parsedByLine = false;
                         return true;
                     }
                     parseNextField();
-                    return state != State.DONE;
-                case DONE:
-                case READY:
+                    return state != STATE_DONE;
+                case STATE_DONE:
+                case STATE_READY:
                     throw new IllegalStateException();
                 default:
                     throw newUnreachable();
@@ -454,15 +455,24 @@ public final class Csv {
         private void skipRemainingFields() throws IOException {
             do {
                 parseNextField();
-            } while (state == State.NOT_LAST);
+            } while (state == STATE_NOT_LAST);
         }
 
         // WARNING: main loop; lots of duplication to maximize performances
         // WARNING: comparing ints more performant than comparing chars
+        // WARNING: local var access slightly quicker that field access
         private void parseNextField() throws IOException {
-            int code;
+            int fieldLength = this.fieldLength;
+            boolean fieldQuoted = this.fieldQuoted;
+            int state = this.state;
 
             try {
+                final int quoteCode = this.quoteCode;
+                final int delimiterCode = this.delimiterCode;
+                final char[] fieldChars = this.fieldChars;
+
+                int code;
+
                 fieldLength = 0;
 
                 // [Step 1]: first char
@@ -473,10 +483,10 @@ public final class Csv {
                     } else {
                         /*-end-of-field-*/
                         if (code == delimiterCode) {
-                            state = State.NOT_LAST;
+                            state = STATE_NOT_LAST;
                             return;
                         } else if (eolDecoder.isEndOfLine(code, input)) {
-                            state = State.LAST;
+                            state = STATE_LAST;
                             return;
                         }
                         /*-append-*/
@@ -485,7 +495,7 @@ public final class Csv {
                 } else {
                     // EOF
                     {
-                        state = State.DONE;
+                        state = STATE_DONE;
                         return;
                     }
                 }
@@ -506,10 +516,10 @@ public final class Csv {
                             if (escaped) {
                                 /*-end-of-field-*/
                                 if (code == delimiterCode) {
-                                    state = State.NOT_LAST;
+                                    state = STATE_NOT_LAST;
                                     return;
                                 } else if (eolDecoder.isEndOfLine(code, input)) {
-                                    state = State.LAST;
+                                    state = STATE_LAST;
                                     return;
                                 }
                             }
@@ -519,7 +529,7 @@ public final class Csv {
                     }
                     // EOF
                     {
-                        state = State.LAST;
+                        state = STATE_LAST;
                         return;
                     }
                 } else {
@@ -527,10 +537,10 @@ public final class Csv {
                     while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                         /*-end-of-field-*/
                         if (code == delimiterCode) {
-                            state = State.NOT_LAST;
+                            state = STATE_NOT_LAST;
                             return;
                         } else if (eolDecoder.isEndOfLine(code, input)) {
-                            state = State.LAST;
+                            state = STATE_LAST;
                             return;
                         }
                         /*-append-*/
@@ -538,13 +548,17 @@ public final class Csv {
                     }
                     // EOF
                     {
-                        state = fieldLength > 0 ? State.LAST : State.DONE;
+                        state = fieldLength > 0 ? STATE_LAST : STATE_DONE;
                         return;
                     }
                 }
 
             } catch (IndexOutOfBoundsException ex) {
                 throw new IOException("Field overflow", ex);
+            } finally {
+                this.fieldLength = fieldLength;
+                this.fieldQuoted = fieldQuoted;
+                this.state = state;
             }
         }
 
@@ -599,14 +613,7 @@ public final class Csv {
             }
 
             public int read() throws IOException {
-                if (index < length) {
-                    return buffer[index++];
-                }
-                if ((length = charReader.read(buffer)) == EOF_CODE) {
-                    return EOF_CODE;
-                }
-                index = 1;
-                return buffer[0];
+                return (index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1];
             }
         }
 
@@ -809,7 +816,7 @@ public final class Csv {
         private final char delimiter;
         private final EndOfLineEncoder eolEncoder;
 
-        private State state = State.NO_FIELD;
+        private int state = STATE_NO_FIELD;
 
         private Writer(Output output, char quote, char delimiter, EndOfLineEncoder eolEncoder) {
             this.output = output;
@@ -826,22 +833,22 @@ public final class Csv {
          */
         public void writeField(CharSequence field) throws IOException {
             switch (state) {
-                case NO_FIELD:
+                case STATE_NO_FIELD:
                     if (isNotEmpty(field)) {
-                        state = State.MULTI_FIELD;
+                        state = STATE_MULTI_FIELD;
                         writeNonEmptyField(field);
                     } else {
-                        state = State.SINGLE_EMPTY_FIELD;
+                        state = STATE_SINGLE_EMPTY_FIELD;
                     }
                     break;
-                case SINGLE_EMPTY_FIELD:
-                    state = State.MULTI_FIELD;
+                case STATE_SINGLE_EMPTY_FIELD:
+                    state = STATE_MULTI_FIELD;
                     output.write(delimiter);
                     if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
                     }
                     break;
-                case MULTI_FIELD:
+                case STATE_MULTI_FIELD:
                     output.write(delimiter);
                     if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
@@ -872,15 +879,15 @@ public final class Csv {
 
         private void writeNonEmptyField(CharSequence field) throws IOException {
             switch (getQuoting(field)) {
-                case NONE:
+                case QUOTING_NONE:
                     output.write(field);
                     break;
-                case PARTIAL:
+                case QUOTING_PARTIAL:
                     output.write(quote);
                     output.write(field);
                     output.write(quote);
                     break;
-                case FULL:
+                case QUOTING_FULL:
                     output.write(quote);
                     for (int i = 0; i < field.length(); i++) {
                         char c = field.charAt(i);
@@ -895,34 +902,34 @@ public final class Csv {
         }
 
         private void flushField() throws IOException {
-            if (state == State.SINGLE_EMPTY_FIELD) {
+            if (state == STATE_SINGLE_EMPTY_FIELD) {
                 output.write(quote);
                 output.write(quote);
             }
-            state = State.NO_FIELD;
+            state = STATE_NO_FIELD;
         }
 
-        private Quoting getQuoting(CharSequence field) {
-            Quoting result = Quoting.NONE;
+        private int getQuoting(CharSequence field) {
+            int result = QUOTING_NONE;
             for (int i = 0; i < field.length(); i++) {
                 char c = field.charAt(i);
                 if (c == quote) {
-                    return Quoting.FULL;
+                    return QUOTING_FULL;
                 }
                 if (c == delimiter || eolEncoder.isNewLine(c)) {
-                    result = Quoting.PARTIAL;
+                    result = QUOTING_PARTIAL;
                 }
             }
             return result;
         }
 
-        private enum Quoting {
-            NONE, PARTIAL, FULL
-        }
+        private static final int QUOTING_NONE = 0;
+        private static final int QUOTING_PARTIAL = 1;
+        private static final int QUOTING_FULL = 2;
 
-        private enum State {
-            NO_FIELD, SINGLE_EMPTY_FIELD, MULTI_FIELD
-        }
+        private static final int STATE_NO_FIELD = 0;
+        private static final int STATE_SINGLE_EMPTY_FIELD = 1;
+        private static final int STATE_MULTI_FIELD = 2;
 
         private static final class Output implements Closeable {
 
