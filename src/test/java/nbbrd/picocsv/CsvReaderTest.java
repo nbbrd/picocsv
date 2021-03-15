@@ -168,6 +168,18 @@ public class CsvReaderTest {
     }
 
     @Test
+    public void testEmptyLastField() {
+        assertThat(Sample
+                .builder()
+                .name("Empty last field")
+                .format(Csv.Format.RFC4180)
+                .content("A1,")
+                .rowOf("A1", "")
+                .build()
+        ).is(validWithStrictOptions);
+    }
+
+    @Test
     public void testCharSequence() throws IOException {
         Sample sample = Sample.SIMPLE;
         try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()), DEFAULT_CHAR_BUFFER_SIZE)) {

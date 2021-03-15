@@ -54,10 +54,6 @@ public class Sample {
 
     boolean withoutEOL;
 
-    public Sample withSeparator(String newLine) {
-        return withFormat(getFormat().toBuilder().separator(newLine).build());
-    }
-
     public Description asDescription(String prefix) {
         return new TextDescription(prefix + " '%s'", getName());
     }

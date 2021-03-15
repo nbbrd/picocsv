@@ -438,8 +438,9 @@ public final class Csv {
                         return true;
                     }
                     parseNextField();
-                    return state != STATE_DONE;
+                    return true;
                 case STATE_DONE:
+                    return false;
                 case STATE_READY:
                     throw new IllegalStateException();
                 default:
@@ -1057,7 +1058,7 @@ public final class Csv {
         return value ? 1231 : 1237;
     }
 
-    private static String prettyPrint(String text) {
+    public static String prettyPrint(String text) {
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < text.length(); i++) {
             result.append(prettyPrint(text.charAt(i)));

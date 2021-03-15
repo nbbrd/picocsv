@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author Philippe Charles
@@ -34,6 +35,14 @@ public final class Row {
     }
 
     private final List<String> fields;
+
+    @Override
+    public String toString() {
+        return fields
+                .stream()
+                .map(field -> "{" + Csv.prettyPrint(field) + "}")
+                .collect(Collectors.joining(","));
+    }
 
     public static List<Row> readAll(Csv.Reader reader) throws IOException {
         List<Row> result = new ArrayList<>();
