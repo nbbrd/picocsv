@@ -46,9 +46,14 @@ public class CsvWriterOptionsTest {
                 .isEqualTo(auto.toBuilder().build().toString())
                 .isNotEqualTo(null)
                 .isNotEqualTo("")
-                .contains(
-                        "WriterOptions"
-                );
+                .isEqualTo("WriterOptions()");
+    }
+
+    @Test
+    public void testBuilder() {
+        assertThat(Csv.WriterOptions.builder().build())
+                .isEqualTo(Csv.WriterOptions.DEFAULT)
+                .isEqualTo(Csv.WriterOptions.DEFAULT.toBuilder().build());
     }
 
     private final Csv.WriterOptions auto = Csv.WriterOptions.DEFAULT;

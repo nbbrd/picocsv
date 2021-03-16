@@ -154,7 +154,7 @@ public final class Csv {
 
         @Override
         public String toString() {
-            return "Format{" + "separator=" + prettyPrint(separator) + ", delimiter=" + prettyPrint(delimiter) + ", quote=" + prettyPrint(quote) + '}';
+            return "Format(" + "separator=" + prettyPrint(separator) + ", delimiter=" + prettyPrint(delimiter) + ", quote=" + prettyPrint(quote) + ')';
         }
 
         public Builder toBuilder() {
@@ -295,7 +295,7 @@ public final class Csv {
 
         @Override
         public String toString() {
-            return "ReaderOptions{" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + '}';
+            return "ReaderOptions(" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + ')';
         }
 
         public Builder toBuilder() {
@@ -756,7 +756,7 @@ public final class Csv {
 
         @Override
         public String toString() {
-            return "WriterOptions{" + '}';
+            return "WriterOptions(" + ')';
         }
 
         public Builder toBuilder() {
@@ -1071,15 +1071,15 @@ public final class Csv {
             case '\t':
                 return "\\t";
             case '\b':
-                return "\\v";
+                return "\\b";
             case '\n':
                 return "\\n";
             case '\r':
                 return "\\r";
             case '\f':
                 return "\\f";
-            case '\'':
-                return "\\'";
+//            case '\'':
+//                return "\\'";
             case '\"':
                 return "\\\"";
             case '\\':

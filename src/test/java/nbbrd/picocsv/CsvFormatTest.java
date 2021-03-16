@@ -16,6 +16,8 @@
  */
 package nbbrd.picocsv;
 
+import _test.Sample;
+import org.apache.commons.text.StringEscapeUtils;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,7 +66,12 @@ public class CsvFormatTest {
         assertThat(Csv.Format.DEFAULT.toString())
                 .isEqualTo(Csv.Format.DEFAULT.toString())
                 .isNotEqualTo(other.toString())
-                .isEqualTo("Format{separator=\\r\\n, delimiter=,, quote=\\\"}");
+                .isEqualTo("Format(separator=\\r\\n, delimiter=,, quote=\\\")");
+
+        for (char c : Sample.SPECIAL_CHARS) {
+            assertThat(Csv.Format.builder().delimiter(c).build().toString())
+                    .contains("delimiter=" + StringEscapeUtils.escapeJava(String.valueOf(c)));
+        }
     }
 
     @Test

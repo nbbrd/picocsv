@@ -50,11 +50,14 @@ public class CsvReaderOptionsTest {
                 .isEqualTo(strict.toBuilder().build().toString())
                 .isNotEqualTo(null)
                 .isNotEqualTo("")
-                .contains(
-                        "ReaderOptions",
-                        String.valueOf(strict.isLenientSeparator()),
-                        String.valueOf(strict.getMaxCharsPerField())
-                );
+                .isEqualTo("ReaderOptions(lenientSeparator=false, maxCharsPerField=4096)");
+    }
+
+    @Test
+    public void testBuilder() {
+        assertThat(Csv.ReaderOptions.builder().build())
+                .isEqualTo(Csv.ReaderOptions.DEFAULT)
+                .isEqualTo(Csv.ReaderOptions.DEFAULT.toBuilder().build());
     }
 
     private final Csv.ReaderOptions strict = Csv.ReaderOptions.DEFAULT;

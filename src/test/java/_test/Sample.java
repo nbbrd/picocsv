@@ -226,7 +226,7 @@ public class Sample {
             .withoutEOL(true)
             .build();
 
-    private static final char[] SPECIAL_CHARS = {',', '\t', ';', '\r', '\n', '\'', '"'};
+    public static final List<Character> SPECIAL_CHARS = Arrays.asList(',', '\t', ';', '\r', '\n', '\'', '"', '\f', '\b', '\\');
 
     public static final List<String> SEPARATORS = Arrays.asList(
             Csv.Format.WINDOWS_SEPARATOR,
