@@ -2,7 +2,8 @@
 
 [![Download](https://img.shields.io/github/release/nbbrd/picocsv.svg)](https://github.com/nbbrd/picocsv/releases/latest)
 
-This Java library provides a reader and a writer for CSV content.
+This Java library handles CSV content.  
+While directly usable, it is designed to be the core foundation of other libraries.
 
 Key points:
 - lightweight library with no dependency
@@ -12,10 +13,11 @@ Key points:
 
 Features:
 - reads/writes CSV from/to character streams
-- provides a simple low-level API
+- provides a minimalist low-level API
 - does not interpret content
 - does not correct invalid files
 - follows the [RFC4180](https://tools.ietf.org/html/rfc4180) specification
+- supports custom line separator
 
 Read example:
 
