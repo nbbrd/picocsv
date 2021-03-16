@@ -16,9 +16,13 @@
  */
 package nbbrd.picocsv;
 
+import _test.QuickReader;
 import _test.QuickReader.VoidParser;
 import _test.Row;
 import _test.Sample;
+import _test.fastcsv.FastCsvEntry;
+import _test.fastcsv.FastCsvEntryConverter;
+import _test.fastcsv.FastCsvEntryRowsParser;
 import org.assertj.core.api.Condition;
 import org.junit.Test;
 
@@ -30,7 +34,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static _test.QuickReader.read;
-import static _test.QuickReader.readValue;
 import static _test.Sample.INVALID_FORMAT;
 import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 import static nbbrd.picocsv.Csv.Format.*;
@@ -81,27 +84,27 @@ public class CsvReaderTest {
 
     @Test
     public void testSkip() throws IOException {
+        QuickReader.Parser<List<Row>> skipFirst = reader -> {
+            reader.readLine();
+            return DEFAULT_ROWS_PARSER.accept(reader);
+        };
+
         for (Sample sample : Sample.SAMPLES) {
             switch (sample.getRows().size()) {
                 case 0:
                 case 1:
-                    assertThat(readValue(this::skipFirst, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
+                    assertThat(readRows(sample, Csv.ReaderOptions.DEFAULT, skipFirst))
                             .describedAs(sample.asDescription("Reading"))
                             .isEmpty();
                     break;
                 default:
-                    assertThat(readValue(this::skipFirst, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
+                    assertThat(readRows(sample, Csv.ReaderOptions.DEFAULT, skipFirst))
                             .describedAs(sample.asDescription("Reading"))
                             .element(0)
                             .isEqualTo(sample.getRows().get(1));
                     break;
             }
         }
-    }
-
-    private List<Row> skipFirst(Csv.Reader reader) throws IOException {
-        reader.readLine();
-        return Row.readAll(reader);
     }
 
     @Test
@@ -213,12 +216,12 @@ public class CsvReaderTest {
         Sample sample = Sample.SIMPLE;
 
         Csv.ReaderOptions valid = Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(2).build();
-        assertThatCode(() -> readValue(Row::readAll, sample.getContent(), sample.getFormat(), valid))
+        assertThatCode(() -> readRows(sample, valid, DEFAULT_ROWS_PARSER))
                 .describedAs(sample.asDescription("Reading"))
                 .doesNotThrowAnyException();
 
         Csv.ReaderOptions invalid = Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(1).build();
-        assertThatIOException().isThrownBy(() -> readValue(Row::readAll, sample.getContent(), sample.getFormat(), invalid))
+        assertThatIOException().isThrownBy(() -> readRows(sample, invalid, DEFAULT_ROWS_PARSER))
                 .describedAs(sample.asDescription("Reading"))
                 .withMessageContaining("Field overflow");
     }
@@ -264,6 +267,17 @@ public class CsvReaderTest {
         ).isNot(validWithStrictOptions).is(validWithLenientOptions);
     }
 
+    @Test
+    public void testFastCsvSamples() throws IOException {
+        for (FastCsvEntry entry : FastCsvEntry.loadAll()) {
+            Sample sample = FastCsvEntryConverter.toSample(entry);
+            QuickReader.Parser<List<Row>> rowsParser = new FastCsvEntryRowsParser(entry);
+
+            assertThat(readRows(sample, lenientOptions, rowsParser))
+                    .containsExactlyElementsOf(sample.getRows());
+        }
+    }
+
     private final Csv.ReaderOptions strictOptions = Csv.ReaderOptions.builder().lenientSeparator(false).build();
     private final Csv.ReaderOptions lenientOptions = Csv.ReaderOptions.builder().lenientSeparator(true).build();
 
@@ -271,14 +285,19 @@ public class CsvReaderTest {
     private final Condition<Sample> validWithLenientOptions = validWith(lenientOptions);
 
     private static Condition<Sample> validWith(Csv.ReaderOptions options) {
-        return new Condition<>(sample -> readAll(sample, options).equals(sample.getRows()), "Must have the some content");
+        return new Condition<>(sample -> {
+            try {
+                return readRows(sample, options, DEFAULT_ROWS_PARSER).equals(sample.getRows());
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
+            }
+        }, "Must have the some content");
     }
 
-    private static List<Row> readAll(Sample sample, Csv.ReaderOptions options) {
-        try {
-            return readValue(Row::readAll, sample.getContent(), sample.getFormat(), options);
-        } catch (IOException ex) {
-            throw new UncheckedIOException(ex);
-        }
+    private static List<Row> readRows(Sample sample, Csv.ReaderOptions options, QuickReader.Parser<List<Row>> rowsParser) throws IOException {
+        return QuickReader.readValue(rowsParser, sample.getContent(), sample.getFormat(), options);
     }
+
+    private static final QuickReader.Parser<List<Row>> DEFAULT_ROWS_PARSER =
+            reader -> Row.readAll(reader, Row.EmptyConsumer.constant(Row.EMPTY_ROW), (r, l) -> l.add(Row.read(r)));
 }

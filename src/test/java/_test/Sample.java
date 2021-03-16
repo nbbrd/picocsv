@@ -54,6 +54,16 @@ public class Sample {
 
     boolean withoutEOL;
 
+    @Override
+    public String toString() {
+        return "Sample(name=" + name
+                + ", format=" + format
+                + ", content=" + Csv.prettyPrint(content)
+                + ", rows=" + rows.stream().map(row -> "[" + row + "]").collect(Collectors.joining(","))
+                + ", withoutEOL=" + withoutEOL
+                + ")";
+    }
+
     public Description asDescription(String prefix) {
         return new TextDescription(prefix + " '%s'", getName());
     }

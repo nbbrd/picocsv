@@ -28,13 +28,17 @@ import java.util.stream.Collectors;
  * @author Philippe Charles
  */
 @lombok.Value
-public final class Row {
+public class Row {
+
+    public static final Row EMPTY_ROW = Row.of();
+    public static final Row EMPTY_FIELD = Row.of("");
 
     public static Row of(String... fields) {
         return new Row(Arrays.asList(fields));
     }
 
-    private final List<String> fields;
+    @lombok.NonNull
+    List<String> fields;
 
     @Override
     public String toString() {
@@ -44,14 +48,43 @@ public final class Row {
                 .collect(Collectors.joining(","));
     }
 
-    public static List<Row> readAll(Csv.Reader reader) throws IOException {
+    @FunctionalInterface
+    public interface NonEmptyConsumer {
+
+        void accept(Csv.Reader reader, List<Row> list) throws IOException;
+    }
+
+    @FunctionalInterface
+    public interface EmptyConsumer {
+
+        void accept(List<Row> list) throws IOException;
+
+        static EmptyConsumer noOp() {
+            return list -> {
+            };
+        }
+
+        static EmptyConsumer constant(Row row) {
+            return list -> list.add(row);
+        }
+    }
+
+    public static Row read(Csv.Reader reader) throws IOException {
+        List<String> fields = new ArrayList<>();
+        do {
+            fields.add(reader.toString());
+        } while (reader.readField());
+        return new Row(fields);
+    }
+
+    public static List<Row> readAll(Csv.Reader reader, EmptyConsumer onEmpty, NonEmptyConsumer onNonEmpty) throws IOException {
         List<Row> result = new ArrayList<>();
         while (reader.readLine()) {
-            List<String> fields = new ArrayList<>();
-            while (reader.readField()) {
-                fields.add(reader.toString());
+            if (reader.readField()) {
+                onNonEmpty.accept(reader, result);
+            } else {
+                onEmpty.accept(result);
             }
-            result.add(new Row(fields));
         }
         return result;
     }
