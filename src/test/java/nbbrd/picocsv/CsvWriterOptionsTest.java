@@ -23,32 +23,38 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @author Philippe Charles
  */
-public class CsvParsingTest {
+public class CsvWriterOptionsTest {
 
     @Test
     public void testEqualsAndHashcode() {
-        assertThat(Csv.Parsing.STRICT)
-                .isEqualTo(Csv.Parsing.STRICT)
-                .hasSameHashCodeAs(Csv.Parsing.STRICT)
-                .isNotEqualTo(Csv.Parsing.LENIENT)
-                .isNotEqualTo(strict10)
-                .isEqualTo(Csv.Parsing.DEFAULT)
+        assertThat(auto)
+                .isEqualTo(auto)
+                .hasSameHashCodeAs(auto)
+                .isEqualTo(auto.toBuilder().build())
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
 
-        assertThat(Csv.Parsing.STRICT.equals(Csv.Parsing.STRICT)).isTrue();
-        assertThat(Csv.Parsing.STRICT.equals(null)).isFalse();
-        assertThat(Csv.Parsing.STRICT.equals(Csv.Parsing.STRICT.toBuilder().build())).isTrue();
+        assertThat(auto.equals(auto)).isTrue();
+        assertThat(auto.equals(null)).isFalse();
+        assertThat(auto.equals(auto.toBuilder().build())).isTrue();
     }
 
     @Test
     public void testToString() {
-        assertThat(Csv.Parsing.STRICT.toString())
-                .isEqualTo(Csv.Parsing.STRICT.toString())
-                .isNotEqualTo(Csv.Parsing.LENIENT.toString())
-                .isNotEqualTo(strict10.toString())
-                .isEqualTo(Csv.Parsing.DEFAULT.toString());
+        assertThat(auto.toString())
+                .isEqualTo(auto.toString())
+                .isEqualTo(auto.toBuilder().build().toString())
+                .isNotEqualTo(null)
+                .isNotEqualTo("")
+                .isEqualTo("WriterOptions()");
     }
 
-    private final Csv.Parsing strict10 = Csv.Parsing.STRICT.toBuilder().maxCharsPerField(10).build();
+    @Test
+    public void testBuilder() {
+        assertThat(Csv.WriterOptions.builder().build())
+                .isEqualTo(Csv.WriterOptions.DEFAULT)
+                .isEqualTo(Csv.WriterOptions.DEFAULT.toBuilder().build());
+    }
+
+    private final Csv.WriterOptions auto = Csv.WriterOptions.DEFAULT;
 }

@@ -18,68 +18,28 @@ package _test;
 
 import nbbrd.picocsv.Csv;
 
-import java.io.*;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.IOException;
+import java.io.StringReader;
 
 /**
  * @author Philippe Charles
  */
-@lombok.AllArgsConstructor
-public enum QuickReader {
+@lombok.experimental.UtilityClass
+public class QuickReader {
 
-    BYTE_ARRAY(StreamType.STREAM) {
-        @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
-            try (InputStream stream = newInputStream(input, encoding)) {
-                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format, options)) {
-                    return parser.accept(reader);
-                }
-            }
-        }
-    },
-    FILE(StreamType.FILE) {
-        @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
-            Path file = newInputFile(input, encoding);
-            try (Csv.Reader reader = Csv.Reader.of(file, encoding, format, options)) {
+    public static <T> T readValue(Parser<T> parser, String input, Csv.Format format, Csv.ReaderOptions options) throws IOException {
+        try (java.io.Reader charReader = new StringReader(input)) {
+            try (Csv.Reader reader = Csv.Reader.of(format, options, charReader, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
                 return parser.accept(reader);
             }
         }
-    },
-    FILE_STREAM(StreamType.STREAM) {
-        @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
-            Path file = newInputFile(input, encoding);
-            try (InputStream stream = Files.newInputStream(file)) {
-                try (Csv.Reader reader = Csv.Reader.of(stream, encoding, format, options)) {
-                    return parser.accept(reader);
-                }
-            }
-        }
-    },
-    CHAR_READER(StreamType.OBJECT) {
-        @Override
-        public <T> T readValue(QuickReader.Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
-            try (Reader object = newCharReader(input)) {
-                try (Csv.Reader reader = Csv.Reader.of(object, format, options)) {
-                    return parser.accept(reader);
-                }
-            }
-        }
-    };
+    }
 
-    @lombok.Getter
-    private final StreamType type;
-
-    abstract public <T> T readValue(Parser<T> parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException;
-
-    public void read(VoidParser parser, Charset encoding, Csv.Format format, String input, Csv.Parsing options) throws IOException {
+    public static void read(VoidParser parser, String input, Csv.Format format, Csv.ReaderOptions options) throws IOException {
         readValue(stream -> {
             parser.accept(stream);
             return null;
-        }, encoding, format, input, options);
+        }, input, format, options);
     }
 
     @FunctionalInterface
@@ -92,25 +52,5 @@ public enum QuickReader {
     public interface VoidParser {
 
         void accept(Csv.Reader reader) throws IOException;
-
-        static VoidParser noOp() {
-            return reader -> {
-            };
-        }
-    }
-
-    public static Path newInputFile(String content, Charset charset) throws IOException {
-        File result = File.createTempFile("input", ".csv");
-        result.deleteOnExit();
-        Files.write(result.toPath(), content.getBytes(charset));
-        return result.toPath();
-    }
-
-    public static InputStream newInputStream(String content, Charset charset) {
-        return new ByteArrayInputStream(content.getBytes(charset));
-    }
-
-    public static Reader newCharReader(String content) {
-        return new StringReader(content);
     }
 }

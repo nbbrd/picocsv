@@ -1,34 +1,37 @@
 /*
  * Copyright 2019 National Bank of Belgium
- * 
- * Licensed under the EUPL, Version 1.1 or - as soon they will be approved 
+ *
+ * Licensed under the EUPL, Version 1.1 or - as soon they will be approved
  * by the European Commission - subsequent versions of the EUPL (the "Licence");
  * You may not use this work except in compliance with the Licence.
  * You may obtain a copy of the Licence at:
- * 
+ *
  * http://ec.europa.eu/idabc/eupl
- * 
- * Unless required by applicable law or agreed to in writing, software 
+ *
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the Licence is distributed on an "AS IS" basis,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the Licence for the specific language governing permissions and 
+ * See the Licence for the specific language governing permissions and
  * limitations under the Licence.
  */
 package _test;
 
+import nbbrd.picocsv.Csv;
+import org.apache.commons.text.StringEscapeUtils;
+import org.assertj.core.description.Description;
+import org.assertj.core.description.TextDescription;
+
 import java.io.IOException;
 import java.io.StringWriter;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import nbbrd.picocsv.Csv;
+
+import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 
 /**
- *
  * @author Philippe Charles
  */
 @lombok.Value
@@ -37,22 +40,33 @@ import nbbrd.picocsv.Csv;
 public class Sample {
 
     @lombok.NonNull
-    private String name;
+    @lombok.Builder.Default
+    String name = "";
 
     @lombok.NonNull
-    private Csv.Format format;
+    Csv.Format format;
 
     @lombok.NonNull
-    private String content;
+    String content;
 
     @lombok.NonNull
     @lombok.Singular
-    private List<Row> rows;
+    List<Row> rows;
 
-    private boolean withoutEOL;
+    boolean withoutEOL;
 
-    public Sample withNewLine(Csv.NewLine newLine) {
-        return withFormat(getFormat().toBuilder().separator(newLine).build());
+    @Override
+    public String toString() {
+        return "Sample(name=" + name
+                + ", format=" + format
+                + ", content=" + StringEscapeUtils.escapeJava(content)
+                + ", rows=" + rows.stream().map(row -> "[" + row + "]").collect(Collectors.joining(","))
+                + ", withoutEOL=" + withoutEOL
+                + ")";
+    }
+
+    public Description asDescription(String prefix) {
+        return new TextDescription(prefix + " '%s'", getName());
     }
 
     public static final class Builder {
@@ -212,16 +226,22 @@ public class Sample {
             .withoutEOL(true)
             .build();
 
-    private static final char[] SPECIAL_CHARS = {',', '\t', ';', '\r', '\n', '\'', '"'};
+    public static final List<Character> SPECIAL_CHARS = Arrays.asList(',', '\t', ';', '\r', '\n', '\'', '"', '\f', '\b', '\\');
+
+    public static final List<String> SEPARATORS = Arrays.asList(
+            Csv.Format.WINDOWS_SEPARATOR,
+            Csv.Format.UNIX_SEPARATOR,
+            Csv.Format.MACINTOSH_SEPARATOR
+    );
 
     private static List<Csv.Format> generateFormats() {
         List<Csv.Format> result = new ArrayList<>();
-        for (Csv.NewLine newLine : Csv.NewLine.values()) {
+        for (String separator : SEPARATORS) {
             for (char delimiter : SPECIAL_CHARS) {
                 for (char quote : SPECIAL_CHARS) {
                     result.add(Csv.Format
                             .builder()
-                            .separator(newLine)
+                            .separator(separator)
                             .delimiter(delimiter)
                             .quote(quote)
                             .build()
@@ -254,8 +274,8 @@ public class Sample {
 
     private static String toString(Csv.Format format, Row... rows) {
         StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(result, format)) {
-            Row.write(Arrays.asList(rows), writer);
+        try (Csv.Writer writer = Csv.Writer.of(format, Csv.WriterOptions.DEFAULT, result, DEFAULT_CHAR_BUFFER_SIZE)) {
+            Row.writeAll(Arrays.asList(rows), writer);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
@@ -304,7 +324,5 @@ public class Sample {
 
     public static final List<Sample> SAMPLES = Stream.concat(getPredefinedSamples().stream(), getGeneratedSamples().stream()).collect(Collectors.toList());
 
-    public static final List<Charset> CHARSETS = Arrays.asList(StandardCharsets.UTF_8, StandardCharsets.UTF_16, StandardCharsets.US_ASCII);
-
-    public static final Csv.Format ILLEGAL_FORMAT = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
+    public static final Csv.Format INVALID_FORMAT = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
 }

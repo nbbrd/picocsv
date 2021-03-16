@@ -16,20 +16,13 @@
  */
 package nbbrd.picocsv;
 
-import java.io.*;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CharsetEncoder;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
+ * Lightweight CSV library for Java.
+ *
  * @author Philippe Charles
  */
 public final class Csv {
@@ -38,72 +31,61 @@ public final class Csv {
         // static class
     }
 
-    /**
-     * Character used to signify the end of a line.
-     *
-     * @see <a href="https://en.wikipedia.org/wiki/Newline">https://en.wikipedia.org/wiki/Newline</a>
-     */
-    public enum NewLine {
-
-        WINDOWS, UNIX, MACINTOSH;
-
-        static final char CR = '\r';
-        static final char LF = '\n';
-        static final String CRLF = String.valueOf(new char[]{CR, LF});
-
-        static boolean isNewLine(char c) {
-            return c == CR || c == LF;
-        }
-    }
+    public static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
 
     /**
-     * Specifies the format of a CSV file.
+     * CSV format.
+     * <p>
+     * This format is used both by reader and writer
+     * but is independent from the source of data (stream or files).
+     * Therefore it doesn't deal with encoding.
      */
     public static final class Format {
 
+        public static final String WINDOWS_SEPARATOR = "\r\n";
+        public static final String UNIX_SEPARATOR = "\n";
+        public static final String MACINTOSH_SEPARATOR = "\r";
+
+        private static final String DEFAULT_SEPARATOR = WINDOWS_SEPARATOR;
+        private static final char DEFAULT_DELIMITER = ',';
+        private static final char DEFAULT_QUOTE = '"';
+
         /**
-         * Predefined format as defined by RFC 4180.
+         * Predefined format as defined by <a href="https://tools.ietf.org/html/rfc4180">RFC 4180</a>.
          */
-        public static final Format RFC4180 = Format
-                .builder()
-                .separator(NewLine.WINDOWS)
-                .delimiter(',')
-                .quote('"')
-                .build();
+        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE);
 
         /**
          * Predefined format as alias to {@link Format#RFC4180}.
          */
         public static final Format DEFAULT = RFC4180;
 
-        public static final Format EXCEL = Format
-                .builder()
-                .separator(NewLine.WINDOWS) // FIXME: ?
-                .delimiter(';')
-                .quote('"')
-                .build();
-
-        private final NewLine separator;
+        private final String separator;
         private final char delimiter;
         private final char quote;
 
-        private Format(NewLine separator, char delimiter, char quote) {
+        private Format(String separator, char delimiter, char quote) {
             this.separator = Objects.requireNonNull(separator, "separator");
             this.delimiter = delimiter;
             this.quote = quote;
         }
 
         /**
-         * Character used to separate lines.
+         * Characters used to separate lines.
+         * <p>
+         * The default value is "\r\n".
          *
          * @return a non-null line separator
+         * @see <a href="https://en.wikipedia.org/wiki/Newline">Newline</a>
          */
-        public NewLine getSeparator() {
+        public String getSeparator() {
             return separator;
         }
 
         /**
          * Character used to delimit the values.
+         * <p>
+         * The default value is ','.
          *
          * @return the delimiting character
          */
@@ -113,6 +95,8 @@ public final class Csv {
 
         /**
          * Character used to encapsulate values containing special characters.
+         * <p>
+         * The default value is '\"'.
          *
          * @return the quoting character
          */
@@ -121,18 +105,30 @@ public final class Csv {
         }
 
         /**
-         * Checks if the current format follows theses rules:
+         * Checks if the current format is valid.
+         * <p>
+         * Validation rules:
          * <ul>
-         * <li>delimiter != quote
-         * <li>delimiter and quote are not NewLine chars
+         * <li>Separator has one or two chars
+         * <li>delimiter != quote != separator chars
          * </ul>
          *
          * @return true if valid, false otherwise
          */
         public boolean isValid() {
-            return delimiter != quote
-                    && !NewLine.isNewLine(delimiter)
-                    && !NewLine.isNewLine(quote);
+            return hasValidSize(separator)
+                    && delimiter != quote
+                    && doesNotContain(separator, delimiter)
+                    && doesNotContain(separator, quote);
+        }
+
+        private static boolean hasValidSize(String text) {
+            int length = text.length();
+            return 1 <= length && length < 3;
+        }
+
+        private static boolean doesNotContain(String text, char c) {
+            return text.indexOf(c) == -1;
         }
 
         @Override
@@ -146,54 +142,45 @@ public final class Csv {
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
+            if (this == obj) return true;
+            if (obj == null) return false;
+            if (getClass() != obj.getClass()) return false;
             final Format other = (Format) obj;
-            if (this.delimiter != other.delimiter) {
-                return false;
-            }
-            if (this.quote != other.quote) {
-                return false;
-            }
-            if (this.separator != other.separator) {
-                return false;
-            }
+            if (!this.separator.equals(other.separator)) return false;
+            if (this.delimiter != other.delimiter) return false;
+            if (this.quote != other.quote) return false;
             return true;
         }
 
         @Override
         public String toString() {
-            return "Format{" + "separator=" + separator + ", delimiter=" + delimiter + ", quote=" + quote + '}';
+            return "Format(" + "separator=" + prettyPrint(separator) + ", delimiter=" + prettyPrint(delimiter) + ", quote=" + prettyPrint(quote) + ')';
         }
 
         public Builder toBuilder() {
-            return builder()
+            return new Builder()
                     .separator(separator)
                     .delimiter(delimiter)
                     .quote(quote);
         }
 
         public static Builder builder() {
-            return new Builder();
+            return DEFAULT.toBuilder();
         }
 
+        /**
+         * CSV format builder.
+         */
         public static final class Builder {
 
-            private NewLine separator;
+            private String separator;
             private char delimiter;
             private char quote;
 
             private Builder() {
             }
 
-            public Builder separator(NewLine separator) {
+            public Builder separator(String separator) {
                 this.separator = separator;
                 return this;
             }
@@ -215,39 +202,44 @@ public final class Csv {
     }
 
     /**
-     * Specifies the reader options.
+     * CSV reader options.
      */
-    public static final class Parsing {
+    public static final class ReaderOptions {
+
+        private static final boolean DEFAULT_LENIENT_SEPARATOR = false;
+        private static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
 
         /**
-         * Predefined parsing options that use a strict separator.
+         * Default reader options.
          */
-        public static final Parsing STRICT = Parsing.builder().lenientSeparator(false).build();
-
-        /**
-         * Predefined parsing options that use a lenient separator.
-         */
-        public static final Parsing LENIENT = Parsing.builder().lenientSeparator(true).build();
-
-        /**
-         * Predefined parsing options as alias to {@link Parsing#STRICT}.
-         */
-        public static final Parsing DEFAULT = STRICT;
+        public static final ReaderOptions DEFAULT = new ReaderOptions(DEFAULT_LENIENT_SEPARATOR, DEFAULT_MAX_CHARS_PER_FIELD);
 
         private final boolean lenientSeparator;
         private final int maxCharsPerField;
 
-        private Parsing(boolean lenientSeparator, int maxCharsPerField) {
+        private ReaderOptions(boolean lenientSeparator, int maxCharsPerField) {
             this.lenientSeparator = lenientSeparator;
             this.maxCharsPerField = maxCharsPerField;
         }
 
         /**
-         * Determines if the separator is parsed leniently or not. If set to
-         * true, the reader follows the same behavior as BufferedReader: <i>a
+         * Determines if the {@link Format#getSeparator() format separator} is parsed leniently or not
+         * when dealing with dual characters (first-char + second-char) such as {@link Format#WINDOWS_SEPARATOR}.
+         * <p>
+         * A lenient parsing considers a line to be terminated either:
+         * <ul>
+         *     <li>if the read char is the first-char possibly followed immediately by the second-char</li>
+         *     <li>if the read char is the second-char</li>
+         *     <li>if the end-of-file is reached</li>
+         * </ul>
+         * <p>
+         * For example, if the format separator is {@link Format#WINDOWS_SEPARATOR},
+         * the reader follows the same behavior as BufferedReader: <i>"a
          * line is considered to be terminated by any one of a line feed ('\n'),
          * a carriage return ('\r'), a carriage return followed immediately by a
-         * line feed, or by reaching the end-of-file (EOF)</i>.
+         * line feed, or by reaching the end-of-file (EOF)"</i>.
+         * <p>
+         * The default value is {@value ReaderOptions#DEFAULT_LENIENT_SEPARATOR}.
          *
          * @return true if lenient parsing of separator, false otherwise
          */
@@ -259,12 +251,27 @@ public final class Csv {
          * Determines the maximum number of characters to read in each field
          * to avoid {@link java.lang.OutOfMemoryError} in case a file does not
          * have a valid format. This sets a limit which avoids unwanted JVM crashes.
-         * The default value is 4096.
+         * <p>
+         * The default value is {@value ReaderOptions#DEFAULT_MAX_CHARS_PER_FIELD}.
          *
          * @return the maximum number of characters for a field
          */
         public int getMaxCharsPerField() {
             return maxCharsPerField;
+        }
+
+        /**
+         * Checks if the current options are valid.
+         * <p>
+         * Validation rules:
+         * <ul>
+         * <li>maximum number of characters for a field must be positive
+         * </ul>
+         *
+         * @return true if valid, false otherwise
+         */
+        public boolean isValid() {
+            return maxCharsPerField > 0;
         }
 
         @Override
@@ -277,47 +284,37 @@ public final class Csv {
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
-            final Parsing other = (Parsing) obj;
-            if (this.lenientSeparator != other.lenientSeparator) {
-                return false;
-            }
-            if (this.maxCharsPerField != other.maxCharsPerField) {
-                return false;
-            }
+            if (this == obj) return true;
+            if (obj == null) return false;
+            if (getClass() != obj.getClass()) return false;
+            final ReaderOptions other = (ReaderOptions) obj;
+            if (this.lenientSeparator != other.lenientSeparator) return false;
+            if (this.maxCharsPerField != other.maxCharsPerField) return false;
             return true;
         }
 
         @Override
         public String toString() {
-            return "Parsing{" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + '}';
+            return "ReaderOptions(" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + ')';
         }
 
         public Builder toBuilder() {
-            return builder()
+            return new Builder()
                     .lenientSeparator(lenientSeparator)
                     .maxCharsPerField(maxCharsPerField);
         }
 
         public static Builder builder() {
-            return new Builder();
+            return DEFAULT.toBuilder();
         }
 
+        /**
+         * CSV reader options builder.
+         */
         public static final class Builder {
 
-            private static final boolean DEFAULT_LENIENT_SEPARATOR = false;
-            private static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
-
-            private boolean lenientSeparator = DEFAULT_LENIENT_SEPARATOR;
-            private int maxCharsPerField = DEFAULT_MAX_CHARS_PER_FIELD;
+            private boolean lenientSeparator;
+            private int maxCharsPerField;
 
             private Builder() {
             }
@@ -332,145 +329,69 @@ public final class Csv {
                 return this;
             }
 
-            public Parsing build() {
-                return new Parsing(lenientSeparator, maxCharsPerField);
+            public ReaderOptions build() {
+                return new ReaderOptions(lenientSeparator, maxCharsPerField);
             }
         }
     }
 
     /**
-     * Reads CSV files.
+     * CSV reader.
      */
     public static final class Reader implements Closeable, CharSequence {
 
         /**
-         * @deprecated replaced by {@link #of(Path, Charset, Format, Parsing)}
-         */
-        @Deprecated
-        public static Reader of(Path file, Charset encoding, Format format) throws IllegalArgumentException, IOException {
-            return of(file, encoding, format, Parsing.STRICT);
-        }
-
-        /**
-         * Creates a new instance from a file.
-         *
-         * @param file     a non-null file
-         * @param encoding a non-null encoding
-         * @param format   a non-null format
-         * @param options  non-null options
-         * @return a new CSV reader
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Reader of(Path file, Charset encoding, Format format, Parsing options) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(file, "file");
-            Objects.requireNonNull(encoding, "encoding");
-            Objects.requireNonNull(format, "format");
-            Objects.requireNonNull(options, "options");
-            requireValid(format, "format");
-
-            CharsetDecoder decoder = encoding.newDecoder();
-            BufferSizes sizes = BufferSizes.of(file, decoder);
-            ReadableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.READ);
-
-            return make(format, sizes.getCharBufferSize(), sizes.newCharReader(channel, decoder), options);
-        }
-
-        /**
-         * @deprecated replaced by {@link #of(InputStream, Charset, Format, Parsing)}
-         */
-        @Deprecated
-        public static Reader of(InputStream stream, Charset encoding, Format format) throws IllegalArgumentException, IOException {
-            return of(stream, encoding, format, Parsing.STRICT);
-        }
-
-        /**
-         * Creates a new instance from a stream.
-         *
-         * @param stream   a non-null stream
-         * @param encoding a non-null encoding
-         * @param format   a non-null format
-         * @param options  non-null options
-         * @return a new CSV reader
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Reader of(InputStream stream, Charset encoding, Format format, Parsing options) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(stream, "stream");
-            Objects.requireNonNull(encoding, "encoding");
-            Objects.requireNonNull(format, "format");
-            Objects.requireNonNull(options, "options");
-            requireValid(format, "format");
-
-            CharsetDecoder decoder = encoding.newDecoder();
-            BufferSizes sizes = BufferSizes.of(stream, decoder);
-            return make(format, sizes.getCharBufferSize(), new InputStreamReader(stream, decoder), options);
-        }
-
-        /**
-         * @deprecated replaced by {@link #of(java.io.Reader, Format, Parsing)}
-         */
-        @Deprecated
-        public static Reader of(java.io.Reader charReader, Format format) throws IllegalArgumentException, IOException {
-            return of(charReader, format, Parsing.STRICT);
-        }
-
-        /**
          * Creates a new instance from a char reader.
          *
-         * @param charReader a non-null char reader
-         * @param format     a non-null format
-         * @param options    non-null options
+         * @param format         a non-null format
+         * @param options        a non-null options
+         * @param charReader     a non-null char reader
+         * @param charBufferSize the size of the internal char buffer
          * @return a new CSV reader
          * @throws IllegalArgumentException if the format contains an invalid
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Reader of(java.io.Reader charReader, Format format, Parsing options) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(charReader, "charReader");
+        public static Reader of(Format format, ReaderOptions options, java.io.Reader charReader, int charBufferSize) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
-            requireValid(format, "format");
+            Objects.requireNonNull(charReader, "charReader");
+            requireArgument(charBufferSize > 0, "Invalid charBufferSize: %s", charBufferSize);
+            requireArgument(format.isValid(), "Invalid format: %s", format);
+            requireArgument(options.isValid(), "Invalid options: %s", options);
 
-            BufferSizes sizes = BufferSizes.EMPTY;
-            return make(format, sizes.getCharBufferSize(), charReader, options);
-        }
+            char[] charBuffer = new char[charBufferSize];
 
-        private static Reader make(Format format, int charBufferSize, java.io.Reader charReader, Parsing options) {
             return new Reader(
-                    ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBufferSize) : new Input(charReader, charBufferSize),
+                    ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBuffer) : new Input(charReader, charBuffer),
                     format.getQuote(), format.getDelimiter(),
-                    EndOfLineReader.of(format, options),
-                    options.getMaxCharsPerField());
+                    EndOfLineDecoder.of(format, options),
+                    new char[options.getMaxCharsPerField()]);
         }
 
         private final Input input;
         private final int quoteCode;
         private final int delimiterCode;
-        private final EndOfLineReader endOfLine;
+        private final EndOfLineDecoder eolDecoder;
         private final char[] fieldChars;
-        private int fieldLength;
-        private boolean fieldQuoted;
-        private State state;
-        private boolean parsedByLine;
 
-        private Reader(Input input, int quoteCode, int delimiterCode, EndOfLineReader endOfLine, int maxCharsPerField) {
+        private int fieldLength = 0;
+        private boolean fieldQuoted = false;
+        private int state = STATE_READY;
+        private boolean parsedByLine = false;
+
+        private Reader(Input input, int quoteCode, int delimiterCode, EndOfLineDecoder eolDecoder, char[] fieldChars) {
             this.input = input;
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
-            this.endOfLine = endOfLine;
-            this.fieldChars = new char[maxCharsPerField];
-            this.fieldLength = 0;
-            this.fieldQuoted = false;
-            this.state = State.READY;
-            this.parsedByLine = false;
+            this.eolDecoder = eolDecoder;
+            this.fieldChars = fieldChars;
         }
 
-        private enum State {
-            READY, NOT_LAST, LAST, DONE
-        }
+        private static final int STATE_READY = 0;
+        private static final int STATE_NOT_LAST = 1;
+        private static final int STATE_LAST = 2;
+        private static final int STATE_DONE = 3;
 
         /**
          * Reads the next line.
@@ -480,20 +401,20 @@ public final class Csv {
          */
         public boolean readLine() throws IOException {
             switch (state) {
-                case DONE:
+                case STATE_DONE:
                     return false;
-                case READY:
-                case LAST:
-                    state = parseNextField();
+                case STATE_READY:
+                case STATE_LAST:
+                    parseNextField();
                     parsedByLine = true;
-                    return state != State.DONE;
-                case NOT_LAST:
+                    return state != STATE_DONE;
+                case STATE_NOT_LAST:
                     skipRemainingFields();
-                    state = parseNextField();
+                    parseNextField();
                     parsedByLine = true;
-                    return state != State.DONE;
+                    return state != STATE_DONE;
                 default:
-                    throw new RuntimeException("Unreachable");
+                    throw newUnreachable();
             }
         }
 
@@ -505,24 +426,25 @@ public final class Csv {
          */
         public boolean readField() throws IOException {
             switch (state) {
-                case LAST:
+                case STATE_LAST:
                     if (parsedByLine) {
                         parsedByLine = false;
                         return isFieldNotNull();
                     }
                     return false;
-                case NOT_LAST:
+                case STATE_NOT_LAST:
                     if (parsedByLine) {
                         parsedByLine = false;
                         return true;
                     }
-                    state = parseNextField();
-                    return state != State.DONE;
-                case DONE:
-                case READY:
+                    parseNextField();
+                    return true;
+                case STATE_DONE:
+                    return false;
+                case STATE_READY:
                     throw new IllegalStateException();
                 default:
-                    throw new RuntimeException("Unreachable");
+                    throw newUnreachable();
             }
         }
 
@@ -532,18 +454,27 @@ public final class Csv {
         }
 
         private void skipRemainingFields() throws IOException {
-            while (true) {
-                if ((state = parseNextField()) != State.NOT_LAST) break;
-            }
+            do {
+                parseNextField();
+            } while (state == STATE_NOT_LAST);
         }
 
-        // WARNING: main loop; lots of duplication to maximize perfs
+        // WARNING: main loop; lots of duplication to maximize performances
         // WARNING: comparing ints more performant than comparing chars
-        private State parseNextField() throws IOException {
-            fieldLength = 0;
-            int code;
+        // WARNING: local var access slightly quicker that field access
+        private void parseNextField() throws IOException {
+            int fieldLength = this.fieldLength;
+            boolean fieldQuoted = this.fieldQuoted;
+            int state = this.state;
 
             try {
+                final int quoteCode = this.quoteCode;
+                final int delimiterCode = this.delimiterCode;
+                final char[] fieldChars = this.fieldChars;
+
+                int code;
+
+                fieldLength = 0;
 
                 // [Step 1]: first char
                 fieldQuoted = false;
@@ -552,14 +483,22 @@ public final class Csv {
                         fieldQuoted = true;
                     } else {
                         /*-end-of-field-*/
-                        if (code == delimiterCode) return State.NOT_LAST;
-                        else if (endOfLine.isEndOfLine(code, input)) return State.LAST;
+                        if (code == delimiterCode) {
+                            state = STATE_NOT_LAST;
+                            return;
+                        } else if (eolDecoder.isEndOfLine(code, input)) {
+                            state = STATE_LAST;
+                            return;
+                        }
                         /*-append-*/
                         fieldChars[fieldLength++] = (char) code;
                     }
                 } else {
                     // EOF
-                    return State.DONE;
+                    {
+                        state = STATE_DONE;
+                        return;
+                    }
                 }
 
                 if (fieldQuoted) {
@@ -577,30 +516,50 @@ public final class Csv {
                         } else {
                             if (escaped) {
                                 /*-end-of-field-*/
-                                if (code == delimiterCode) return State.NOT_LAST;
-                                else if (endOfLine.isEndOfLine(code, input)) return State.LAST;
+                                if (code == delimiterCode) {
+                                    state = STATE_NOT_LAST;
+                                    return;
+                                } else if (eolDecoder.isEndOfLine(code, input)) {
+                                    state = STATE_LAST;
+                                    return;
+                                }
                             }
                             /*-append-*/
                             fieldChars[fieldLength++] = (char) code;
                         }
                     }
                     // EOF
-                    return State.LAST;
+                    {
+                        state = STATE_LAST;
+                        return;
+                    }
                 } else {
                     // [Step 2B]: subsequent chars without escape
                     while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                         /*-end-of-field-*/
-                        if (code == delimiterCode) return State.NOT_LAST;
-                        else if (endOfLine.isEndOfLine(code, input)) return State.LAST;
+                        if (code == delimiterCode) {
+                            state = STATE_NOT_LAST;
+                            return;
+                        } else if (eolDecoder.isEndOfLine(code, input)) {
+                            state = STATE_LAST;
+                            return;
+                        }
                         /*-append-*/
                         fieldChars[fieldLength++] = (char) code;
                     }
                     // EOF
-                    return fieldLength > 0 ? State.LAST : State.DONE;
+                    {
+                        state = fieldLength > 0 ? STATE_LAST : STATE_DONE;
+                        return;
+                    }
                 }
 
             } catch (IndexOutOfBoundsException ex) {
                 throw new IOException("Field overflow", ex);
+            } finally {
+                this.fieldLength = fieldLength;
+                this.fieldQuoted = fieldQuoted;
+                this.state = state;
             }
         }
 
@@ -640,14 +599,13 @@ public final class Csv {
 
             private final java.io.Reader charReader;
             private final char[] buffer;
-            private int length;
-            private int index;
 
-            private Input(java.io.Reader charReader, int bufferSize) {
+            private int length = 0;
+            private int index = 0;
+
+            private Input(java.io.Reader charReader, char[] charBuffer) {
                 this.charReader = charReader;
-                this.buffer = new char[bufferSize];
-                this.length = 0;
-                this.index = 0;
+                this.buffer = charBuffer;
             }
 
             @Override
@@ -656,29 +614,21 @@ public final class Csv {
             }
 
             public int read() throws IOException {
-                if (index < length) {
-                    return buffer[index++];
-                }
-                if ((length = charReader.read(buffer)) == EOF_CODE) {
-                    return EOF_CODE;
-                }
-                index = 1;
-                return buffer[0];
+                return (index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1];
             }
         }
 
         private static final class ReadAheadInput extends Input {
 
-            static boolean isNeeded(Format format, Parsing options) {
-                return options.isLenientSeparator() || format.getSeparator() == NewLine.WINDOWS;
+            static boolean isNeeded(Format format, ReaderOptions options) {
+                return options.isLenientSeparator() || format.getSeparator().length() > 1;
             }
 
             private static final int NULL_CODE = -2;
-            private int readAheadCode;
+            private int readAheadCode = NULL_CODE;
 
-            private ReadAheadInput(java.io.Reader charReader, int bufferSize) {
-                super(charReader, bufferSize);
-                this.readAheadCode = NULL_CODE;
+            private ReadAheadInput(java.io.Reader charReader, char[] charBuffer) {
+                super(charReader, charBuffer);
             }
 
             @Override
@@ -700,160 +650,180 @@ public final class Csv {
             }
         }
 
-        private enum EndOfLineReader {
+        private static abstract class EndOfLineDecoder {
 
-            LENIENT {
-                @Override
-                boolean isEndOfLine(int code, Input input) throws IOException {
-                    switch (code) {
-                        case LF_CODE:
-                            return true;
-                        case CR_CODE:
-                            if (((ReadAheadInput) input).peek(LF_CODE)) {
-                                ((ReadAheadInput) input).discardAheadOfTimeCode();
-                            }
-                            return true;
-                        default:
-                            return false;
-                    }
+            abstract public boolean isEndOfLine(int code, Input input) throws IOException;
+
+            public static EndOfLineDecoder of(Format format, ReaderOptions options) {
+                String eol = format.getSeparator();
+                switch (eol.length()) {
+                    case 1:
+                        return new SingleDecoder(eol.charAt(0));
+                    case 2:
+                        return options.isLenientSeparator()
+                                ? new LenientDecoder(eol.charAt(0), eol.charAt(1))
+                                : new DualDecoder(eol.charAt(0), eol.charAt(1));
+                    default:
+                        throw newUnreachable();
                 }
-            },
-            MACINTOSH {
-                @Override
-                boolean isEndOfLine(int code, Input input) {
-                    return code == CR_CODE;
+            }
+
+            private static final class SingleDecoder extends EndOfLineDecoder {
+
+                private final int single;
+
+                private SingleDecoder(int single) {
+                    this.single = single;
                 }
-            },
-            UNIX {
+
                 @Override
-                boolean isEndOfLine(int code, Input input) {
-                    return code == LF_CODE;
+                public boolean isEndOfLine(int code, Input input) {
+                    return code == single;
                 }
-            },
-            WINDOWS {
+            }
+
+            private static final class DualDecoder extends EndOfLineDecoder {
+
+                private final int first;
+                private final int second;
+
+                private DualDecoder(int first, int second) {
+                    this.first = first;
+                    this.second = second;
+                }
+
                 @Override
-                boolean isEndOfLine(int code, Input input) throws IOException {
-                    if (code == CR_CODE && ((ReadAheadInput) input).peek(LF_CODE)) {
+                public boolean isEndOfLine(int code, Input input) throws IOException {
+                    if (code == first && ((ReadAheadInput) input).peek(second)) {
                         ((ReadAheadInput) input).discardAheadOfTimeCode();
                         return true;
                     }
                     return false;
                 }
-            };
+            }
 
-            abstract boolean isEndOfLine(int code, Input input) throws IOException;
+            private static final class LenientDecoder extends EndOfLineDecoder {
 
-            static final int CR_CODE = NewLine.CR;
-            static final int LF_CODE = NewLine.LF;
+                private final int first;
+                private final int second;
 
-            static EndOfLineReader of(Format format, Parsing options) {
-                if (options.isLenientSeparator()) {
-                    return LENIENT;
+                private LenientDecoder(int first, int second) {
+                    this.first = first;
+                    this.second = second;
                 }
-                switch (format.getSeparator()) {
-                    case MACINTOSH:
-                        return MACINTOSH;
-                    case UNIX:
-                        return UNIX;
-                    case WINDOWS:
-                        return WINDOWS;
-                    default:
-                        throw new RuntimeException("Unreachable");
+
+                @Override
+                public boolean isEndOfLine(int code, Input input) throws IOException {
+                    if (code == first) {
+                        if (((ReadAheadInput) input).peek(second)) {
+                            ((ReadAheadInput) input).discardAheadOfTimeCode();
+                        }
+                        return true;
+                    }
+                    return code == second;
                 }
             }
         }
     }
 
     /**
-     * Writes CSV files.
+     * CSV writer options.
+     */
+    public static final class WriterOptions {
+
+        /**
+         * Default writer options.
+         */
+        public static final WriterOptions DEFAULT = new WriterOptions();
+
+        private WriterOptions() {
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null) return false;
+            if (getClass() != obj.getClass()) return false;
+            final WriterOptions other = (WriterOptions) obj;
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return "WriterOptions(" + ')';
+        }
+
+        public Builder toBuilder() {
+            return new Builder();
+        }
+
+        public static Builder builder() {
+            return DEFAULT.toBuilder();
+        }
+
+        /**
+         * CSV writer options builder.
+         */
+        public static final class Builder {
+
+            private Builder() {
+            }
+
+            public WriterOptions build() {
+                return new WriterOptions();
+            }
+        }
+    }
+
+    /**
+     * CSV writer.
      */
     public static final class Writer implements Closeable {
 
         /**
-         * Creates a new instance from a file.
-         *
-         * @param file     a non-null file
-         * @param encoding a non-null encoding
-         * @param format   a non-null format
-         * @return a new CSV writer
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Writer of(Path file, Charset encoding, Format format) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(file, "file");
-            Objects.requireNonNull(encoding, "encoding");
-            Objects.requireNonNull(format, "format");
-            requireValid(format, "format");
-
-            CharsetEncoder encoder = encoding.newEncoder();
-            BufferSizes sizes = BufferSizes.of(file, encoder);
-            WritableByteChannel channel = Files.newByteChannel(file, StandardOpenOption.WRITE);
-
-            return make(format, sizes.getCharBufferSize(), sizes.newCharWriter(channel, encoder));
-        }
-
-        /**
-         * Creates a new instance from a stream.
-         *
-         * @param stream   a non-null stream
-         * @param encoding a non-null encoding
-         * @param format   a non-null format
-         * @return a new CSV writer
-         * @throws IllegalArgumentException if the format contains an invalid
-         *                                  combination of options
-         * @throws IOException              if an I/O error occurs
-         */
-        public static Writer of(OutputStream stream, Charset encoding, Format format) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(stream, "stream");
-            Objects.requireNonNull(encoding, "encoding");
-            Objects.requireNonNull(format, "format");
-            requireValid(format, "format");
-
-            CharsetEncoder encoder = encoding.newEncoder();
-            BufferSizes sizes = BufferSizes.of(stream, encoder);
-            return make(format, sizes.getCharBufferSize(), new OutputStreamWriter(stream, encoder));
-        }
-
-        /**
          * Creates a new instance from a char writer.
          *
-         * @param charWriter a non-null char writer
-         * @param format     a non-null format
+         * @param format         a non-null format
+         * @param options        a non-null options
+         * @param charWriter     a non-null char writer
+         * @param charBufferSize the size of the internal buffer
          * @return a new CSV writer
          * @throws IllegalArgumentException if the format contains an invalid
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Writer of(java.io.Writer charWriter, Format format) throws IllegalArgumentException, IOException {
-            Objects.requireNonNull(charWriter, "charWriter");
+        public static Writer of(Format format, WriterOptions options, java.io.Writer charWriter, int charBufferSize) throws IllegalArgumentException, IOException {
             Objects.requireNonNull(format, "format");
-            requireValid(format, "format");
+            Objects.requireNonNull(options, "options");
+            Objects.requireNonNull(charWriter, "charWriter");
+            requireArgument(charBufferSize > 0, "Invalid charBufferSize: %s", charBufferSize);
+            requireArgument(format.isValid(), "Invalid format: %s", format);
 
-            BufferSizes sizes = BufferSizes.EMPTY;
-            return make(format, sizes.getCharBufferSize(), charWriter);
-        }
-
-        private static Writer make(Format format, int charBufferSize, java.io.Writer charWriter) {
             return new Writer(
-                    new Output(charWriter, charBufferSize),
+                    new Output(charWriter, new char[charBufferSize]),
                     format.getQuote(), format.getDelimiter(),
-                    EndOfLineWriter.of(format.getSeparator())
+                    EndOfLineEncoder.of(format)
             );
         }
 
         private final Output output;
         private final char quote;
         private final char delimiter;
-        private final EndOfLineWriter endOfLine;
-        private State state;
+        private final EndOfLineEncoder eolEncoder;
 
-        private Writer(Output output, char quote, char delimiter, EndOfLineWriter endOfLine) {
+        private int state = STATE_NO_FIELD;
+
+        private Writer(Output output, char quote, char delimiter, EndOfLineEncoder eolEncoder) {
             this.output = output;
             this.quote = quote;
             this.delimiter = delimiter;
-            this.endOfLine = endOfLine;
-            this.state = State.NO_FIELD;
+            this.eolEncoder = eolEncoder;
         }
 
         /**
@@ -864,22 +834,22 @@ public final class Csv {
          */
         public void writeField(CharSequence field) throws IOException {
             switch (state) {
-                case NO_FIELD:
+                case STATE_NO_FIELD:
                     if (isNotEmpty(field)) {
-                        state = State.MULTI_FIELD;
+                        state = STATE_MULTI_FIELD;
                         writeNonEmptyField(field);
                     } else {
-                        state = State.SINGLE_EMPTY_FIELD;
+                        state = STATE_SINGLE_EMPTY_FIELD;
                     }
                     break;
-                case SINGLE_EMPTY_FIELD:
-                    state = State.MULTI_FIELD;
+                case STATE_SINGLE_EMPTY_FIELD:
+                    state = STATE_MULTI_FIELD;
                     output.write(delimiter);
                     if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
                     }
                     break;
-                case MULTI_FIELD:
+                case STATE_MULTI_FIELD:
                     output.write(delimiter);
                     if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
@@ -895,7 +865,7 @@ public final class Csv {
          */
         public void writeEndOfLine() throws IOException {
             flushField();
-            endOfLine.write(output);
+            eolEncoder.write(output);
         }
 
         @Override
@@ -910,15 +880,15 @@ public final class Csv {
 
         private void writeNonEmptyField(CharSequence field) throws IOException {
             switch (getQuoting(field)) {
-                case NONE:
+                case QUOTING_NONE:
                     output.write(field);
                     break;
-                case PARTIAL:
+                case QUOTING_PARTIAL:
                     output.write(quote);
                     output.write(field);
                     output.write(quote);
                     break;
-                case FULL:
+                case QUOTING_FULL:
                     output.write(quote);
                     for (int i = 0; i < field.length(); i++) {
                         char c = field.charAt(i);
@@ -933,45 +903,45 @@ public final class Csv {
         }
 
         private void flushField() throws IOException {
-            if (state == State.SINGLE_EMPTY_FIELD) {
+            if (state == STATE_SINGLE_EMPTY_FIELD) {
                 output.write(quote);
                 output.write(quote);
             }
-            state = State.NO_FIELD;
+            state = STATE_NO_FIELD;
         }
 
-        private Quoting getQuoting(CharSequence field) {
-            Quoting result = Quoting.NONE;
+        private int getQuoting(CharSequence field) {
+            int result = QUOTING_NONE;
             for (int i = 0; i < field.length(); i++) {
                 char c = field.charAt(i);
                 if (c == quote) {
-                    return Quoting.FULL;
+                    return QUOTING_FULL;
                 }
-                if (c == delimiter || NewLine.isNewLine(c)) {
-                    result = Quoting.PARTIAL;
+                if (c == delimiter || eolEncoder.isNewLine(c)) {
+                    result = QUOTING_PARTIAL;
                 }
             }
             return result;
         }
 
-        private enum Quoting {
-            NONE, PARTIAL, FULL
-        }
+        private static final int QUOTING_NONE = 0;
+        private static final int QUOTING_PARTIAL = 1;
+        private static final int QUOTING_FULL = 2;
 
-        private enum State {
-            NO_FIELD, SINGLE_EMPTY_FIELD, MULTI_FIELD
-        }
+        private static final int STATE_NO_FIELD = 0;
+        private static final int STATE_SINGLE_EMPTY_FIELD = 1;
+        private static final int STATE_MULTI_FIELD = 2;
 
         private static final class Output implements Closeable {
 
             private final java.io.Writer charWriter;
             private final char[] buffer;
-            private int length;
 
-            private Output(java.io.Writer charWriter, int bufferSize) {
+            private int length = 0;
+
+            private Output(java.io.Writer charWriter, char[] charBuffer) {
                 this.charWriter = charWriter;
-                this.buffer = new char[bufferSize];
-                this.length = 0;
+                this.buffer = charBuffer;
             }
 
             public void write(char c) throws IOException {
@@ -1012,123 +982,74 @@ public final class Csv {
             }
         }
 
-        private enum EndOfLineWriter {
+        private static abstract class EndOfLineEncoder {
 
-            MACINTOSH {
-                @Override
-                void write(Output output) throws IOException {
-                    output.write(NewLine.CR);
-                }
-            },
-            UNIX {
-                @Override
-                void write(Output output) throws IOException {
-                    output.write(NewLine.LF);
-                }
-            },
-            WINDOWS {
-                @Override
-                void write(Output output) throws IOException {
-                    output.write(NewLine.CRLF);
-                }
-            };
+            abstract public void write(Output output) throws IOException;
 
-            abstract void write(Output output) throws IOException;
+            abstract public boolean isNewLine(char c);
 
-            static EndOfLineWriter of(NewLine newLine) {
-                switch (newLine) {
-                    case MACINTOSH:
-                        return MACINTOSH;
-                    case UNIX:
-                        return UNIX;
-                    case WINDOWS:
-                        return WINDOWS;
+            public static EndOfLineEncoder of(Format format) {
+                String eol = format.getSeparator();
+                switch (eol.length()) {
+                    case 1:
+                        return new SingleEncoder(eol.charAt(0));
+                    case 2:
+                        return new DualEncoder(eol.charAt(0), eol.charAt(1));
                     default:
-                        throw new RuntimeException("Unreachable");
+                        throw newUnreachable();
+                }
+            }
+
+            private static final class SingleEncoder extends EndOfLineEncoder {
+
+                private final char single;
+
+                private SingleEncoder(char single) {
+                    this.single = single;
+                }
+
+                @Override
+                public void write(Output output) throws IOException {
+                    output.write(single);
+                }
+
+                @Override
+                public boolean isNewLine(char c) {
+                    return c == single;
+                }
+            }
+
+            private static final class DualEncoder extends EndOfLineEncoder {
+
+                private final char first;
+                private final char second;
+
+                private DualEncoder(char first, char second) {
+                    this.first = first;
+                    this.second = second;
+                }
+
+                @Override
+                public void write(Output output) throws IOException {
+                    output.write(first);
+                    output.write(second);
+                }
+
+                @Override
+                public boolean isNewLine(char c) {
+                    return c == first || c == second;
                 }
             }
         }
     }
 
-    static final class BufferSizes {
-
-        static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
-        static final int IMPL_DEPENDENT_MIN_BUFFER_CAP = -1;
-
-        static final BufferSizes EMPTY = new BufferSizes(-1, -1, -1);
-
-        static BufferSizes of(Path file, CharsetDecoder decoder) throws IOException {
-            return make(BLOCK_SIZER.get().getBlockSize(file), decoder.averageCharsPerByte());
-        }
-
-        static BufferSizes of(Path file, CharsetEncoder encoder) throws IOException {
-            return make(BLOCK_SIZER.get().getBlockSize(file), 1f / encoder.averageBytesPerChar());
-        }
-
-        static BufferSizes of(InputStream stream, CharsetDecoder decoder) throws IOException {
-            return make(BLOCK_SIZER.get().getBlockSize(stream), decoder.averageCharsPerByte());
-        }
-
-        static BufferSizes of(OutputStream stream, CharsetEncoder encoder) throws IOException {
-            Objects.requireNonNull(stream);
-            return make(BLOCK_SIZER.get().getBlockSize(stream), 1f / encoder.averageBytesPerChar());
-        }
-
-        private static BufferSizes make(long blockSize, float averageCharsPerByte) {
-            if (blockSize <= 0 || blockSize > Integer.MAX_VALUE) {
-                return EMPTY;
-            }
-            int block = (int) blockSize;
-            int bytes = getByteSizeFromBlockSize(block);
-            int chars = (int) (bytes * averageCharsPerByte);
-            return new BufferSizes(block, bytes, chars);
-        }
-
-        final int block;
-        final int bytes;
-        final int chars;
-
-        BufferSizes(int block, int bytes, int chars) {
-            this.block = block;
-            this.bytes = bytes;
-            this.chars = chars;
-        }
-
-        int getCharBufferSize() {
-            return chars > 0 ? chars : DEFAULT_CHAR_BUFFER_SIZE;
-        }
-
-        int getChannelMinBufferCap() {
-            return bytes > 0 ? bytes : IMPL_DEPENDENT_MIN_BUFFER_CAP;
-        }
-
-        java.io.Reader newCharReader(ReadableByteChannel channel, CharsetDecoder decoder) {
-            return Channels.newReader(channel, decoder, getChannelMinBufferCap());
-        }
-
-        java.io.Writer newCharWriter(WritableByteChannel channel, CharsetEncoder encoder) {
-            return Channels.newWriter(channel, encoder, getChannelMinBufferCap());
-        }
-
-        private static int getByteSizeFromBlockSize(int blockSize) {
-            int tmp = getNextHighestPowerOfTwo(blockSize);
-            return tmp == blockSize ? blockSize * 64 : blockSize;
-        }
-
-        private static int getNextHighestPowerOfTwo(int val) {
-            val = val - 1;
-            val |= val >> 1;
-            val |= val >> 2;
-            val |= val >> 4;
-            val |= val >> 8;
-            val |= val >> 16;
-            return val + 1;
-        }
+    private static RuntimeException newUnreachable() {
+        return new RuntimeException("Unreachable");
     }
 
-    private static void requireValid(Format format, String message) throws IllegalArgumentException {
-        if (!format.isValid()) {
-            throw new IllegalArgumentException(message);
+    private static void requireArgument(boolean condition, String format, Object arg) throws IllegalArgumentException {
+        if (!condition) {
+            throw new IllegalArgumentException(String.format(format, arg));
         }
     }
 
@@ -1137,52 +1058,34 @@ public final class Csv {
         return value ? 1231 : 1237;
     }
 
-    public static final AtomicReference<BlockSizer> BLOCK_SIZER = new AtomicReference<>(new BlockSizer());
-
-    /**
-     * System-wide utility that gets the number of bytes per block from several byte sources.
-     * May be overridden to deal with new JDK APIs.
-     */
-    public static class BlockSizer {
-
-        public static final long DEFAULT_BLOCK_BUFFER_SIZE = 512;
-        public static final long DEFAULT_BUFFER_OUTPUT_STREAM_SIZE = 8192;
-        public static final long UNKNOWN_SIZE = -1;
-
-        /**
-         * Returns the number of bytes per block in the file store of this file.
-         *
-         * @param file a non-null file as byte source
-         * @return a positive value representing the block size in bytes if available, -1 otherwise
-         * @throws IOException if an I/O error occurs
-         * @see <a href="https://docs.oracle.com/javase/10/docs/api/java/nio/file/FileStore.html#getBlockSize()">https://docs.oracle.com/javase/10/docs/api/java/nio/file/FileStore.html#getBlockSize()</a>
-         */
-        public long getBlockSize(Path file) throws IOException {
-            Objects.requireNonNull(file);
-            return DEFAULT_BLOCK_BUFFER_SIZE;
+    private static String prettyPrint(String text) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            result.append(prettyPrint(text.charAt(i)));
         }
+        return result.toString();
+    }
 
-        /**
-         * Returns the number of bytes per block in the input stream implementation.
-         *
-         * @param stream a non-null input stream as byte source
-         * @return a positive value representing the block size in bytes if available, -1 otherwise
-         * @throws IOException if an I/O error occurs
-         */
-        public long getBlockSize(InputStream stream) throws IOException {
-            return stream.available();
-        }
-
-        /**
-         * Returns the number of bytes per block in the output stream implementation.
-         *
-         * @param stream a non-null output stream as byte source
-         * @return a positive value representing the block size in bytes if available, -1 otherwise
-         * @throws IOException if an I/O error occurs
-         */
-        public long getBlockSize(OutputStream stream) throws IOException {
-            Objects.requireNonNull(stream);
-            return stream instanceof BufferedOutputStream ? DEFAULT_BUFFER_OUTPUT_STREAM_SIZE : UNKNOWN_SIZE;
+    private static String prettyPrint(char c) {
+        switch (c) {
+            case '\t':
+                return "\\t";
+            case '\b':
+                return "\\b";
+            case '\n':
+                return "\\n";
+            case '\r':
+                return "\\r";
+            case '\f':
+                return "\\f";
+//            case '\'':
+//                return "\\'";
+            case '\"':
+                return "\\\"";
+            case '\\':
+                return "\\\\";
+            default:
+                return String.valueOf(c);
         }
     }
 }

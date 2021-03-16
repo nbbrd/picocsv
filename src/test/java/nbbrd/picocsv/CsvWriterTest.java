@@ -1,17 +1,17 @@
 /*
  * Copyright 2019 National Bank of Belgium
- * 
- * Licensed under the EUPL, Version 1.1 or - as soon they will be approved 
+ *
+ * Licensed under the EUPL, Version 1.1 or - as soon they will be approved
  * by the European Commission - subsequent versions of the EUPL (the "Licence");
  * You may not use this work except in compliance with the Licence.
  * You may obtain a copy of the Licence at:
- * 
+ *
  * http://ec.europa.eu/idabc/eupl
- * 
- * Unless required by applicable law or agreed to in writing, software 
+ *
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the Licence is distributed on an "AS IS" basis,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the Licence for the specific language governing permissions and 
+ * See the Licence for the specific language governing permissions and
  * limitations under the Licence.
  */
 package nbbrd.picocsv;
@@ -19,100 +19,60 @@ package nbbrd.picocsv;
 import _test.QuickWriter;
 import _test.Row;
 import _test.Sample;
-import static _test.Sample.ILLEGAL_FORMAT;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Writer;
-import java.nio.charset.Charset;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import java.nio.file.Path;
-import java.util.Arrays;
-import static nbbrd.picocsv.Csv.BufferSizes.DEFAULT_CHAR_BUFFER_SIZE;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Arrays;
+
+import static _test.QuickWriter.write;
+import static _test.QuickWriter.writeValue;
+import static _test.Sample.INVALID_FORMAT;
+import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 import static nbbrd.picocsv.Csv.Format.RFC4180;
 import static org.assertj.core.api.Assertions.*;
 
-/**
- *
- * @author Philippe Charles
- */
 public class CsvWriterTest {
-
-    @Test
-    public void testPathFactory() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of((Path) null, UTF_8, RFC4180))
-                .withMessageContaining("file");
-
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), null, RFC4180))
-                .withMessageContaining("encoding");
-
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), UTF_8, null))
-                .withMessageContaining("format");
-
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputFile(), UTF_8, ILLEGAL_FORMAT))
-                .withMessageContaining("format");
-    }
-
-    @Test
-    public void testStreamFactory() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of((OutputStream) null, UTF_8, RFC4180))
-                .withMessageContaining("stream");
-
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), null, RFC4180))
-                .withMessageContaining("encoding");
-
-        assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), UTF_8, null))
-                .withMessageContaining("format");
-
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newOutputStream(), UTF_8, ILLEGAL_FORMAT))
-                .withMessageContaining("format");
-    }
 
     @Test
     public void testWriterFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of((Writer) null, RFC4180))
+                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, null, DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("charWriter");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newCharWriter(), null))
+                .isThrownBy(() -> Csv.Writer.of(null, Csv.WriterOptions.DEFAULT, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("format");
 
+        assertThatNullPointerException()
+                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, null, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
+                .withMessageContaining("options");
+
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Writer.of(QuickWriter.newCharWriter(), ILLEGAL_FORMAT))
-                .withMessageContaining("format");
+                .isThrownBy(() -> Csv.Writer.of(INVALID_FORMAT, Csv.WriterOptions.DEFAULT, new StringWriter(), DEFAULT_CHAR_BUFFER_SIZE))
+                .withMessageContaining("Invalid format: " + INVALID_FORMAT);
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, new StringWriter(), 0))
+                .withMessageContaining("Invalid charBufferSize: 0");
     }
 
     @Test
     public void testAllSamples() throws IOException {
-        for (QuickWriter writer : QuickWriter.values()) {
-            for (Charset encoding : Sample.CHARSETS) {
-                for (Sample sample : Sample.SAMPLES) {
-                    assertValid(writer, encoding, sample);
-                }
-            }
+        for (Sample sample : Sample.SAMPLES) {
+            assertValid(sample, Csv.WriterOptions.DEFAULT);
         }
     }
 
     @Test
     public void testMissingEndLine() throws IOException {
-        for (QuickWriter writer : QuickWriter.values()) {
-            assertThat(
-                    writer.write(o -> {
-                        o.writeField("A1");
-                        o.writeField("");
-                        o.writeField("C1");
-                    }, UTF_8, RFC4180)
-            ).isEqualTo("A1,,C1");
-        }
+        assertThat(
+                write(o -> {
+                    o.writeField("A1");
+                    o.writeField("");
+                    o.writeField("C1");
+                }, RFC4180, Csv.WriterOptions.DEFAULT)
+        ).isEqualTo("A1,,C1");
     }
 
     @Test
@@ -171,23 +131,23 @@ public class CsvWriterTest {
 
     @Test
     public void testOutputBuffer() throws IOException {
-        assertValid(QuickWriter.BYTE_ARRAY, UTF_8, getOverflowSample(
+        assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE - 1),
                 "\"",
                 repeat('C', 10)
-        ));
+        ), Csv.WriterOptions.DEFAULT);
 
-        assertValid(QuickWriter.BYTE_ARRAY, UTF_8, getOverflowSample(
+        assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE),
                 "\"",
                 repeat('C', 10)
-        ));
+        ), Csv.WriterOptions.DEFAULT);
 
-        assertValid(QuickWriter.BYTE_ARRAY, UTF_8, getOverflowSample(
+        assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE + 1),
                 "\"",
                 repeat('C', 10)
-        ));
+        ), Csv.WriterOptions.DEFAULT);
     }
 
     private static Sample getOverflowSample(String... fields) {
@@ -201,7 +161,7 @@ public class CsvWriterTest {
     }
 
     private static String writeToString(QuickWriter.VoidFormatter formatter) throws IOException {
-        return QuickWriter.CHAR_WRITER.write(formatter, null, Csv.Format.RFC4180);
+        return write(formatter, Csv.Format.RFC4180, Csv.WriterOptions.DEFAULT);
     }
 
     private static String repeat(char c, int length) {
@@ -210,26 +170,13 @@ public class CsvWriterTest {
         return String.valueOf(result);
     }
 
-    private static void assertValid(QuickWriter writer, Charset encoding, Sample sample) throws IOException {
-        assertThat(writer.writeValue(sample.getRows(), Row::write, encoding, sample.getFormat()))
-                .describedAs("Writing '%s' with '%s'", sample.getName(), writer)
+    private static void assertValid(Sample sample, Csv.WriterOptions options) throws IOException {
+        assertThat(writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), options))
+                .describedAs(sample.asDescription("Writing"))
                 .isEqualTo(sample.getContent() + getMissingEOL(sample));
     }
 
     private static String getMissingEOL(Sample sample) {
-        return sample.isWithoutEOL() ? getEOLString(sample.getFormat().getSeparator()) : "";
-    }
-
-    private static String getEOLString(Csv.NewLine newLine) {
-        switch (newLine) {
-            case MACINTOSH:
-                return "\r";
-            case UNIX:
-                return "\n";
-            case WINDOWS:
-                return "\r\n";
-            default:
-                throw new RuntimeException();
-        }
+        return sample.isWithoutEOL() ? sample.getFormat().getSeparator() : "";
     }
 }
