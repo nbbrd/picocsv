@@ -1058,7 +1058,7 @@ public final class Csv {
         return value ? 1231 : 1237;
     }
 
-    public static String prettyPrint(String text) {
+    private static String prettyPrint(String text) {
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < text.length(); i++) {
             result.append(prettyPrint(text.charAt(i)));

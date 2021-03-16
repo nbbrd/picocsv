@@ -17,6 +17,7 @@
 package _test;
 
 import nbbrd.picocsv.Csv;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,7 +45,7 @@ public class Row {
     public String toString() {
         return fields
                 .stream()
-                .map(field -> "{" + Csv.prettyPrint(field) + "}")
+                .map(field -> "{" + StringEscapeUtils.escapeJava(field) + "}")
                 .collect(Collectors.joining(","));
     }
 

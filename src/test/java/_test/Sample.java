@@ -17,6 +17,7 @@
 package _test;
 
 import nbbrd.picocsv.Csv;
+import org.apache.commons.text.StringEscapeUtils;
 import org.assertj.core.description.Description;
 import org.assertj.core.description.TextDescription;
 
@@ -58,7 +59,7 @@ public class Sample {
     public String toString() {
         return "Sample(name=" + name
                 + ", format=" + format
-                + ", content=" + Csv.prettyPrint(content)
+                + ", content=" + StringEscapeUtils.escapeJava(content)
                 + ", rows=" + rows.stream().map(row -> "[" + row + "]").collect(Collectors.joining(","))
                 + ", withoutEOL=" + withoutEOL
                 + ")";
