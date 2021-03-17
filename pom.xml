@@ -395,6 +395,9 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <configuration>
+                            <excludePackageNames>internal:internal.*:shaded:shaded.*</excludePackageNames>
+                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.simplify4u.plugins</groupId>
@@ -459,6 +462,9 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <configuration>
+                            <excludePackageNames>internal:internal.*:shaded:shaded.*</excludePackageNames>
+                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.simplify4u.plugins</groupId>
