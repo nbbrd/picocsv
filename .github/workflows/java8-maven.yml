@@ -71,11 +71,8 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Build with Maven
-        run: mvn -B -ntp package -DskipTests=true
-
       - name: Deploy snapshot with Maven if settings defined
-        run: test -f ci.settings.xml && mvn -B -ntp deploy -Dmaven.test.skip -s ci.settings.xml -P deploy-snapshots
+        run: test -f ci.settings.xml && mvn -B -ntp deploy -DskipTests=true -s ci.settings.xml -P base-deploy,snapshot-deploy,!non-deployable-modules
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
@@ -111,14 +108,17 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Build with Maven
-        run: mvn -B -ntp package -DskipTests=true
-
       - name: Deploy with Maven if settings defined
-        run: test -f ci.settings.xml && mvn -B -ntp deploy -Dmaven.test.skip -s ci.settings.xml -P deploy-releases
+        run: test -f ci.settings.xml && mvn -B -ntp deploy -DskipTests=true -s ci.settings.xml -P base-deploy,release-deploy,!non-deployable-modules
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
+          SIGN_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          SIGN_KEY_PASS: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+
+      - name: Build assets with Maven
+        run: mvn -B -ntp install -DskipTests=true -P base-deploy
+        env:
           SIGN_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           SIGN_KEY_PASS: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
