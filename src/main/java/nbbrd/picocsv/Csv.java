@@ -37,8 +37,8 @@ public final class Csv {
      * CSV format.
      * <p>
      * This format is used both by reader and writer
-     * but is independent from the source of data (stream or files).
-     * Therefore it doesn't deal with encoding.
+     * but is independent of the source of data (stream or files).
+     * Therefore, it doesn't deal with encoding.
      */
     public static final class Format {
 
@@ -96,7 +96,7 @@ public final class Csv {
         /**
          * Character used to encapsulate values containing special characters.
          * <p>
-         * The default value is '\"'.
+         * The default value is <code>"</code>.
          *
          * @return the quoting character
          */
