@@ -77,6 +77,67 @@ public class CsvWriterTest {
     }
 
     @Test
+    public void testWriteComment() throws IOException {
+        CharSequence chars = new StringBuilder().append("hello");
+
+        assertThat(writeToString(w -> {
+            w.writeComment(null);
+        })).isEqualTo("#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("");
+        })).isEqualTo("#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("#");
+        })).isEqualTo("##\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("abc");
+        })).isEqualTo("#abc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\r\nbc");
+        })).isEqualTo("#a\r\n#bc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\rbc");
+        })).isEqualTo("#a\r\n#bc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\nbc");
+        })).isEqualTo("#a\r\n#bc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\r\n");
+        })).isEqualTo("#a\r\n#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\r");
+        })).isEqualTo("#a\r\n#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\n");
+        })).isEqualTo("#a\r\n#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeField(chars);
+            w.writeComment("abc");
+        })).isEqualTo("hello\r\n#abc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeField(chars);
+            w.writeEndOfLine();
+            w.writeComment("abc");
+        })).isEqualTo("hello\r\n#abc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("abc");
+            w.writeField(chars);
+        })).isEqualTo("#abc\r\nhello");
+    }
+
+    @Test
     public void testWriteField() throws IOException {
         CharSequence chars = new StringBuilder().append("hello");
 
@@ -90,6 +151,15 @@ public class CsvWriterTest {
         assertThat(writeToString(w -> {
             w.writeField(null);
         })).isEqualTo("\"\"");
+
+        assertThat(writeToString(w -> {
+            w.writeField("#");
+        })).isEqualTo("\"#\"");
+
+        assertThat(writeToString(w -> {
+            w.writeField("");
+            w.writeField("#");
+        })).isEqualTo(",#");
 
         assertThat(writeToString(w -> {
             w.writeField(null);
@@ -157,7 +227,7 @@ public class CsvWriterTest {
                 .name("overflow")
                 .format(Csv.Format.RFC4180)
                 .content(String.join(",", fields).replace("\"", "\"\"\"\"") + "\r\n")
-                .rowOf(fields)
+                .rowFields(fields)
                 .build();
     }
 

@@ -28,7 +28,7 @@ public class FastCsvEntryConverter {
     public static FastCsvEntry fromSample(Sample sample) {
         return new FastCsvEntry(
                 fromContent(sample.getContent()),
-                fromRows(sample.getRows()),
+                fromRows(sample.getRows().stream().filter(Row.Fields.class::isInstance).map(Row.Fields.class::cast).collect(Collectors.toList())),
                 sample.getName());
     }
 
@@ -46,7 +46,7 @@ public class FastCsvEntryConverter {
                 .replace('\n', '␊');
     }
 
-    private static List<Row> toRows(String expected, boolean skipEmptyLines, CommentStrategy commentStrategy) {
+    private static List<Row.Fields> toRows(String expected, boolean skipEmptyLines, CommentStrategy commentStrategy) {
         if (expected.equals("∅")) {
             return Collections.emptyList();
         }
@@ -68,11 +68,11 @@ public class FastCsvEntryConverter {
                 .collect(Collectors.toList());
     }
 
-    private static Row toRow(CsvRow row) {
-        return new Row(row.getFields().stream().map(field -> toContent(field).replace('x', '\"')).collect(Collectors.toList()));
+    private static Row.Fields toRow(CsvRow row) {
+        return new Row.Fields(row.getFields().stream().map(field -> toContent(field).replace('x', '\"')).collect(Collectors.toList()));
     }
 
-    private static String fromRows(List<Row> rows) {
+    private static String fromRows(List<Row.Fields> rows) {
         if (rows.isEmpty()) {
             return "∅";
         }
@@ -82,7 +82,7 @@ public class FastCsvEntryConverter {
                 .collect(Collectors.joining("⏎"));
     }
 
-    private static String fromRow(Row row) {
+    private static String fromRow(Row.Fields row) {
         return row.getFields()
                 .stream()
                 .map(field -> field.isEmpty() ? "◯" : fromContent(field))

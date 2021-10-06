@@ -49,11 +49,12 @@ public final class Csv {
         private static final String DEFAULT_SEPARATOR = WINDOWS_SEPARATOR;
         private static final char DEFAULT_DELIMITER = ',';
         private static final char DEFAULT_QUOTE = '"';
+        private static final char DEFAULT_COMMENT = '#';
 
         /**
          * Predefined format as defined by <a href="https://tools.ietf.org/html/rfc4180">RFC 4180</a>.
          */
-        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE);
+        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE, DEFAULT_COMMENT);
 
         /**
          * Predefined format as alias to {@link Format#RFC4180}.
@@ -63,11 +64,13 @@ public final class Csv {
         private final String separator;
         private final char delimiter;
         private final char quote;
+        private final char comment;
 
-        private Format(String separator, char delimiter, char quote) {
+        private Format(String separator, char delimiter, char quote, char comment) {
             this.separator = Objects.requireNonNull(separator, "separator");
             this.delimiter = delimiter;
             this.quote = quote;
+            this.comment = comment;
         }
 
         /**
@@ -105,6 +108,17 @@ public final class Csv {
         }
 
         /**
+         * Character used to comment lines.
+         * <p>
+         * The default value is <code>#</code>.
+         *
+         * @return the comment character
+         */
+        public char getComment() {
+            return comment;
+        }
+
+        /**
          * Checks if the current format is valid.
          * <p>
          * Validation rules:
@@ -118,8 +132,11 @@ public final class Csv {
         public boolean isValid() {
             return hasValidSize(separator)
                     && delimiter != quote
+                    && comment != delimiter
+                    && comment != quote
                     && doesNotContain(separator, delimiter)
-                    && doesNotContain(separator, quote);
+                    && doesNotContain(separator, quote)
+                    && doesNotContain(separator, comment);
         }
 
         private static boolean hasValidSize(String text) {
@@ -137,6 +154,7 @@ public final class Csv {
             hash = 37 * hash + Objects.hashCode(this.separator);
             hash = 37 * hash + this.delimiter;
             hash = 37 * hash + this.quote;
+            hash = 37 * hash + this.comment;
             return hash;
         }
 
@@ -149,19 +167,26 @@ public final class Csv {
             if (!this.separator.equals(other.separator)) return false;
             if (this.delimiter != other.delimiter) return false;
             if (this.quote != other.quote) return false;
+            if (this.comment != other.comment) return false;
             return true;
         }
 
         @Override
         public String toString() {
-            return "Format(" + "separator=" + prettyPrint(separator) + ", delimiter=" + prettyPrint(delimiter) + ", quote=" + prettyPrint(quote) + ')';
+            return "Format("
+                    + "separator=" + prettyPrint(separator)
+                    + ", delimiter=" + prettyPrint(delimiter)
+                    + ", quote=" + prettyPrint(quote)
+                    + ", comment=" + prettyPrint(comment)
+                    + ')';
         }
 
         public Builder toBuilder() {
             return new Builder()
                     .separator(separator)
                     .delimiter(delimiter)
-                    .quote(quote);
+                    .quote(quote)
+                    .comment(comment);
         }
 
         public static Builder builder() {
@@ -176,6 +201,7 @@ public final class Csv {
             private String separator;
             private char delimiter;
             private char quote;
+            private char comment;
 
             private Builder() {
             }
@@ -195,8 +221,13 @@ public final class Csv {
                 return this;
             }
 
+            public Builder comment(char comment) {
+                this.comment = comment;
+                return this;
+            }
+
             public Format build() {
-                return new Format(separator, delimiter, quote);
+                return new Format(separator, delimiter, quote, comment);
             }
         }
     }
@@ -295,7 +326,10 @@ public final class Csv {
 
         @Override
         public String toString() {
-            return "ReaderOptions(" + "lenientSeparator=" + lenientSeparator + ", maxCharsPerField=" + maxCharsPerField + ')';
+            return "ReaderOptions("
+                    + "lenientSeparator=" + lenientSeparator
+                    + ", maxCharsPerField=" + maxCharsPerField
+                    + ')';
         }
 
         public Builder toBuilder() {
@@ -364,7 +398,7 @@ public final class Csv {
 
             return new Reader(
                     ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBuffer) : new Input(charReader, charBuffer),
-                    format.getQuote(), format.getDelimiter(),
+                    format.getQuote(), format.getDelimiter(), format.getComment(),
                     EndOfLineDecoder.of(format, options),
                     new char[options.getMaxCharsPerField()]);
         }
@@ -372,18 +406,20 @@ public final class Csv {
         private final Input input;
         private final int quoteCode;
         private final int delimiterCode;
+        private final int commentCode;
         private final EndOfLineDecoder eolDecoder;
         private final char[] fieldChars;
 
         private int fieldLength = 0;
-        private boolean fieldQuoted = false;
+        private int fieldType = FIELD_TYPE_NORMAL;
         private int state = STATE_READY;
         private boolean parsedByLine = false;
 
-        private Reader(Input input, int quoteCode, int delimiterCode, EndOfLineDecoder eolDecoder, char[] fieldChars) {
+        private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, EndOfLineDecoder eolDecoder, char[] fieldChars) {
             this.input = input;
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
+            this.commentCode = commentCode;
             this.eolDecoder = eolDecoder;
             this.fieldChars = fieldChars;
         }
@@ -392,6 +428,10 @@ public final class Csv {
         private static final int STATE_NOT_LAST = 1;
         private static final int STATE_LAST = 2;
         private static final int STATE_DONE = 3;
+
+        private static final int FIELD_TYPE_NORMAL = 0;
+        private static final int FIELD_TYPE_QUOTED = 1;
+        private static final int FIELD_TYPE_COMMENTED = 2;
 
         /**
          * Reads the next line.
@@ -404,15 +444,15 @@ public final class Csv {
                 case STATE_DONE:
                     return false;
                 case STATE_READY:
-                case STATE_LAST:
-                    parseNextField();
-                    parsedByLine = true;
+                case STATE_LAST: {
+                    parseFirstField();
                     return state != STATE_DONE;
-                case STATE_NOT_LAST:
+                }
+                case STATE_NOT_LAST: {
                     skipRemainingFields();
-                    parseNextField();
-                    parsedByLine = true;
+                    parseFirstField();
                     return state != STATE_DONE;
+                }
                 default:
                     throw newUnreachable();
             }
@@ -448,6 +488,10 @@ public final class Csv {
             }
         }
 
+        public boolean isComment() {
+            return fieldType == FIELD_TYPE_COMMENTED;
+        }
+
         @Override
         public void close() throws IOException {
             input.close();
@@ -459,17 +503,23 @@ public final class Csv {
             } while (state == STATE_NOT_LAST);
         }
 
+        private void parseFirstField() throws IOException {
+            parseNextField();
+            parsedByLine = true;
+        }
+
         // WARNING: main loop; lots of duplication to maximize performances
         // WARNING: comparing ints more performant than comparing chars
         // WARNING: local var access slightly quicker that field access
         private void parseNextField() throws IOException {
             int fieldLength = this.fieldLength;
-            boolean fieldQuoted = this.fieldQuoted;
+            int fieldType = this.fieldType;
             int state = this.state;
 
             try {
                 final int quoteCode = this.quoteCode;
                 final int delimiterCode = this.delimiterCode;
+                final int commentCode = this.commentCode;
                 final char[] fieldChars = this.fieldChars;
 
                 int code;
@@ -477,10 +527,12 @@ public final class Csv {
                 fieldLength = 0;
 
                 // [Step 1]: first char
-                fieldQuoted = false;
+                fieldType = FIELD_TYPE_NORMAL;
                 if (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                     if (code == quoteCode) {
-                        fieldQuoted = true;
+                        fieldType = FIELD_TYPE_QUOTED;
+                    } else if (code == commentCode) {
+                        fieldType = FIELD_TYPE_COMMENTED;
                     } else {
                         /*-end-of-field-*/
                         if (code == delimiterCode) {
@@ -501,70 +553,91 @@ public final class Csv {
                     }
                 }
 
-                if (fieldQuoted) {
-                    // [Step 2A]: subsequent chars with escape
-                    boolean escaped = false;
-                    while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
-                        if (code == quoteCode) {
-                            if (!escaped) {
-                                escaped = true;
-                            } else {
-                                escaped = false;
-                                /*-append-*/
-                                fieldChars[fieldLength++] = (char) code;
-                            }
-                        } else {
-                            if (escaped) {
-                                /*-end-of-field-*/
-                                if (code == delimiterCode) {
-                                    state = STATE_NOT_LAST;
-                                    return;
-                                } else if (eolDecoder.isEndOfLine(code, input)) {
-                                    state = STATE_LAST;
-                                    return;
-                                }
+                switch (fieldType) {
+                    case FIELD_TYPE_NORMAL: {
+                        // [Step 2A]: subsequent chars without escape
+                        while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                            /*-end-of-field-*/
+                            if (code == delimiterCode) {
+                                state = STATE_NOT_LAST;
+                                return;
+                            } else if (eolDecoder.isEndOfLine(code, input)) {
+                                state = STATE_LAST;
+                                return;
                             }
                             /*-append-*/
                             fieldChars[fieldLength++] = (char) code;
                         }
-                    }
-                    // EOF
-                    {
-                        state = STATE_LAST;
-                        return;
-                    }
-                } else {
-                    // [Step 2B]: subsequent chars without escape
-                    while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
-                        /*-end-of-field-*/
-                        if (code == delimiterCode) {
-                            state = STATE_NOT_LAST;
+                        // EOF
+                        {
+                            state = fieldLength > 0 ? STATE_LAST : STATE_DONE;
                             return;
-                        } else if (eolDecoder.isEndOfLine(code, input)) {
+                        }
+                    }
+                    case FIELD_TYPE_QUOTED: {
+                        // [Step 2B]: subsequent chars with escape
+                        boolean escaped = false;
+                        while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                            if (code == quoteCode) {
+                                if (!escaped) {
+                                    escaped = true;
+                                } else {
+                                    escaped = false;
+                                    /*-append-*/
+                                    fieldChars[fieldLength++] = (char) code;
+                                }
+                            } else {
+                                if (escaped) {
+                                    /*-end-of-field-*/
+                                    if (code == delimiterCode) {
+                                        state = STATE_NOT_LAST;
+                                        return;
+                                    } else if (eolDecoder.isEndOfLine(code, input)) {
+                                        state = STATE_LAST;
+                                        return;
+                                    }
+                                }
+                                /*-append-*/
+                                fieldChars[fieldLength++] = (char) code;
+                            }
+                        }
+                        // EOF
+                        {
                             state = STATE_LAST;
                             return;
                         }
-                        /*-append-*/
-                        fieldChars[fieldLength++] = (char) code;
                     }
-                    // EOF
-                    {
-                        state = fieldLength > 0 ? STATE_LAST : STATE_DONE;
-                        return;
+                    case FIELD_TYPE_COMMENTED: {
+                        // [Step 2C]: subsequent comment chars
+                        while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                            if (eolDecoder.isEndOfLine(code, input)) {
+                                state = STATE_LAST;
+                                return;
+                            }
+                            /*-append-*/
+                            fieldChars[fieldLength++] = (char) code;
+                        }
+                        // EOF
+                        {
+                            state = STATE_LAST;
+                            return;
+                        }
                     }
+                    default:
+                        throw newUnreachable();
                 }
 
             } catch (IndexOutOfBoundsException ex) {
                 throw new IOException("Field overflow", ex);
             } finally {
                 this.fieldLength = fieldLength;
-                this.fieldQuoted = fieldQuoted;
+                this.fieldType = fieldType;
                 this.state = state;
             }
         }
 
         private boolean isFieldNotNull() {
-            return fieldLength > 0 || fieldQuoted;
+            return fieldLength > 0 || fieldType != FIELD_TYPE_NORMAL;
         }
 
         @Override
@@ -807,7 +880,7 @@ public final class Csv {
 
             return new Writer(
                     new Output(charWriter, new char[charBufferSize]),
-                    format.getQuote(), format.getDelimiter(),
+                    format.getQuote(), format.getDelimiter(), format.getComment(),
                     EndOfLineEncoder.of(format)
             );
         }
@@ -815,15 +888,51 @@ public final class Csv {
         private final Output output;
         private final char quote;
         private final char delimiter;
+        private final char comment;
         private final EndOfLineEncoder eolEncoder;
 
         private int state = STATE_NO_FIELD;
 
-        private Writer(Output output, char quote, char delimiter, EndOfLineEncoder eolEncoder) {
+        private Writer(Output output, char quote, char delimiter, char comment, EndOfLineEncoder eolEncoder) {
             this.output = output;
             this.quote = quote;
             this.delimiter = delimiter;
+            this.comment = comment;
             this.eolEncoder = eolEncoder;
+        }
+
+        /**
+         * Writes a new comment. Null comment is handled as empty.
+         *
+         * @param comment a nullable field
+         * @throws IOException if an I/O error occurs
+         */
+        public void writeComment(CharSequence comment) throws IOException {
+            if (state != STATE_NO_FIELD) {
+                writeEndOfLine();
+            }
+            output.write(this.comment);
+            if (comment != null && comment.length() > 0) {
+                for (int i = 0; i < comment.length(); i++) {
+                    char c = comment.charAt(i);
+                    if (eolEncoder.isNewLine(c)) {
+                        writeEndOfLine();
+                        output.write(this.comment);
+                        if (isSkipSecondEOL(comment, i)) {
+                            i++;
+                        }
+                    } else {
+                        output.write(c);
+                    }
+                }
+            }
+            writeEndOfLine();
+        }
+
+        private boolean isSkipSecondEOL(CharSequence text, int i) {
+            return eolEncoder instanceof EndOfLineEncoder.DualEncoder
+                    && i + 1 < text.length()
+                    && eolEncoder.isNewLine(text.charAt(i + 1));
         }
 
         /**
@@ -834,27 +943,34 @@ public final class Csv {
          */
         public void writeField(CharSequence field) throws IOException {
             switch (state) {
-                case STATE_NO_FIELD:
+                case STATE_NO_FIELD: {
                     if (isNotEmpty(field)) {
                         state = STATE_MULTI_FIELD;
-                        writeNonEmptyField(field);
+                        if (field.charAt(0) == comment) {
+                            writeNonEmptyField(field, QUOTING_FULL);
+                        } else {
+                            writeNonEmptyField(field);
+                        }
                     } else {
                         state = STATE_SINGLE_EMPTY_FIELD;
                     }
                     break;
-                case STATE_SINGLE_EMPTY_FIELD:
+                }
+                case STATE_SINGLE_EMPTY_FIELD: {
                     state = STATE_MULTI_FIELD;
                     output.write(delimiter);
                     if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
                     }
                     break;
-                case STATE_MULTI_FIELD:
+                }
+                case STATE_MULTI_FIELD: {
                     output.write(delimiter);
                     if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
                     }
                     break;
+                }
             }
         }
 
@@ -879,7 +995,11 @@ public final class Csv {
         }
 
         private void writeNonEmptyField(CharSequence field) throws IOException {
-            switch (getQuoting(field)) {
+            writeNonEmptyField(field, getQuoting(field));
+        }
+
+        private void writeNonEmptyField(CharSequence field, int quoting) throws IOException {
+            switch (quoting) {
                 case QUOTING_NONE:
                     output.write(field);
                     break;

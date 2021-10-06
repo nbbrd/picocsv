@@ -26,6 +26,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class CsvReaderOptionsTest {
 
     @Test
+    public void testFactories() {
+        assertThat(Csv.ReaderOptions.builder().lenientSeparator(false).build().isLenientSeparator())
+                .isFalse();
+
+        assertThat(Csv.ReaderOptions.builder().lenientSeparator(true).build().isLenientSeparator())
+                .isTrue();
+
+        assertThat(Csv.ReaderOptions.builder().maxCharsPerField(123).build().getMaxCharsPerField())
+                .isEqualTo(123);
+
+        assertThat(Csv.ReaderOptions.builder().maxCharsPerField(123).build().getMaxCharsPerField())
+                .isEqualTo(123);
+    }
+
+    @Test
     public void testEqualsAndHashcode() {
         assertThat(strict)
                 .isEqualTo(strict)
@@ -33,6 +48,8 @@ public class CsvReaderOptionsTest {
                 .isNotEqualTo(lenient)
                 .isNotEqualTo(strict10)
                 .isEqualTo(strict.toBuilder().build())
+                .isNotEqualTo(strict.toBuilder().lenientSeparator(true).build())
+                .isNotEqualTo(strict.toBuilder().maxCharsPerField(123).build())
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
 

@@ -80,8 +80,8 @@ public class CsvReaderTest {
     @MethodSource("_test.Sample#getAllSamples")
     public void testAllSamples(Sample sample) {
         assertThat(sample)
-                .is(validWithStrictOptions)
-                .is(validWithLenientOptions);
+                .is(validWithStrict)
+                .is(validWithLenient);
     }
 
     @ParameterizedTest
@@ -119,9 +119,9 @@ public class CsvReaderTest {
                 .name("Invalid but still ok")
                 .format(Csv.Format.RFC4180)
                 .content("\r\r\n")
-                .rowOf("\r")
+                .rowFields("\r")
                 .build()
-        ).is(validWithStrictOptions);
+        ).is(validWithStrict);
     }
 
     @Test
@@ -134,9 +134,9 @@ public class CsvReaderTest {
                 .name("overflow")
                 .format(Csv.Format.RFC4180)
                 .content(field1 + "," + field2)
-                .rowOf(field1, field2)
+                .rowFields(field1, field2)
                 .build()
-        ).is(validWithStrictOptions);
+        ).is(validWithStrict);
     }
 
     @Test
@@ -158,10 +158,10 @@ public class CsvReaderTest {
                 .name("Empty first field")
                 .format(Csv.Format.RFC4180)
                 .content(",B1\r\nA2,B2\r\n")
-                .rowOf("", "B1")
-                .rowOf("A2", "B2")
+                .rowFields("", "B1")
+                .rowFields("A2", "B2")
                 .build()
-        ).is(validWithStrictOptions);
+        ).is(validWithStrict);
     }
 
     @Test
@@ -171,9 +171,9 @@ public class CsvReaderTest {
                 .name("Empty last field")
                 .format(Csv.Format.RFC4180)
                 .content("A1,")
-                .rowOf("A1", "")
+                .rowFields("A1", "")
                 .build()
-        ).is(validWithStrictOptions);
+        ).is(validWithStrict);
     }
 
     @Test
@@ -222,19 +222,19 @@ public class CsvReaderTest {
 
     @Test
     public void testLenientParsing() {
-        Sample.Builder base = Sample.builder().name("lenient").format(Csv.Format.DEFAULT).rowOf("R1").rowOf("R2");
+        Sample.Builder base = Sample.builder().name("lenient").format(Csv.Format.DEFAULT).rowFields("R1").rowFields("R2");
 
         assertThat(base.content("R1" + WINDOWS_SEPARATOR + "R2").build())
-                .is(validWithStrictOptions)
-                .is(validWithLenientOptions);
+                .is(validWithStrict)
+                .is(validWithLenient);
 
         assertThat(base.content("R1" + UNIX_SEPARATOR + "R2").build())
-                .isNot(validWithStrictOptions)
-                .is(validWithLenientOptions);
+                .isNot(validWithStrict)
+                .is(validWithLenient);
 
         assertThat(base.content("R1" + MACINTOSH_SEPARATOR + "R2").build())
-                .isNot(validWithStrictOptions)
-                .is(validWithLenientOptions);
+                .isNot(validWithStrict)
+                .is(validWithLenient);
     }
 
     @Test
@@ -242,23 +242,106 @@ public class CsvReaderTest {
         assertThat(Sample
                 .builder()
                 .format(Csv.Format.builder().delimiter('=').separator(",").build())
-                .content("k1=v1,k2=v2").rowOf("k1", "v1").rowOf("k2", "v2")
+                .content("k1=v1,k2=v2").rowFields("k1", "v1").rowFields("k2", "v2")
                 .build()
-        ).is(validWithStrictOptions).is(validWithLenientOptions);
+        ).is(validWithStrict).is(validWithLenient);
 
         assertThat(Sample
                 .builder()
                 .format(Csv.Format.builder().delimiter('=').separator(", ").build())
-                .content("k1=v1, k2=v2").rowOf("k1", "v1").rowOf("k2", "v2")
+                .content("k1=v1, k2=v2").rowFields("k1", "v1").rowFields("k2", "v2")
                 .build()
-        ).is(validWithStrictOptions).is(validWithLenientOptions);
+        ).is(validWithStrict).is(validWithLenient);
 
         assertThat(Sample
                 .builder()
                 .format(Csv.Format.builder().delimiter('=').separator(", ").build())
-                .content("k1=v1,k2=v2").rowOf("k1", "v1").rowOf("k2", "v2")
+                .content("k1=v1,k2=v2").rowFields("k1", "v1").rowFields("k2", "v2")
                 .build()
-        ).isNot(validWithStrictOptions).is(validWithLenientOptions);
+        ).isNot(validWithStrict).is(validWithLenient);
+    }
+
+    @Test
+    public void testComment() {
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("A\n#B,C\nD")
+                .rowFields("A").rowComment("B,C").rowFields("D")
+                .build()
+        ).isNot(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("A\r#B,C\rD")
+                .rowFields("A").rowComment("B,C").rowFields("D")
+                .build()
+        ).isNot(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("A\r\n#B,C\r\nD")
+                .rowFields("A").rowComment("B,C").rowFields("D")
+                .build()
+        ).is(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("#A\n#B\nC")
+                .rowComment("A").rowComment("B").rowFields("C")
+                .build()
+        ).isNot(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("#A\n #B\nC")
+                .rowComment("A").rowFields(" #B").rowFields("C")
+                .build()
+        ).isNot(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("#")
+                .rowComment("")
+                .build()
+        ).is(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("#\n#")
+                .rowComment("").rowComment("")
+                .build()
+        ).isNot(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("#A\n#")
+                .rowComment("A").rowComment("")
+                .build()
+        ).isNot(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("#\n#A")
+                .rowComment("").rowComment("A")
+                .build()
+        ).isNot(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("#\n#\r\n#")
+                .rowComment("").rowComment("").rowComment("")
+                .build()
+        ).isNot(validWithStrict).is(validWithLenient);
     }
 
     @ParameterizedTest
@@ -267,24 +350,28 @@ public class CsvReaderTest {
         Sample sample = FastCsvEntryConverter.toSample(entry);
         QuickReader.Parser<List<Row>> rowsParser = new FastCsvEntryRowsParser(entry);
 
-        assertThat(readRows(sample, lenientOptions, rowsParser))
+        assertThat(readRows(sample, Csv.ReaderOptions.builder().lenientSeparator(true).build(), rowsParser))
                 .containsExactlyElementsOf(sample.getRows());
     }
 
-    private final Csv.ReaderOptions strictOptions = Csv.ReaderOptions.builder().lenientSeparator(false).build();
-    private final Csv.ReaderOptions lenientOptions = Csv.ReaderOptions.builder().lenientSeparator(true).build();
+    private final Condition<Sample> validWithStrict = validWith(Csv.ReaderOptions.builder().lenientSeparator(false).build());
+    private final Condition<Sample> validWithLenient = validWith(Csv.ReaderOptions.builder().lenientSeparator(true).build());
 
-    private final Condition<Sample> validWithStrictOptions = validWith(strictOptions);
-    private final Condition<Sample> validWithLenientOptions = validWith(lenientOptions);
-
+    // TODO: improve error feedback
     private static Condition<Sample> validWith(Csv.ReaderOptions options) {
         return new Condition<>(sample -> {
             try {
-                return readRows(sample, options, RowParser.READ_ALL).equals(sample.getRows());
+                List<Row> actual = readRows(sample, options, RowParser.READ_ALL);
+                List<Row> expected = sample.getRows();
+                if (!actual.equals(expected)) {
+//                    System.out.println(actual + " -> " + expected);
+                    return false;
+                }
+                return true;
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);
             }
-        }, "Must have the some content");
+        }, "Must have the same content");
     }
 
     private static List<Row> readRows(Sample sample, Csv.ReaderOptions options, QuickReader.Parser<List<Row>> rowsParser) throws IOException {
@@ -296,13 +383,13 @@ public class CsvReaderTest {
         READ_ALL {
             @Override
             public List<Row> accept(Csv.Reader reader) throws IOException {
-                return Row.readAll(reader, Row.EmptyConsumer.constant(Row.EMPTY_ROW), (r, l) -> l.add(Row.read(r)));
+                return Row.readAll(reader, Row::appendEmpty, Row::appendComment, Row::appendFields);
             }
         }, SKIP_FIRST {
             @Override
             public List<Row> accept(Csv.Reader reader) throws IOException {
                 reader.readLine();
-                return Row.readAll(reader, Row.EmptyConsumer.constant(Row.EMPTY_ROW), (r, l) -> l.add(Row.read(r)));
+                return Row.readAll(reader, Row::appendEmpty, Row::appendComment, Row::appendFields);
             }
         }
     }

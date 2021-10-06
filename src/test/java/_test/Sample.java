@@ -49,7 +49,6 @@ public class Sample {
     @lombok.NonNull
     String content;
 
-    @lombok.NonNull
     @lombok.Singular
     List<Row> rows;
 
@@ -71,8 +70,16 @@ public class Sample {
 
     public static final class Builder {
 
-        public Builder rowOf(String... fields) {
-            return row(Row.of(fields));
+        public Builder rowEmpty() {
+            return row(new Row.Empty());
+        }
+
+        public Builder rowComment(String comment) {
+            return row(new Row.Comment(comment));
+        }
+
+        public Builder rowFields(String... fields) {
+            return row(new Row.Fields(Arrays.asList(fields)));
         }
     }
 
@@ -88,7 +95,7 @@ public class Sample {
             .name("Blank")
             .format(Csv.Format.RFC4180)
             .content("A1,,C1\r\n")
-            .rowOf("A1", "", "C1")
+            .rowFields("A1", "", "C1")
             .build();
 
     public static final Sample SIMPLE = Sample
@@ -96,8 +103,8 @@ public class Sample {
             .name("Simple")
             .format(Csv.Format.RFC4180)
             .content("A1,B1\r\nA2,B2\r\n")
-            .rowOf("A1", "B1")
-            .rowOf("A2", "B2")
+            .rowFields("A1", "B1")
+            .rowFields("A2", "B2")
             .build();
 
     public static final Sample SIMPLE_WITHOUT_LAST_EOL = Sample
@@ -105,8 +112,8 @@ public class Sample {
             .name("Simple without last end-of-line")
             .format(Csv.Format.RFC4180)
             .content("A1,B1\r\nA2,B2")
-            .rowOf("A1", "B1")
-            .rowOf("A2", "B2")
+            .rowFields("A1", "B1")
+            .rowFields("A2", "B2")
             .withoutEOL(true)
             .build();
 
@@ -115,8 +122,8 @@ public class Sample {
             .name("Escaped quotes")
             .format(Csv.Format.RFC4180)
             .content("A1,\"B\"\"1\"\"\"\r\nA2,B2\r\n")
-            .rowOf("A1", "B\"1\"")
-            .rowOf("A2", "B2")
+            .rowFields("A1", "B\"1\"")
+            .rowFields("A2", "B2")
             .build();
 
     public static final Sample NEW_LINES = Sample
@@ -124,8 +131,8 @@ public class Sample {
             .name("New lines")
             .format(Csv.Format.RFC4180)
             .content("A1,\"B\r\n1\",C1\r\nA2,B2,C2\r\n")
-            .rowOf("A1", "B\r\n1", "C1")
-            .rowOf("A2", "B2", "C2")
+            .rowFields("A1", "B\r\n1", "C1")
+            .rowFields("A2", "B2", "C2")
             .build();
 
     public static final Sample COMMA_IN_QUOTES = Sample
@@ -133,8 +140,8 @@ public class Sample {
             .name("Comma in quotes")
             .format(Csv.Format.RFC4180)
             .content("A1,\"B,1\",C1\r\nA2,B2,C2\r\n")
-            .rowOf("A1", "B,1", "C1")
-            .rowOf("A2", "B2", "C2")
+            .rowFields("A1", "B,1", "C1")
+            .rowFields("A2", "B2", "C2")
             .build();
 
     public static final Sample ESCAPED_QUOTES_AND_NEW_LINES = Sample
@@ -142,8 +149,8 @@ public class Sample {
             .name("Escaped quotes and new lines")
             .format(Csv.Format.RFC4180)
             .content("A1,\"B\r\n\"\"1\"\"\"\r\nA2,\"B\"\"\r\n2\"\"\"\r\n")
-            .rowOf("A1", "B\r\n\"1\"")
-            .rowOf("A2", "B\"\r\n2\"")
+            .rowFields("A1", "B\r\n\"1\"")
+            .rowFields("A2", "B\"\r\n2\"")
             .build();
 
     public static final Sample SINGLE_FIELD = Sample
@@ -151,8 +158,8 @@ public class Sample {
             .name("Single field")
             .format(Csv.Format.RFC4180)
             .content("A1\r\nA2")
-            .rowOf("A1")
-            .rowOf("A2")
+            .rowFields("A1")
+            .rowFields("A2")
             .withoutEOL(true)
             .build();
 
@@ -161,8 +168,8 @@ public class Sample {
             .name("Empty lines")
             .format(Csv.Format.RFC4180)
             .content("\r\n\r\n")
-            .rowOf()
-            .rowOf()
+            .rowEmpty()
+            .rowEmpty()
             .build();
 
     public static final Sample UNQUOTED_EMPTY_THEN_LINE = Sample
@@ -170,8 +177,8 @@ public class Sample {
             .name("Single empty field & Line")
             .format(Csv.Format.RFC4180)
             .content("\r\nA2\r\n")
-            .rowOf()
-            .rowOf("A2")
+            .rowEmpty()
+            .rowFields("A2")
             .build();
 
     public static final Sample QUOTED_EMPTY_THEN_LINE = Sample
@@ -179,8 +186,8 @@ public class Sample {
             .name("Quoted single empty field & Line")
             .format(Csv.Format.RFC4180)
             .content("\"\"\r\nA2\r\n")
-            .rowOf("")
-            .rowOf("A2")
+            .rowFields("")
+            .rowFields("A2")
             .build();
 
     public static final Sample LINE_THEN_UNQUOTED_EMPTY = Sample
@@ -188,8 +195,8 @@ public class Sample {
             .name("Line & Single empty field")
             .format(Csv.Format.RFC4180)
             .content("A1\r\n\r\n")
-            .rowOf("A1")
-            .rowOf()
+            .rowFields("A1")
+            .rowEmpty()
             .build();
 
     public static final Sample LINE_THEN_QUOTED_EMPTY = Sample
@@ -197,8 +204,8 @@ public class Sample {
             .name("Line & Quoted single empty field")
             .format(Csv.Format.RFC4180)
             .content("A1\r\n\"\"\r\n")
-            .rowOf("A1")
-            .rowOf("")
+            .rowFields("A1")
+            .rowFields("")
             .build();
 
     public static final Sample UNQUOTED_EMPTY = Sample
@@ -206,7 +213,7 @@ public class Sample {
             .name("Single empty field")
             .format(Csv.Format.RFC4180)
             .content("\r\n")
-            .rowOf()
+            .rowEmpty()
             .build();
 
     public static final Sample QUOTED_EMPTY = Sample
@@ -214,7 +221,7 @@ public class Sample {
             .name("Quoted single empty field")
             .format(Csv.Format.RFC4180)
             .content("\"\"\r\n")
-            .rowOf("")
+            .rowFields("")
             .build();
 
     public static final Sample QUOTED_EMPTY_WITHOUT_LAST_EOL = Sample
@@ -222,8 +229,18 @@ public class Sample {
             .name("Quoted single empty field without last EOL")
             .format(Csv.Format.RFC4180)
             .content("\"\"")
-            .rowOf("")
+            .rowFields("")
             .withoutEOL(true)
+            .build();
+
+    public static final Sample COMMENTED = Sample
+            .builder()
+            .name("Commented")
+            .format(Csv.Format.RFC4180)
+            .content("#hello\r\nA1,B1\r\nA2,B2\r\n")
+            .rowComment("hello")
+            .rowFields("A1", "B1")
+            .rowFields("A2", "B2")
             .build();
 
     public static final List<Character> SPECIAL_CHARS = Arrays.asList(',', '\t', ';', '\r', '\n', '\'', '"', '\f', '\b', '\\');
@@ -252,12 +269,12 @@ public class Sample {
         return result;
     }
 
-    private static Row generateSpecialCharsRow() {
-        return Row.of(String.valueOf(SPECIAL_CHARS)
+    private static Row.Fields generateSpecialCharsRow() {
+        return new Row.Fields(String.valueOf(SPECIAL_CHARS)
                 .chars()
                 .mapToObj(Sample::getSpecialCharAsString)
                 .flatMap(Sample::getFieldsContainingSpecialChar)
-                .toArray(String[]::new));
+                .collect(Collectors.toList()));
     }
 
     private static String getSpecialCharAsString(int c) {
@@ -272,7 +289,7 @@ public class Sample {
         );
     }
 
-    private static String toString(Csv.Format format, Row... rows) {
+    private static String toString(Csv.Format format, Row.Fields... rows) {
         StringWriter result = new StringWriter();
         try (Csv.Writer writer = Csv.Writer.of(format, Csv.WriterOptions.DEFAULT, result, DEFAULT_CHAR_BUFFER_SIZE)) {
             Row.writeAll(Arrays.asList(rows), writer);
@@ -283,7 +300,7 @@ public class Sample {
     }
 
     private static List<Sample> getGeneratedSamples() {
-        Row generatedRow = generateSpecialCharsRow();
+        Row.Fields generatedRow = generateSpecialCharsRow();
         return generateFormats()
                 .stream()
                 .filter(Csv.Format::isValid)
@@ -291,7 +308,7 @@ public class Sample {
                 .collect(Collectors.toList());
     }
 
-    private static Sample getGeneratedSample(Csv.Format generatedFormat, Row generatedRow) {
+    private static Sample getGeneratedSample(Csv.Format generatedFormat, Row.Fields generatedRow) {
         return Sample.builder()
                 .name(generatedFormat.toString())
                 .format(generatedFormat)
@@ -318,7 +335,8 @@ public class Sample {
                 LINE_THEN_QUOTED_EMPTY,
                 UNQUOTED_EMPTY,
                 QUOTED_EMPTY,
-                QUOTED_EMPTY_WITHOUT_LAST_EOL
+                QUOTED_EMPTY_WITHOUT_LAST_EOL,
+                COMMENTED
         );
     }
 

@@ -6,62 +6,75 @@ import de.siegmar.fastcsv.reader.CommentStrategy;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 
 public final class FastCsvEntryRowsParser implements QuickReader.Parser<List<Row>> {
 
-    private final Row.EmptyConsumer onEmpty;
-    private final Row.NonEmptyConsumer onNonEmpty;
+    private final Consumer<List<Row>> onEmpty;
+    private final BiConsumer<List<Row>, List<String>> onFields;
 
     public FastCsvEntryRowsParser(FastCsvEntry entry) {
         this.onEmpty = getEmptyConsumer(entry.isSkipEmptyLines());
-        this.onNonEmpty = getNonEmptyConsumer(entry.getCommentStrategy(), ';', ',');
+        this.onFields = getNonEmptyConsumer(entry.getCommentStrategy(), ';', ',');
     }
 
     @Override
     public List<Row> accept(Csv.Reader reader) throws IOException {
-        return Row.readAll(reader, onEmpty, onNonEmpty);
+        return Row.readAll(reader, onEmpty, Row::appendComment, onFields);
     }
 
-    private static Row.EmptyConsumer getEmptyConsumer(boolean skipEmptyLines) {
+    private static Consumer<List<Row>> getEmptyConsumer(boolean skipEmptyLines) {
         return skipEmptyLines
-                ? Row.EmptyConsumer.noOp()
-                : Row.EmptyConsumer.constant(Row.EMPTY_FIELD);
+                ? Row::skipEmpty
+                : Row::appendEmptyField;
     }
 
-    private static Row.NonEmptyConsumer getNonEmptyConsumer(CommentStrategy strategy, char comment, char delimiter) {
+    private static BiConsumer<List<Row>, List<String>> getNonEmptyConsumer(CommentStrategy strategy, char comment, char delimiter) {
         switch (strategy) {
             case NONE:
-                return (reader, list) -> list.add(Row.read(reader));
+                return Row::appendFields;
             case READ:
-                return (reader, list) -> {
-                    if (isComment(reader, comment)) {
-                        list.add(joinComment(reader, delimiter));
-                    } else {
-                        list.add(Row.read(reader));
-                    }
-                };
+                return or(getCommentPredicate(comment), getCommentJoiner(delimiter), Row::appendFields);
             case SKIP:
-                return (reader, list) -> {
-                    if (!isComment(reader, comment)) {
-                        list.add(Row.read(reader));
-                    }
-                };
+                return or(getCommentPredicate(comment), Row::skipFields, Row::appendFields);
             default:
                 throw new RuntimeException();
         }
     }
 
-    private static boolean isComment(CharSequence text, char commentChar) {
-        return text.length() > 0 && text.charAt(0) == commentChar;
+    private static BiPredicate<List<Row>, List<String>> getCommentPredicate(char comment) {
+        return (list, fields) -> isComment(fields, comment);
     }
 
-    private static Row joinComment(Csv.Reader reader, char delimiter) throws IOException {
-        StringBuilder row = new StringBuilder();
-        row.append(reader, 1, reader.length());
-        while (reader.readField()) {
-            row.append(delimiter).append(reader);
+    private static BiConsumer<List<Row>, List<String>> getCommentJoiner(char delimiter) {
+        return (list, fields) -> list.add(joinComment(fields, delimiter));
+    }
+
+    private static boolean isComment(List<String> fields, char commentChar) {
+        return !fields.isEmpty() && fields.get(0).length() > 0 && fields.get(0).charAt(0) == commentChar;
+    }
+
+    private static Row.Fields joinComment(List<String> fields, char delimiter) {
+        StringBuilder field = new StringBuilder();
+        Iterator<String> iterator = fields.iterator();
+        field.append(iterator.next().substring(1));
+        while (iterator.hasNext()) {
+            field.append(delimiter).append(iterator.next());
         }
-        return Row.of(row.toString());
+        return new Row.Fields(Collections.singletonList(field.toString()));
+    }
+
+    private static <T, U> BiConsumer<T, U> or(BiPredicate<T, U> predicate, BiConsumer<T, U> l, BiConsumer<T, U> r) {
+        return (T t, U u) -> {
+            if (predicate.test(t, u))
+                l.accept(t, u);
+            else
+                r.accept(t, u);
+        };
     }
 }
