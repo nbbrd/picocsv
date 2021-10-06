@@ -322,7 +322,11 @@ public class Sample {
         );
     }
 
-    public static final List<Sample> SAMPLES = Stream.concat(getPredefinedSamples().stream(), getGeneratedSamples().stream()).collect(Collectors.toList());
+    private static final List<Sample> SAMPLES = Stream.concat(getPredefinedSamples().stream(), getGeneratedSamples().stream()).collect(Collectors.toList());
+
+    public static List<Sample> getAllSamples() {
+        return SAMPLES;
+    }
 
     public static final Csv.Format INVALID_FORMAT = Csv.Format.DEFAULT.toBuilder().delimiter(':').quote(':').build();
 }

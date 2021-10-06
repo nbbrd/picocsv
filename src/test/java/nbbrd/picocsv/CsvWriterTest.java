@@ -19,7 +19,9 @@ package nbbrd.picocsv;
 import _test.QuickWriter;
 import _test.Row;
 import _test.Sample;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -57,11 +59,10 @@ public class CsvWriterTest {
                 .withMessageContaining("Invalid charBufferSize: 0");
     }
 
-    @Test
-    public void testAllSamples() throws IOException {
-        for (Sample sample : Sample.SAMPLES) {
-            assertValid(sample, Csv.WriterOptions.DEFAULT);
-        }
+    @ParameterizedTest
+    @MethodSource("_test.Sample#getAllSamples")
+    public void testAllSamples(Sample sample) throws IOException {
+        assertValid(sample, Csv.WriterOptions.DEFAULT);
     }
 
     @Test
