@@ -23,6 +23,7 @@ import org.assertj.core.description.TextDescription;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -256,29 +257,28 @@ public class Sample {
         for (String separator : SEPARATORS) {
             for (char delimiter : SPECIAL_CHARS) {
                 for (char quote : SPECIAL_CHARS) {
-                    result.add(Csv.Format
-                            .builder()
-                            .separator(separator)
-                            .delimiter(delimiter)
-                            .quote(quote)
-                            .build()
-                    );
+                    for (char comment : SPECIAL_CHARS) {
+                        result.add(Csv.Format
+                                .builder()
+                                .separator(separator)
+                                .delimiter(delimiter)
+                                .quote(quote)
+                                .comment(comment)
+                                .build()
+                        );
+                    }
                 }
             }
         }
         return result;
     }
 
-    private static Row.Fields generateSpecialCharsRow() {
-        return new Row.Fields(String.valueOf(SPECIAL_CHARS)
-                .chars()
-                .mapToObj(Sample::getSpecialCharAsString)
+    private static List<String> generateSpecialCharsFields() {
+        return SPECIAL_CHARS
+                .stream()
+                .map(String::valueOf)
                 .flatMap(Sample::getFieldsContainingSpecialChar)
-                .collect(Collectors.toList()));
-    }
-
-    private static String getSpecialCharAsString(int c) {
-        return String.valueOf((char) c);
+                .collect(Collectors.toList());
     }
 
     private static Stream<String> getFieldsContainingSpecialChar(String c) {
@@ -289,33 +289,42 @@ public class Sample {
         );
     }
 
-    private static String toString(Csv.Format format, Row.Fields... rows) {
+    private static String toContent(Csv.Format format, Row.Fields... rows) {
         StringWriter result = new StringWriter();
         try (Csv.Writer writer = Csv.Writer.of(format, Csv.WriterOptions.DEFAULT, result, DEFAULT_CHAR_BUFFER_SIZE)) {
             Row.writeAll(Arrays.asList(rows), writer);
         } catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new UncheckedIOException(ex);
         }
         return result.toString();
     }
 
-    private static List<Sample> getGeneratedSamples() {
-        Row.Fields generatedRow = generateSpecialCharsRow();
+    private static List<Sample> generateSamples() {
+        List<String> generatedFields = generateSpecialCharsFields();
         return generateFormats()
                 .stream()
                 .filter(Csv.Format::isValid)
-                .map(format -> getGeneratedSample(format, generatedRow))
+                .map(format -> generateSample(format, generatedFields))
                 .collect(Collectors.toList());
     }
 
-    private static Sample getGeneratedSample(Csv.Format generatedFormat, Row.Fields generatedRow) {
+    private static Sample generateSample(Csv.Format generatedFormat, List<String> generatedFields) {
+        Row.Fields generatedRow = new Row.Fields(generatedFields);
         return Sample.builder()
-                .name(generatedFormat.toString())
+                .name(generateName(generatedFormat))
                 .format(generatedFormat)
-                .content(toString(generatedFormat, generatedRow, generatedRow))
+                .content(toContent(generatedFormat, generatedRow, generatedRow))
                 .row(generatedRow)
                 .row(generatedRow)
                 .build();
+    }
+
+    private static String generateName(Csv.Format format) {
+        return "[" + StringEscapeUtils.escapeJava(format.getSeparator())
+                + "" + StringEscapeUtils.escapeJava(String.valueOf(format.getDelimiter()))
+                + "" + StringEscapeUtils.escapeJava(String.valueOf(format.getQuote()))
+                + "" + StringEscapeUtils.escapeJava(String.valueOf(format.getComment()))
+                + "]";
     }
 
     private static List<Sample> getPredefinedSamples() {
@@ -340,7 +349,7 @@ public class Sample {
         );
     }
 
-    private static final List<Sample> SAMPLES = Stream.concat(getPredefinedSamples().stream(), getGeneratedSamples().stream()).collect(Collectors.toList());
+    private static final List<Sample> SAMPLES = Stream.concat(getPredefinedSamples().stream(), generateSamples().stream()).collect(Collectors.toList());
 
     public static List<Sample> getAllSamples() {
         return SAMPLES;

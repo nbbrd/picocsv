@@ -498,14 +498,15 @@ public final class Csv {
         }
 
         private void skipRemainingFields() throws IOException {
+            parsedByLine = false;
             do {
                 parseNextField();
             } while (state == STATE_NOT_LAST);
         }
 
         private void parseFirstField() throws IOException {
-            parseNextField();
             parsedByLine = true;
+            parseNextField();
         }
 
         // WARNING: main loop; lots of duplication to maximize performances
@@ -531,7 +532,7 @@ public final class Csv {
                 if (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                     if (code == quoteCode) {
                         fieldType = FIELD_TYPE_QUOTED;
-                    } else if (code == commentCode) {
+                    } else if (parsedByLine && code == commentCode) {
                         fieldType = FIELD_TYPE_COMMENTED;
                     } else {
                         /*-end-of-field-*/

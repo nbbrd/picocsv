@@ -342,6 +342,14 @@ public class CsvReaderTest {
                 .rowComment("").rowComment("").rowComment("")
                 .build()
         ).isNot(validWithStrict).is(validWithLenient);
+
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content("A,#B")
+                .rowFields("A", "#B")
+                .build()
+        ).is(validWithStrict).is(validWithLenient);
     }
 
     @ParameterizedTest
