@@ -352,6 +352,30 @@ public class CsvReaderTest {
         ).is(validWithStrict).is(validWithLenient);
     }
 
+    @Test
+    public void testIsComment() throws IOException {
+        Sample sample = Sample.COMMENTED;
+
+        QuickReader.Parser<Boolean> isCommentBeforeLine = Csv.Reader::isComment;
+        assertThat(QuickReader.readValue(isCommentBeforeLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
+                .isFalse();
+
+        QuickReader.Parser<Boolean> isCommentAfterLine = reader -> {
+            reader.readLine();
+            return reader.isComment();
+        };
+        assertThat(QuickReader.readValue(isCommentAfterLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
+                .isTrue();
+
+        QuickReader.Parser<Boolean> isCommentAfterField = reader -> {
+            reader.readLine();
+            reader.readField();
+            return reader.isComment();
+        };
+        assertThat(QuickReader.readValue(isCommentAfterField, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
+                .isTrue();
+    }
+
     @ParameterizedTest
     @MethodSource("_test.fastcsv.FastCsvEntry#loadAll")
     public void testFastCsvSamples(FastCsvEntry entry) throws IOException {

@@ -413,7 +413,7 @@ public final class Csv {
         private int fieldLength = 0;
         private int fieldType = FIELD_TYPE_NORMAL;
         private int state = STATE_READY;
-        private boolean parsedByLine = false;
+        private boolean firstField = false;
 
         private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, EndOfLineDecoder eolDecoder, char[] fieldChars) {
             this.input = input;
@@ -467,14 +467,14 @@ public final class Csv {
         public boolean readField() throws IOException {
             switch (state) {
                 case STATE_LAST:
-                    if (parsedByLine) {
-                        parsedByLine = false;
+                    if (firstField) {
+                        firstField = false;
                         return isFieldNotNull();
                     }
                     return false;
                 case STATE_NOT_LAST:
-                    if (parsedByLine) {
-                        parsedByLine = false;
+                    if (firstField) {
+                        firstField = false;
                         return true;
                     }
                     parseNextField();
@@ -488,6 +488,11 @@ public final class Csv {
             }
         }
 
+        /**
+         * Check if the current field is a comment or not.
+         *
+         * @return true if the current field is a comment
+         */
         public boolean isComment() {
             return fieldType == FIELD_TYPE_COMMENTED;
         }
@@ -498,14 +503,14 @@ public final class Csv {
         }
 
         private void skipRemainingFields() throws IOException {
-            parsedByLine = false;
+            firstField = false;
             do {
                 parseNextField();
             } while (state == STATE_NOT_LAST);
         }
 
         private void parseFirstField() throws IOException {
-            parsedByLine = true;
+            firstField = true;
             parseNextField();
         }
 
@@ -532,7 +537,7 @@ public final class Csv {
                 if (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                     if (code == quoteCode) {
                         fieldType = FIELD_TYPE_QUOTED;
-                    } else if (parsedByLine && code == commentCode) {
+                    } else if (firstField && code == commentCode) {
                         fieldType = FIELD_TYPE_COMMENTED;
                     } else {
                         /*-end-of-field-*/

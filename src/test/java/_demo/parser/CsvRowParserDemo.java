@@ -10,7 +10,7 @@ import java.util.Locale;
 
 import static _demo.Top5GridMonthly.*;
 
-public class CsvParserDemo {
+public class CsvRowParserDemo {
 
     public static void main(String[] args) throws IOException {
         parseAll();
@@ -21,12 +21,12 @@ public class CsvParserDemo {
     private static void parseAll() throws IOException {
         System.out.println("[All]");
 
-        CsvParser parser = CsvParser
+        CsvRowParser parser = CsvRowParser
                 .builder()
                 .separator(SEPARATOR)
                 .delimiter(DELIMITER)
                 .quote(QUOTE)
-                .ignoreEmptyLines(true)
+                .includeEmptyLines(false)
                 .skipLines(0)
                 .columns(Columns.all(false))
                 .build();
@@ -41,12 +41,12 @@ public class CsvParserDemo {
     private static void parseByIndex() throws IOException {
         System.out.println("[ByIndex]");
 
-        CsvParser parser = CsvParser
+        CsvRowParser parser = CsvRowParser
                 .builder()
                 .separator(SEPARATOR)
                 .delimiter(DELIMITER)
                 .quote(QUOTE)
-                .ignoreEmptyLines(true)
+                .includeEmptyLines(false)
                 .skipLines(0)
                 .columns(Columns.byIndex(true, 0, 2, 4))
                 .build();
@@ -62,12 +62,12 @@ public class CsvParserDemo {
     private static void parseByName() throws IOException {
         System.out.println("[ByName]");
 
-        CsvParser parser = CsvParser
+        CsvRowParser parser = CsvRowParser
                 .builder()
                 .separator(SEPARATOR)
                 .delimiter(DELIMITER)
                 .quote(QUOTE)
-                .ignoreEmptyLines(true)
+                .includeEmptyLines(false)
                 .skipLines(0)
                 .columns(Columns.byName("", "Firefox", "Safari"))
                 .build();

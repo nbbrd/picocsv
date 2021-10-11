@@ -1,5 +1,6 @@
 package _demo.parser;
 
+import _demo.Utils;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
@@ -12,7 +13,7 @@ import java.util.stream.StreamSupport;
 
 @lombok.Value
 @lombok.Builder(toBuilder = true, builderClassName = "Builder")
-public class CsvParser {
+public class CsvRowParser {
 
     @lombok.Builder.Default
     String separator = Csv.Format.DEFAULT.getSeparator();
@@ -30,7 +31,7 @@ public class CsvParser {
     int maxCharsPerField = Csv.ReaderOptions.DEFAULT.getMaxCharsPerField();
 
     @lombok.Builder.Default
-    boolean ignoreEmptyLines = false;
+    boolean includeEmptyLines = false;
 
     @lombok.Builder.Default
     int skipLines = 0;
@@ -80,28 +81,19 @@ public class CsvParser {
     }
 
     private Iterator<Row> newIterator(Csv.Reader reader) throws IOException {
-        if (!skipLines(reader, skipLines)) return Collections.emptyIterator();
+        if (!Utils.skipLines(reader, skipLines)) return Collections.emptyIterator();
 
         IntPredicate fieldFilter = getFieldFilter(reader, columns);
         if (fieldFilter == null) return Collections.emptyIterator();
 
         int firstLineNumber = skipLines + (columns.hasHeader() ? 1 : 0);
 
-        return new RowIterator(reader, fieldFilter, ignoreEmptyLines, firstLineNumber);
-    }
-
-    private static boolean skipLines(Csv.Reader reader, int skipLines) throws IOException {
-        for (int i = 0; i < skipLines; i++) {
-            if (!reader.readLine()) {
-                return false;
-            }
-        }
-        return true;
+        return new RowIterator(reader, fieldFilter, includeEmptyLines, firstLineNumber);
     }
 
     private static IntPredicate getFieldFilter(Csv.Reader reader, Columns selector) throws IOException {
         if (selector.hasHeader()) {
-            if (!reader.readLine()) {
+            if (!Utils.skipComments(reader)) {
                 return null;
             }
             List<String> columnNames = new ArrayList<>();
@@ -114,7 +106,7 @@ public class CsvParser {
         }
     }
 
-    private static boolean readFields(Csv.Reader reader, boolean ignoreEmptyLines, List<String> row, IntPredicate fieldFilter) throws IOException {
+    private static boolean readFields(Csv.Reader reader, boolean includeEmptyLines, List<String> row, IntPredicate fieldFilter) throws IOException {
         int fieldIndex = 0;
         if (reader.readField()) {
             do {
@@ -124,7 +116,7 @@ public class CsvParser {
                 fieldIndex++;
             } while (reader.readField());
             return true;
-        } else if (!ignoreEmptyLines) {
+        } else if (includeEmptyLines) {
             return true;
         }
         return false;
@@ -134,14 +126,14 @@ public class CsvParser {
 
         private final Csv.Reader reader;
         private final IntPredicate fieldFilter;
-        private final boolean ignoreEmptyLines;
+        private final boolean includeEmptyLines;
         private List<String> fields;
         private int lineNumber;
 
-        public RowIterator(Csv.Reader reader, IntPredicate fieldFilter, boolean ignoreEmptyLines, int firstLineNumber) {
+        public RowIterator(Csv.Reader reader, IntPredicate fieldFilter, boolean includeEmptyLines, int firstLineNumber) {
             this.reader = reader;
             this.fieldFilter = fieldFilter;
-            this.ignoreEmptyLines = ignoreEmptyLines;
+            this.includeEmptyLines = includeEmptyLines;
             this.fields = new ArrayList<>();
             this.lineNumber = firstLineNumber;
         }
@@ -156,8 +148,8 @@ public class CsvParser {
             fields = new ArrayList<>();
             lineNumber++;
             try {
-                while (reader.readLine()) {
-                    if (readFields(reader, ignoreEmptyLines, fields, fieldFilter)) return true;
+                while (Utils.skipComments(reader)) {
+                    if (readFields(reader, includeEmptyLines, fields, fieldFilter)) return true;
                 }
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);

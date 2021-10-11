@@ -40,11 +40,13 @@ public class ReadAllLinesDemo {
         List<String> row = new ArrayList<>();
 
         while (reader.readLine()) {
-            while (reader.readField()) {
-                row.add(reader.toString());
+            if (!reader.isComment()) {
+                while (reader.readField()) {
+                    row.add(reader.toString());
+                }
+                result.add(row.toArray(new String[row.size()]));
+                row.clear();
             }
-            result.add(row.toArray(new String[row.size()]));
-            row.clear();
         }
         return result;
     }

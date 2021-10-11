@@ -39,7 +39,7 @@ public class GetByColumnIndex {
         List<String[]> result = new ArrayList<>();
         int fieldIndex;
 
-        if (reader.readLine()) {
+        if (Utils.skipComments(reader)) {
             String[] columns = new String[columnIndexes.size()];
             fieldIndex = 0;
             while (reader.readField()) {
@@ -51,7 +51,7 @@ public class GetByColumnIndex {
             }
             result.add(columns);
 
-            while (reader.readLine()) {
+            while (Utils.skipComments(reader)) {
                 String[] row = new String[columnIndexes.size()];
                 fieldIndex = 0;
                 while (reader.readField()) {
