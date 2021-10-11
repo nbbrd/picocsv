@@ -1,19 +1,3 @@
-/*
- * Copyright 2019 National Bank of Belgium
- *
- * Licensed under the EUPL, Version 1.1 or - as soon they will be approved
- * by the European Commission - subsequent versions of the EUPL (the "Licence");
- * You may not use this work except in compliance with the Licence.
- * You may obtain a copy of the Licence at:
- *
- * http://ec.europa.eu/idabc/eupl
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the Licence is distributed on an "AS IS" basis,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the Licence for the specific language governing permissions and
- * limitations under the Licence.
- */
 package _test;
 
 import nbbrd.picocsv.Csv;
@@ -21,68 +5,66 @@ import org.apache.commons.text.StringEscapeUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-/**
- * @author Philippe Charles
- */
-@lombok.Value
-public class Row {
+public abstract class Row {
 
-    public static final Row EMPTY_ROW = Row.of();
-    public static final Row EMPTY_FIELD = Row.of("");
-
-    public static Row of(String... fields) {
-        return new Row(Arrays.asList(fields));
+    private Row() {
     }
 
-    @lombok.NonNull
-    List<String> fields;
+    @lombok.Value
+    public static class Empty extends Row {
 
-    @Override
-    public String toString() {
-        return fields
-                .stream()
-                .map(field -> "{" + StringEscapeUtils.escapeJava(field) + "}")
-                .collect(Collectors.joining(","));
-    }
-
-    @FunctionalInterface
-    public interface NonEmptyConsumer {
-
-        void accept(Csv.Reader reader, List<Row> list) throws IOException;
-    }
-
-    @FunctionalInterface
-    public interface EmptyConsumer {
-
-        void accept(List<Row> list) throws IOException;
-
-        static EmptyConsumer noOp() {
-            return list -> {
-            };
-        }
-
-        static EmptyConsumer constant(Row row) {
-            return list -> list.add(row);
+        @Override
+        public String toString() {
+            return "Empty";
         }
     }
 
-    public static Row read(Csv.Reader reader) throws IOException {
-        List<String> fields = new ArrayList<>();
-        do {
-            fields.add(reader.toString());
-        } while (reader.readField());
-        return new Row(fields);
+    @lombok.Value
+    public static class Comment extends Row {
+
+        @lombok.NonNull
+        String comment;
+
+        @Override
+        public String toString() {
+            return "#" + StringEscapeUtils.escapeJava(comment);
+        }
     }
 
-    public static List<Row> readAll(Csv.Reader reader, EmptyConsumer onEmpty, NonEmptyConsumer onNonEmpty) throws IOException {
+    @lombok.Value
+    public static class Fields extends Row {
+
+        public static final Fields EMPTY_ROW = new Fields(Collections.emptyList());
+        public static final Fields EMPTY_FIELD = new Fields(Collections.singletonList(""));
+
+        @lombok.NonNull
+        List<String> fields;
+
+        @Override
+        public String toString() {
+            return "{" + fields.stream().map(StringEscapeUtils::escapeJava).collect(Collectors.joining("|")) + "}";
+        }
+    }
+
+    public static List<Row> readAll(Csv.Reader reader, Consumer<List<Row>> onEmpty, BiConsumer<List<Row>, String> onComment, BiConsumer<List<Row>, List<String>> onFields) throws IOException {
         List<Row> result = new ArrayList<>();
         while (reader.readLine()) {
             if (reader.readField()) {
-                onNonEmpty.accept(reader, result);
+                if (reader.isComment()) {
+                    onComment.accept(result, reader.toString());
+                } else {
+                    List<String> fields = new ArrayList<>();
+                    do {
+                        fields.add(reader.toString());
+                    } while (reader.readField());
+                    onFields.accept(result, fields);
+                }
             } else {
                 onEmpty.accept(result);
             }
@@ -92,10 +74,45 @@ public class Row {
 
     public static void writeAll(List<Row> rows, Csv.Writer writer) throws IOException {
         for (Row row : rows) {
-            for (String field : row.getFields()) {
-                writer.writeField(field);
+            if (row instanceof Empty) {
+                writer.writeEndOfLine();
+            } else if (row instanceof Comment) {
+                writer.writeComment(((Comment) row).getComment());
+            } else if (row instanceof Fields) {
+                for (String field : ((Fields) row).getFields()) {
+                    writer.writeField(field);
+                }
+                writer.writeEndOfLine();
             }
-            writer.writeEndOfLine();
         }
+    }
+
+    public static void skipEmpty(List<Row> list) {
+    }
+
+    public static void appendEmpty(List<Row> list) {
+        list.add(new Empty());
+    }
+
+    public static void appendEmptyRow(List<Row> list) {
+        list.add(Fields.EMPTY_ROW);
+    }
+
+    public static void appendEmptyField(List<Row> list) {
+        list.add(Fields.EMPTY_FIELD);
+    }
+
+    public static void appendComment(List<Row> list, String comment) {
+        list.add(new Comment(comment));
+    }
+
+    public static void skipComment(List<Row> list, String comment) {
+    }
+
+    public static void skipFields(List<Row> list, List<String> fields) {
+    }
+
+    public static void appendFields(List<Row> list, List<String> fields) {
+        list.add(new Fields(fields));
     }
 }

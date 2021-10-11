@@ -19,7 +19,9 @@ package nbbrd.picocsv;
 import _test.QuickWriter;
 import _test.Row;
 import _test.Sample;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -57,11 +59,10 @@ public class CsvWriterTest {
                 .withMessageContaining("Invalid charBufferSize: 0");
     }
 
-    @Test
-    public void testAllSamples() throws IOException {
-        for (Sample sample : Sample.SAMPLES) {
-            assertValid(sample, Csv.WriterOptions.DEFAULT);
-        }
+    @ParameterizedTest
+    @MethodSource("_test.Sample#getAllSamples")
+    public void testAllSamples(Sample sample) throws IOException {
+        assertValid(sample, Csv.WriterOptions.DEFAULT);
     }
 
     @Test
@@ -73,6 +74,67 @@ public class CsvWriterTest {
                     o.writeField("C1");
                 }, RFC4180, Csv.WriterOptions.DEFAULT)
         ).isEqualTo("A1,,C1");
+    }
+
+    @Test
+    public void testWriteComment() throws IOException {
+        CharSequence chars = new StringBuilder().append("hello");
+
+        assertThat(writeToString(w -> {
+            w.writeComment(null);
+        })).isEqualTo("#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("");
+        })).isEqualTo("#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("#");
+        })).isEqualTo("##\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("abc");
+        })).isEqualTo("#abc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\r\nbc");
+        })).isEqualTo("#a\r\n#bc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\rbc");
+        })).isEqualTo("#a\r\n#bc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\nbc");
+        })).isEqualTo("#a\r\n#bc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\r\n");
+        })).isEqualTo("#a\r\n#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\r");
+        })).isEqualTo("#a\r\n#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("a\n");
+        })).isEqualTo("#a\r\n#\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeField(chars);
+            w.writeComment("abc");
+        })).isEqualTo("hello\r\n#abc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeField(chars);
+            w.writeEndOfLine();
+            w.writeComment("abc");
+        })).isEqualTo("hello\r\n#abc\r\n");
+
+        assertThat(writeToString(w -> {
+            w.writeComment("abc");
+            w.writeField(chars);
+        })).isEqualTo("#abc\r\nhello");
     }
 
     @Test
@@ -89,6 +151,15 @@ public class CsvWriterTest {
         assertThat(writeToString(w -> {
             w.writeField(null);
         })).isEqualTo("\"\"");
+
+        assertThat(writeToString(w -> {
+            w.writeField("#");
+        })).isEqualTo("\"#\"");
+
+        assertThat(writeToString(w -> {
+            w.writeField("");
+            w.writeField("#");
+        })).isEqualTo(",#");
 
         assertThat(writeToString(w -> {
             w.writeField(null);
@@ -156,7 +227,7 @@ public class CsvWriterTest {
                 .name("overflow")
                 .format(Csv.Format.RFC4180)
                 .content(String.join(",", fields).replace("\"", "\"\"\"\"") + "\r\n")
-                .rowOf(fields)
+                .rowFields(fields)
                 .build();
     }
 

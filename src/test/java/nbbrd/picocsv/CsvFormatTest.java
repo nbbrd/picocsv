@@ -18,7 +18,7 @@ package nbbrd.picocsv;
 
 import _test.Sample;
 import org.apache.commons.text.StringEscapeUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
@@ -31,8 +31,20 @@ public class CsvFormatTest {
     @Test
     public void testFactories() {
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Format.builder().separator((String) null).build())
+                .isThrownBy(() -> Csv.Format.builder().separator(null).build())
                 .withMessageContaining("separator");
+
+        assertThat(Csv.Format.builder().separator("ab").build().getSeparator())
+                .isEqualTo("ab");
+
+        assertThat(Csv.Format.builder().delimiter('c').build().getDelimiter())
+                .isEqualTo('c');
+
+        assertThat(Csv.Format.builder().quote('d').build().getQuote())
+                .isEqualTo('d');
+
+        assertThat(Csv.Format.builder().comment('e').build().getComment())
+                .isEqualTo('e');
     }
 
     @Test
@@ -48,11 +60,12 @@ public class CsvFormatTest {
     public void testEqualsAndHashcode() {
         assertThat(Csv.Format.DEFAULT)
                 .isEqualTo(Csv.Format.DEFAULT)
-                .isEqualTo(Csv.Format.DEFAULT.toBuilder().separator(new String("\r\n")).build())
+                .isEqualTo(Csv.Format.DEFAULT.toBuilder().separator("\r\n").build())
                 .hasSameHashCodeAs(Csv.Format.DEFAULT)
                 .isNotEqualTo(other)
                 .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().quote('x').build())
                 .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().separator(Csv.Format.MACINTOSH_SEPARATOR).build())
+                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().comment('x').build())
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
 
@@ -66,11 +79,17 @@ public class CsvFormatTest {
         assertThat(Csv.Format.DEFAULT.toString())
                 .isEqualTo(Csv.Format.DEFAULT.toString())
                 .isNotEqualTo(other.toString())
-                .isEqualTo("Format(separator=\\r\\n, delimiter=,, quote=\\\")");
+                .isEqualTo("Format(separator=\\r\\n, delimiter=,, quote=\\\", comment=#)");
 
         for (char c : Sample.SPECIAL_CHARS) {
             assertThat(Csv.Format.builder().delimiter(c).build().toString())
                     .contains("delimiter=" + StringEscapeUtils.escapeJava(String.valueOf(c)));
+
+            assertThat(Csv.Format.builder().quote(c).build().toString())
+                    .contains("quote=" + StringEscapeUtils.escapeJava(String.valueOf(c)));
+
+            assertThat(Csv.Format.builder().comment(c).build().toString())
+                    .contains("comment=" + StringEscapeUtils.escapeJava(String.valueOf(c)));
         }
     }
 
@@ -86,6 +105,11 @@ public class CsvFormatTest {
         assertThat(Csv.Format.builder().quote('a').delimiter('b').build().isValid()).isTrue();
         assertThat(Csv.Format.builder().quote('a').delimiter('a').build().isValid()).isFalse();
 
+        assertThat(Csv.Format.builder().comment('a').delimiter('b').build().isValid()).isTrue();
+        assertThat(Csv.Format.builder().comment('a').delimiter('a').build().isValid()).isFalse();
+        assertThat(Csv.Format.builder().comment('a').quote('b').build().isValid()).isTrue();
+        assertThat(Csv.Format.builder().comment('a').quote('a').build().isValid()).isFalse();
+
         assertThat(Csv.Format.builder().quote('a').separator("a").build().isValid()).isFalse();
         assertThat(Csv.Format.builder().quote('a').separator("ab").build().isValid()).isFalse();
         assertThat(Csv.Format.builder().quote('a').separator("b").build().isValid()).isTrue();
@@ -95,6 +119,11 @@ public class CsvFormatTest {
         assertThat(Csv.Format.builder().delimiter('a').separator("ab").build().isValid()).isFalse();
         assertThat(Csv.Format.builder().delimiter('a').separator("b").build().isValid()).isTrue();
         assertThat(Csv.Format.builder().delimiter('a').separator("bc").build().isValid()).isTrue();
+
+        assertThat(Csv.Format.builder().comment('a').separator("a").build().isValid()).isFalse();
+        assertThat(Csv.Format.builder().comment('a').separator("ab").build().isValid()).isFalse();
+        assertThat(Csv.Format.builder().comment('a').separator("b").build().isValid()).isTrue();
+        assertThat(Csv.Format.builder().comment('a').separator("bc").build().isValid()).isTrue();
     }
 
     private final Csv.Format other = Csv.Format.DEFAULT.toBuilder().delimiter('\t').build();

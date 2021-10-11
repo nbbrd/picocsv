@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * @author Philippe Charles
  */
-public class ReadSingleLineDemo {
+public class ReadFirstLineDemo {
 
     public static void main(String[] args) throws IOException {
         try (Csv.Reader reader = Top5GridMonthly.open()) {

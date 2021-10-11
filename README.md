@@ -18,6 +18,7 @@ Features:
 - does not correct invalid files
 - follows the [RFC4180](https://tools.ietf.org/html/rfc4180) specification
 - supports custom line separator
+- supports comment character
 
 Read example:
 
@@ -25,9 +26,11 @@ Read example:
 StringReader input = new StringReader("...");
 try (Csv.Reader reader = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, input, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
   while (reader.readLine()) {
-    while (reader.readField()) {
-      CharSequence field = reader;
-      ...
+    if (!reader.isComment()) {
+      while (reader.readField()) {
+        CharSequence field = reader;
+        ...
+      }
     }
   }
 }
@@ -38,6 +41,7 @@ Write example:
 ```java
 StringWriter output = new StringWriter();
 try (Csv.Writer writer = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, output, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+  writer.writeComment("Some comment");
   writer.writeField("...");
   writer.writeEndOfLine();
 }
