@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [2.1.0] - 2021-10-11
+
+This is a feature release of **picocsv**.   
+picocsv follows [semantic versioning](http://semver.org/).
+
+### Added
+- Add native support of comment character [#58](https://github.com/nbbrd/picocsv/issues/58)
+
 ## [2.0.0] - 2021-03-16
 
 This is a major release of **picocsv**.   
@@ -80,7 +88,8 @@ picocsv follows [semantic versioning](http://semver.org/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/nbbrd/picocsv/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/nbbrd/picocsv/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/nbbrd/picocsv/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/nbbrd/picocsv/compare/v1.3.0...v2.0.0
 [1.3.0]: https://github.com/nbbrd/picocsv/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/nbbrd/picocsv/compare/v1.1.0...v1.2.0
