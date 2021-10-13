@@ -24,6 +24,7 @@ import _test.fastcsv.FastCsvEntry;
 import _test.fastcsv.FastCsvEntryConverter;
 import _test.fastcsv.FastCsvEntryRowsParser;
 import org.assertj.core.api.Condition;
+import org.assertj.core.condition.VerboseCondition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -33,6 +34,7 @@ import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -389,21 +391,19 @@ public class CsvReaderTest {
     private final Condition<Sample> validWithStrict = validWith(Csv.ReaderOptions.builder().lenientSeparator(false).build());
     private final Condition<Sample> validWithLenient = validWith(Csv.ReaderOptions.builder().lenientSeparator(true).build());
 
-    // TODO: improve error feedback
     private static Condition<Sample> validWith(Csv.ReaderOptions options) {
-        return new Condition<>(sample -> {
+        Function<Sample, List<Row>> rowFunc = sample -> {
             try {
-                List<Row> actual = readRows(sample, options, RowParser.READ_ALL);
-                List<Row> expected = sample.getRows();
-                if (!actual.equals(expected)) {
-//                    System.out.println(actual + " -> " + expected);
-                    return false;
-                }
-                return true;
+                return readRows(sample, options, RowParser.READ_ALL);
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);
             }
-        }, "Must have the same content");
+        };
+        return VerboseCondition.verboseCondition(
+                sample -> rowFunc.apply(sample).equals(sample.getRows()),
+                "generating the expected rows",
+                o -> " but generated '" + rowFunc.apply(o) + "' instead"
+        );
     }
 
     private static List<Row> readRows(Sample sample, Csv.ReaderOptions options, QuickReader.Parser<List<Row>> rowsParser) throws IOException {

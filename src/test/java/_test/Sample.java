@@ -60,13 +60,17 @@ public class Sample {
         return "Sample(name=" + name
                 + ", format=" + format
                 + ", content=" + StringEscapeUtils.escapeJava(content)
-                + ", rows=" + rows.stream().map(row -> "[" + row + "]").collect(Collectors.joining(","))
+                + ", rows=" + getRowsAsString()
                 + ", withoutEOL=" + withoutEOL
                 + ")";
     }
 
     public Description asDescription(String prefix) {
         return new TextDescription(prefix + " '%s'", getName());
+    }
+
+    public String getRowsAsString() {
+        return rows.stream().map(row -> "[" + row + "]").collect(Collectors.joining(","));
     }
 
     public static final class Builder {
