@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] - 2021-10-11
 
 This is a feature release of **picocsv**.   
-picocsv follows [semantic versioning](http://semver.org/).
+picocsv follows [semantic versioning](https://semver.org/).
 
 ### Added
 - Add native support of comment character [#58](https://github.com/nbbrd/picocsv/issues/58)
@@ -23,7 +23,7 @@ picocsv follows [semantic versioning](http://semver.org/).
 ## [2.0.0] - 2021-03-16
 
 This is a major release of **picocsv**.   
-picocsv follows [semantic versioning](http://semver.org/).
+picocsv follows [semantic versioning](https://semver.org/).
 
 ### Added
 - Add support of custom line separator
@@ -42,7 +42,7 @@ picocsv follows [semantic versioning](http://semver.org/).
 ## [1.3.0] - 2020-12-01
 
 This is a feature release of **picocsv**.   
-picocsv follows [semantic versioning](http://semver.org/).
+picocsv follows [semantic versioning](https://semver.org/).
 
 ### Added
 - Add BlockSize API to deal with system-specific block sizes
@@ -55,7 +55,7 @@ picocsv follows [semantic versioning](http://semver.org/).
 ## [1.2.0] - 2020-04-15
 
 This is a feature release of **picocsv**.   
-picocsv follows [semantic versioning](http://semver.org/).
+picocsv follows [semantic versioning](https://semver.org/).
 
 ### Added
 - Add lenient parsing of line separator
@@ -63,7 +63,7 @@ picocsv follows [semantic versioning](http://semver.org/).
 ## [1.1.0] - 2019-11-25
 
 This is a feature release of **picocsv**.   
-picocsv follows [semantic versioning](http://semver.org/).
+picocsv follows [semantic versioning](https://semver.org/).
 
 ### Added
 - Add support of null field as empty string
@@ -75,7 +75,7 @@ picocsv follows [semantic versioning](http://semver.org/).
 ## [1.0.1] - 2019-11-19
 
 This is a bugfix release of **picocsv**.   
-picocsv follows [semantic versioning](http://semver.org/).
+picocsv follows [semantic versioning](https://semver.org/).
 
 ### Fixed
 - Fix parsing of first empty field
@@ -83,7 +83,7 @@ picocsv follows [semantic versioning](http://semver.org/).
 ## [1.0.0] - 2019-11-18
 
 This is the initial release of **picocsv**.   
-picocsv follows [semantic versioning](http://semver.org/).
+picocsv follows [semantic versioning](https://semver.org/).
 
 ### Added
 - Initial release
