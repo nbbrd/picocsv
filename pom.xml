@@ -11,6 +11,7 @@
     <name>picocsv</name>
     <description>Lightweight CSV library for Java</description>
     <url>https://github.com/nbbrd/picocsv</url>
+    <inceptionYear>2019</inceptionYear>
 
     <licenses>
         <license>
@@ -560,6 +561,43 @@
                             <serverId>ossrh</serverId>
                             <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
                             <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Release assets -->
+        <profile>
+            <id>full-release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jreleaser</groupId>
+                        <artifactId>jreleaser-maven-plugin</artifactId>
+                        <version>1.2.0</version>
+                        <executions>
+                            <execution>
+                                <phase>install</phase>
+                                <goals>
+                                    <goal>full-release</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <jreleaser>
+                                <release>
+                                    <github>
+                                        <skipTag>true</skipTag>
+                                        <draft>true</draft>
+                                        <!-- Fix default value -->
+                                        <branch>master</branch>
+                                        <changelog>
+                                            <external>${project.basedir}/CHANGELOG.md</external>
+                                        </changelog>
+                                    </github>
+                                </release>
+                            </jreleaser>
                         </configuration>
                     </plugin>
                 </plugins>
