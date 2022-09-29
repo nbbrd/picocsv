@@ -572,6 +572,20 @@
             <id>full-release</id>
             <build>
                 <plugins>
+                    <!-- Extract changelog for release -->
+                    <plugin>
+                        <groupId>com.github.nbbrd.heylogs</groupId>
+                        <artifactId>heylogs-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>extract-changelog</id>
+                                <goals>
+                                    <goal>extract</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- Release assets -->
                     <plugin>
                         <groupId>org.jreleaser</groupId>
                         <artifactId>jreleaser-maven-plugin</artifactId>
@@ -589,11 +603,10 @@
                                 <release>
                                     <github>
                                         <skipTag>true</skipTag>
-                                        <draft>true</draft>
                                         <!-- Fix default value -->
                                         <branch>master</branch>
                                         <changelog>
-                                            <external>${project.basedir}/CHANGELOG.md</external>
+                                            <external>${project.build.directory}/CHANGELOG.md</external>
                                         </changelog>
                                     </github>
                                 </release>
