@@ -199,7 +199,7 @@
             </activation>
             <properties>
                 <lombok.version>1.18.24</lombok.version>
-                <jmh.version>1.35</jmh.version>
+                <jmh.version>1.36</jmh.version>
             </properties>
             <dependencyManagement>
                 <dependencies>
