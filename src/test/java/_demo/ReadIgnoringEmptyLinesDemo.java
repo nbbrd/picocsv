@@ -16,6 +16,7 @@
  */
 package _demo;
 
+import _test.Top5GridMonthly;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
@@ -26,42 +27,21 @@ import java.util.List;
 /**
  * @author Philippe Charles
  */
-public class GetByColumnIndex {
+public class ReadIgnoringEmptyLinesDemo {
 
     public static void main(String[] args) throws IOException {
         try (Csv.Reader reader = Top5GridMonthly.open()) {
-            getByColumnIndex(reader, Arrays.asList(2, 4))
+            readIgnoringEmptyLines(reader)
                     .forEach(item -> System.out.println(Arrays.toString(item)));
         }
     }
 
-    private static List<String[]> getByColumnIndex(Csv.Reader reader, List<Integer> columnIndexes) throws IOException {
+    private static List<String[]> readIgnoringEmptyLines(Csv.Reader reader) throws IOException {
         List<String[]> result = new ArrayList<>();
-        int fieldIndex;
-
-        if (Utils.skipComments(reader)) {
-            String[] columns = new String[columnIndexes.size()];
-            fieldIndex = 0;
-            while (reader.readField()) {
-                int position = columnIndexes.indexOf(fieldIndex);
-                if (position != -1) {
-                    columns[position] = reader.toString();
-                }
-                fieldIndex++;
-            }
-            result.add(columns);
-
-            while (Utils.skipComments(reader)) {
-                String[] row = new String[columnIndexes.size()];
-                fieldIndex = 0;
-                while (reader.readField()) {
-                    int position = columnIndexes.indexOf(fieldIndex);
-                    if (position != -1) {
-                        row[position] = reader.toString();
-                    }
-                    fieldIndex++;
-                }
-                result.add(row);
+        while (reader.readLine()) {
+            String[] values = Cookbook.readFieldsOfUnknownSize(reader);
+            if (values.length > 0) {
+                result.add(values);
             }
         }
         return result;

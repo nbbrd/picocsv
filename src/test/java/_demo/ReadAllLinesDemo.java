@@ -16,6 +16,7 @@
  */
 package _demo;
 
+import _test.Top5GridMonthly;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
@@ -37,16 +38,8 @@ public class ReadAllLinesDemo {
 
     private static List<String[]> readAllLines(Csv.Reader reader) throws IOException {
         List<String[]> result = new ArrayList<>();
-        List<String> row = new ArrayList<>();
-
         while (reader.readLine()) {
-            if (!reader.isComment()) {
-                while (reader.readField()) {
-                    row.add(reader.toString());
-                }
-                result.add(row.toArray(new String[row.size()]));
-                row.clear();
-            }
+            result.add(Cookbook.readFieldsOfUnknownSize(reader));
         }
         return result;
     }

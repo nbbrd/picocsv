@@ -16,6 +16,7 @@
  */
 package _demo;
 
+import _test.Top5GridMonthly;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
@@ -26,25 +27,21 @@ import java.util.List;
 /**
  * @author Philippe Charles
  */
-public class ReadFirstLineDemo {
+public class ReadCommentsDemo {
 
     public static void main(String[] args) throws IOException {
         try (Csv.Reader reader = Top5GridMonthly.open()) {
-            readSingleLine(reader)
+            readComments(reader)
                     .forEach(item -> System.out.println(Arrays.toString(item)));
         }
     }
 
-    private static List<String[]> readSingleLine(Csv.Reader reader) throws IOException {
+    private static List<String[]> readComments(Csv.Reader reader) throws IOException {
         List<String[]> result = new ArrayList<>();
-        List<String> line = new ArrayList<>();
-
-        if (reader.readLine()) {
-            while (reader.readField()) {
-                line.add(reader.toString());
+        while (reader.readLine()) {
+            if (reader.isComment()) {
+                result.add(Cookbook.readFieldsOfUnknownSize(reader));
             }
-            result.add(line.toArray(new String[line.size()]));
-            line.clear();
         }
         return result;
     }

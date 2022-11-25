@@ -369,10 +369,28 @@ public final class Csv {
         }
     }
 
+    public interface LineReader extends CharSequence {
+
+        /**
+         * Reads the next field.
+         *
+         * @return true if not at the end of line
+         * @throws IOException if an I/O error occurs
+         */
+        boolean readField() throws IOException;
+
+        /**
+         * Check if the current field is a comment or not.
+         *
+         * @return true if the current field is a comment
+         */
+        boolean isComment();
+    }
+
     /**
      * CSV reader.
      */
-    public static final class Reader implements Closeable, CharSequence {
+    public static final class Reader implements LineReader, Closeable {
 
         /**
          * Creates a new instance from a char reader.
@@ -458,12 +476,7 @@ public final class Csv {
             }
         }
 
-        /**
-         * Reads the next field.
-         *
-         * @return true if not at the end of line
-         * @throws IOException if an I/O error occurs
-         */
+        @Override
         public boolean readField() throws IOException {
             switch (state) {
                 case STATE_LAST:
@@ -488,11 +501,7 @@ public final class Csv {
             }
         }
 
-        /**
-         * Check if the current field is a comment or not.
-         *
-         * @return true if the current field is a comment
-         */
+        @Override
         public boolean isComment() {
             return fieldType == FIELD_TYPE_COMMENTED;
         }
@@ -860,10 +869,29 @@ public final class Csv {
         }
     }
 
+    public interface LineWriter {
+
+        /**
+         * Writes a new comment. Null comment is handled as empty.
+         *
+         * @param comment a nullable field
+         * @throws IOException if an I/O error occurs
+         */
+        void writeComment(CharSequence comment) throws IOException;
+
+        /**
+         * Writes a new field. Null field is handled as empty.
+         *
+         * @param field a nullable field
+         * @throws IOException if an I/O error occurs
+         */
+        void writeField(CharSequence field) throws IOException;
+    }
+
     /**
      * CSV writer.
      */
-    public static final class Writer implements Closeable {
+    public static final class Writer implements LineWriter, Closeable {
 
         /**
          * Creates a new instance from a char writer.
@@ -907,12 +935,7 @@ public final class Csv {
             this.eolEncoder = eolEncoder;
         }
 
-        /**
-         * Writes a new comment. Null comment is handled as empty.
-         *
-         * @param comment a nullable field
-         * @throws IOException if an I/O error occurs
-         */
+        @Override
         public void writeComment(CharSequence comment) throws IOException {
             if (state != STATE_NO_FIELD) {
                 writeEndOfLine();
@@ -941,12 +964,7 @@ public final class Csv {
                     && eolEncoder.isNewLine(text.charAt(i + 1));
         }
 
-        /**
-         * Writes a new field. Null field is handled as empty.
-         *
-         * @param field a nullable field
-         * @throws IOException if an I/O error occurs
-         */
+        @Override
         public void writeField(CharSequence field) throws IOException {
             switch (state) {
                 case STATE_NO_FIELD: {

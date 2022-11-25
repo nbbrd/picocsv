@@ -26,7 +26,7 @@ import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 /**
  * @author Philippe Charles
  */
-public class CsvWriterDemo {
+public class WriteDemo {
 
     public static void main(String[] args) throws IOException {
         StringWriter result = new StringWriter();

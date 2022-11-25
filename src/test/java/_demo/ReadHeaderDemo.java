@@ -16,38 +16,29 @@
  */
 package _demo;
 
+import _test.Top5GridMonthly;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Optional;
 
 /**
  * @author Philippe Charles
  */
-public class IgnoreEmptyLinesDemo {
+public class ReadHeaderDemo {
 
     public static void main(String[] args) throws IOException {
         try (Csv.Reader reader = Top5GridMonthly.open()) {
-            ignoreEmptyLines(reader)
-                    .forEach(item -> System.out.println(Arrays.toString(item)));
+            System.out.println(
+                    readHeader(reader)
+                            .map(Arrays::toString)
+                            .orElse("No header")
+            );
         }
     }
 
-    private static List<String[]> ignoreEmptyLines(Csv.Reader reader) throws IOException {
-        List<String[]> result = new ArrayList<>();
-        List<String> row = new ArrayList<>();
-
-        while (reader.readLine()) {
-            if (reader.readField()) {
-                do {
-                    row.add(reader.toString());
-                } while (reader.readField());
-                result.add(row.toArray(new String[row.size()]));
-                row.clear();
-            }
-        }
-        return result;
+    private static Optional<String[]> readHeader(Csv.Reader reader) throws IOException {
+        return Cookbook.skipComments(reader) ? Optional.of(Cookbook.readFieldsOfUnknownSize(reader)) : Optional.empty();
     }
 }

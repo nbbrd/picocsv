@@ -1,6 +1,6 @@
-package _demo.parser;
+package _demo.api2;
 
-import _demo.Utils;
+import _demo.Cookbook;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
@@ -81,7 +81,7 @@ public class CsvRowParser {
     }
 
     private Iterator<Row> newIterator(Csv.Reader reader) throws IOException {
-        if (!Utils.skipLines(reader, skipLines)) return Collections.emptyIterator();
+        if (!Cookbook.skipLines(reader, skipLines)) return Collections.emptyIterator();
 
         IntPredicate fieldFilter = getFieldFilter(reader, columns);
         if (fieldFilter == null) return Collections.emptyIterator();
@@ -93,7 +93,7 @@ public class CsvRowParser {
 
     private static IntPredicate getFieldFilter(Csv.Reader reader, Columns selector) throws IOException {
         if (selector.hasHeader()) {
-            if (!Utils.skipComments(reader)) {
+            if (!Cookbook.skipComments(reader)) {
                 return null;
             }
             List<String> columnNames = new ArrayList<>();
@@ -148,7 +148,7 @@ public class CsvRowParser {
             fields = new ArrayList<>();
             lineNumber++;
             try {
-                while (Utils.skipComments(reader)) {
+                while (Cookbook.skipComments(reader)) {
                     if (readFields(reader, includeEmptyLines, fields, fieldFilter)) return true;
                 }
             } catch (IOException ex) {

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `Csv.LineReader` and `Csv.LineWriter` to clarify API
+
 ### Changed
 
 ### Fixed

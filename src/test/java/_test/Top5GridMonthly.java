@@ -1,4 +1,4 @@
-package _demo;
+package _test;
 
 import nbbrd.picocsv.Csv;
 
