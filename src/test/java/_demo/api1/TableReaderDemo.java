@@ -26,8 +26,7 @@ public class TableReaderDemo {
 
         try (Csv.Reader reader = Top5GridMonthly.open()) {
             TableReader.byColumnIndex(2, 4)
-                    .toList(reader)
-                    .stream()
+                    .lines(reader)
                     .limit(3)
                     .map(Arrays::toString)
                     .forEach(System.out::println);
@@ -36,9 +35,8 @@ public class TableReaderDemo {
         System.out.println("---");
 
         try (Csv.Reader reader = Top5GridMonthly.open()) {
-            TableReader.byColumnIndexNoHeader(7, 2, 4)
-                    .toList(reader)
-                    .stream()
+            TableReader.byColumnIndex(2, 4)
+                    .lines(reader, new String[]{"", "", "", "", "", "", ""})
                     .skip(1)
                     .limit(3)
                     .map(Arrays::toString)
@@ -58,6 +56,19 @@ public class TableReaderDemo {
                             .orElseThrow(RuntimeException::new)
             );
         }
+
+        System.out.println("---");
+
+        try (Csv.Reader reader = Top5GridMonthly.open()) {
+            System.out.println(
+                    TableReader.byLine(line -> Browser.parse("Firefox", line))
+                            .lines(reader)
+                            .limit(3)
+                            .mapToDouble(Browser::getValue)
+                            .average()
+                            .orElseThrow(RuntimeException::new)
+            );
+        }
     }
 
     @lombok.Value
@@ -67,6 +78,19 @@ public class TableReaderDemo {
             try {
                 return new Browser(name, DATE.parse(line[0], YearMonth::from), NUMBER.parse(line[1]).doubleValue());
             } catch (ParseException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+
+        static Browser parse(String name, Csv.LineReader line) {
+            try {
+                line.readField();
+                YearMonth period = DATE.parse(line, YearMonth::from);
+                line.readField();
+                line.readField();
+                double value = NUMBER.parse(line.toString()).doubleValue();
+                return new Browser(name, period, value);
+            } catch (IOException | ParseException ex) {
                 throw new RuntimeException(ex);
             }
         }

@@ -4,13 +4,13 @@ import lombok.NonNull;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.io.UncheckedIOException;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 @lombok.experimental.UtilityClass
 public class Cookbook {
@@ -31,6 +31,13 @@ public class Cookbook {
             }
         }
         return true;
+    }
+
+    public static @NonNull String[] readHeaderLine(@NonNull Csv.Reader reader) throws IOException {
+        if (!skipComments(reader)) {
+            throw new IOException("Missing header");
+        }
+        return readFieldsOfUnknownSize(reader);
     }
 
     public static String[] readFieldsOfUnknownSize(Csv.LineReader reader) throws IOException {
@@ -111,5 +118,31 @@ public class Cookbook {
 
     public static boolean isValidIndex(int i) {
         return i != -1;
+    }
+
+    public static <X> @NonNull Stream<X> stream(@NonNull Csv.Reader reader, @NonNull Function<Csv.LineReader, X> rowReader) {
+        return StreamSupport
+                .stream(Spliterators.spliteratorUnknownSize(new RowIterator(reader), Spliterator.ORDERED | Spliterator.NONNULL), false)
+                .map(rowReader);
+    }
+
+    @lombok.RequiredArgsConstructor
+    private static final class RowIterator implements Iterator<Csv.LineReader> {
+
+        private final Csv.Reader reader;
+
+        @Override
+        public boolean hasNext() {
+            try {
+                return skipComments(reader);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+
+        @Override
+        public Csv.LineReader next() {
+            return reader;
+        }
     }
 }
