@@ -21,52 +21,68 @@ import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static _demo.Cookbook.*;
 
 /**
  * @author Philippe Charles
  */
-public interface TableReader<T> {
+@lombok.Value
+@lombok.Builder(toBuilder = true)
+public class TableReader<T> {
 
-    Function<Csv.LineReader, T> getRowReader(String[] header);
+    @NonNull Function<String[], RowReader<T>> rowFactory;
 
-    static @NonNull TableReader<String[]> onStringArray(@NonNull Function<String[], int[]> mapper, int columnCount) {
-        return header -> {
-            int[] mapping = mapper.apply(header);
-            return line -> {
-                try {
-                    return readFieldsOfFixedSize(line, mapping, columnCount);
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            };
-        };
+    @lombok.With
+    @lombok.Builder.Default
+    int skipLines = 0;
+
+    public static <X> @NonNull TableReaderBuilder<X> builder(@NonNull Function<String[], RowReader<X>> factory) {
+        return new TableReaderBuilder<X>().rowFactory(factory);
     }
 
-    static @NonNull TableReader<String[]> byColumnIndex(@NonNull int... indexes) {
-        return onStringArray(mapperByIndex(indexes), indexes.length);
+    public static @NonNull TableReader<String[]> byColumnIndex(@NonNull int... indexes) {
+        return builder(rowFactoryOfMapper(mapperByIndex(indexes), indexes.length)).build();
     }
 
-    static @NonNull TableReader<String[]> byColumnName(@NonNull String... names) {
-        return onStringArray(mapperByName(names), names.length);
+    public static @NonNull TableReader<String[]> byColumnName(@NonNull String... names) {
+        return builder(rowFactoryOfMapper(mapperByName(names), names.length)).build();
     }
 
-    static <X> @NonNull TableReader<X> byLine(@NonNull Function<Csv.LineReader, X> function) {
-        return ignore -> function;
+    public static <X> @NonNull TableReader<X> byLine(@NonNull RowReader<X> function) {
+        return builder(ignore -> function).build();
     }
 
-    default @NonNull Stream<T> lines(@NonNull Csv.Reader reader) {
+    public @NonNull Stream<T> lines(@NonNull Csv.Reader reader) {
         try {
-            return lines(reader, readHeaderLine(reader));
+            return linesWithoutHeader(reader, readHeaderLine(reader));
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);
         }
     }
 
-    default @NonNull Stream<T> lines(@NonNull Csv.Reader reader, @NonNull String[] header) {
-        return stream(reader, getRowReader(header));
+    public @NonNull Stream<T> linesWithoutHeader(@NonNull Csv.Reader reader, @NonNull String... header) {
+        try {
+            skipLines(reader, skipLines);
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+        RowReader<T> rowReader = rowFactory.apply(header);
+        return StreamSupport
+                .stream(Spliterators.spliteratorUnknownSize(new RowIterator(reader), Spliterator.ORDERED | Spliterator.NONNULL), false)
+                .map(rowReader.asUnchecked());
+    }
+
+    private static Function<String[], RowReader<String[]>> rowFactoryOfMapper(Function<String[], int[]> mapper, int columnCount) {
+        return header -> rowReaderOfMapping(mapper.apply(header), columnCount);
+    }
+
+    private static RowReader<String[]> rowReaderOfMapping(int[] mapping, int columnCount) {
+        return line -> readFieldsOfFixedSize(line, mapping, columnCount);
     }
 }

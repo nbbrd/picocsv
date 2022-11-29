@@ -1,5 +1,6 @@
 package _demo.api2;
 
+import _demo.AbstractIterator;
 import _demo.Cookbook;
 import nbbrd.picocsv.Csv;
 
@@ -155,45 +156,6 @@ public class CsvRowParser {
                 throw new UncheckedIOException(ex);
             }
             return false;
-        }
-    }
-
-    private static abstract class AbstractIterator<E> implements Iterator<E> {
-
-        abstract protected E get();
-
-        abstract protected boolean moveNext();
-
-        private enum State {
-            COMPUTED, NOT_COMPUTED, DONE
-        }
-
-        private State state = State.NOT_COMPUTED;
-
-        @Override
-        public boolean hasNext() {
-            switch (state) {
-                case COMPUTED:
-                    return true;
-                case DONE:
-                    return false;
-                default:
-                    if (moveNext()) {
-                        state = State.COMPUTED;
-                        return true;
-                    }
-                    state = State.DONE;
-                    return false;
-            }
-        }
-
-        @Override
-        public E next() {
-            if (!hasNext()) {
-                throw new NoSuchElementException();
-            }
-            state = State.NOT_COMPUTED;
-            return get();
         }
     }
 }

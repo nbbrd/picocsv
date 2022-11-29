@@ -36,8 +36,8 @@ public class TableReaderDemo {
 
         try (Csv.Reader reader = Top5GridMonthly.open()) {
             TableReader.byColumnIndex(2, 4)
-                    .lines(reader, new String[]{"", "", "", "", "", "", ""})
-                    .skip(1)
+                    .withSkipLines(2)
+                    .linesWithoutHeader(reader, "", "", "", "", "", "", "")
                     .limit(3)
                     .map(Arrays::toString)
                     .forEach(System.out::println);

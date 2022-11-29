@@ -5,12 +5,14 @@ import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 @lombok.experimental.UtilityClass
 public class Cookbook {
@@ -120,29 +122,55 @@ public class Cookbook {
         return i != -1;
     }
 
-    public static <X> @NonNull Stream<X> stream(@NonNull Csv.Reader reader, @NonNull Function<Csv.LineReader, X> rowReader) {
-        return StreamSupport
-                .stream(Spliterators.spliteratorUnknownSize(new RowIterator(reader), Spliterator.ORDERED | Spliterator.NONNULL), false)
-                .map(rowReader);
-    }
-
     @lombok.RequiredArgsConstructor
-    private static final class RowIterator implements Iterator<Csv.LineReader> {
+    public static final class RowIterator extends AbstractIterator<Csv.LineReader> {
 
         private final Csv.Reader reader;
 
         @Override
-        public boolean hasNext() {
+        protected Csv.LineReader get() {
+            return reader;
+        }
+
+        @Override
+        protected boolean moveNext() {
             try {
                 return skipComments(reader);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
         }
+    }
 
-        @Override
-        public Csv.LineReader next() {
-            return reader;
+    @FunctionalInterface
+    public interface RowReader<T> {
+
+        @NonNull T applyWithIO(@NonNull Csv.LineReader line) throws IOException;
+
+        default @NonNull Function<Csv.LineReader, T> asUnchecked() {
+            return line -> {
+                try {
+                    return applyWithIO(line);
+                } catch (IOException ex) {
+                    throw new UncheckedIOException(ex);
+                }
+            };
+        }
+    }
+
+    @FunctionalInterface
+    public interface RowWriter<T> {
+
+        void acceptWithIO(@NonNull Csv.LineWriter line, @NonNull T value) throws IOException;
+
+        default @NonNull BiConsumer<Csv.LineWriter, T> asUnchecked() {
+            return (line, value) -> {
+                try {
+                    acceptWithIO(line, value);
+                } catch (IOException ex) {
+                    throw new UncheckedIOException(ex);
+                }
+            };
         }
     }
 }
