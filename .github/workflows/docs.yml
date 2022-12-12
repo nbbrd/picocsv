@@ -1,0 +1,68 @@
+name: Documentation deployment
+
+on: [ push ]
+
+jobs:
+  deploy:
+    if: startsWith(github.repository, 'nbbrd/') && ((github.ref == 'refs/heads/develop') || startsWith(github.ref, 'refs/tags/v'))
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+
+    env:
+      DOC_SLUG: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Build pages
+        run: |
+          mvn javadoc:javadoc
+          touch ./target/site/.nojekyll
+
+      - name: Deploy pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/site
+          destination_dir: ./docs/${{ env.DOC_SLUG }}
+
+      - name: Create summary
+        run: echo "Documentation available at ${{ env.DOC_URL }}" >> $GITHUB_STEP_SUMMARY
+
+  index-dir:
+    needs: deploy
+    name: Index GitHub Pages directory
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout pages
+        uses: actions/checkout@v3
+        with:
+          ref: 'gh-pages'
+
+      - uses: actions/cache@v3
+        with:
+          path: /root/.jbang
+          key: $-jbang-$
+          restore-keys: |
+            $-jbang-
+
+      - name: Create index.html
+        uses: jbangdev/jbang-action@v0.101.0
+        with:
+          trust: https://gist.github.com/charphi/
+          script: https://gist.github.com/charphi/f44a24eb35dbd61b9f1d7759f0e561bd
+          scriptargs: -T Documentation docs -o public/index.html -d
+        env:
+          JBANG_REPO: /root/.jbang/repository
+
+      - name: Deploy index.html
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          destination_dir: ./docs
+          keep_files: true
