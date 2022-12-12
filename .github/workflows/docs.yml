@@ -20,7 +20,7 @@ jobs:
 
       - name: Build pages
         run: |
-          mvn javadoc:javadoc
+          mvn -B -ntp install javadoc:javadoc -DskipTests
           touch ./target/site/.nojekyll
 
       - name: Deploy pages
