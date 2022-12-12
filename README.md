@@ -67,7 +67,7 @@ try (Csv.Writer csv = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAUL
 ### Custom format
 
 ```java
-Csv.Format tsv=Csv.Format.builder().delimiter('\t').build();
+Csv.Format tsv = Csv.Format.builder().delimiter('\t').build();
 ```
 
 ## Setup
