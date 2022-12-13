@@ -24,6 +24,9 @@ jobs:
           mvn -B -ntp install javadoc:javadoc -DskipTests
           touch ./target/site/.nojekyll
 
+      - name: Add redirection to Javadoc
+        run: echo "<html><head><meta http-equiv=\"refresh\" content=\"0; url='apidocs'\"/></head></html>" > ./target/site/index.html
+
       - name: Deploy pages
         uses: peaceiris/actions-gh-pages@v3
         with:
