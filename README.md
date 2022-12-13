@@ -33,7 +33,7 @@ Basic reading of all fields skipping comments:
 
 ```java
 Reader reader = ...;
-try (Csv.Reader csv = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, reader, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+try (Csv.Reader csv = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, reader)) {
   while (csv.readLine()) {
     if (!csv.isComment()) {
       while (csv.readField()) {
@@ -57,7 +57,7 @@ Basic writing of some fields and comments:
 
 ```java
 Writer writer = ...;
-try (Csv.Writer csv = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, writer, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+try (Csv.Writer csv = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, writer)) {
   csv.writeComment("Some comment");
   csv.writeField("Some field");
   csv.writeEndOfLine();

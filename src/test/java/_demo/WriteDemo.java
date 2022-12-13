@@ -21,8 +21,6 @@ import nbbrd.picocsv.Csv;
 import java.io.IOException;
 import java.io.StringWriter;
 
-import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
-
 /**
  * @author Philippe Charles
  */
@@ -30,7 +28,7 @@ public class WriteDemo {
 
     public static void main(String[] args) throws IOException {
         StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, result, DEFAULT_CHAR_BUFFER_SIZE)) {
+        try (Csv.Writer writer = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, result)) {
             writer.writeComment("This is a comment");
             writer.writeField("hello");
             writer.writeField("wo\"rld");

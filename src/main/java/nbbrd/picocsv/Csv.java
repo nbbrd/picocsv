@@ -498,7 +498,7 @@ public final class Csv {
 
     /**
      * CSV reader.
-     * Reads CSV from a character-input stream, buffering characters so as to provide for the efficient reading.
+     * Reads CSV from a character-input stream, buffering characters in order to provide for efficient reading.
      *
      * <p> The buffer size must be specified. Ideally, it should align with the underlying input
      * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.
@@ -506,6 +506,21 @@ public final class Csv {
      * @see java.io.Reader
      */
     public static final class Reader implements LineReader, Closeable {
+
+        /**
+         * Creates a new instance from a char reader using the {@link #DEFAULT_CHAR_BUFFER_SIZE default char buffer size}.
+         *
+         * @param format     a non-null format
+         * @param options    a non-null options
+         * @param charReader a non-null char reader
+         * @return a new CSV reader
+         * @throws IllegalArgumentException if the format contains an invalid
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
+         */
+        public static Reader of(Format format, ReaderOptions options, java.io.Reader charReader) throws IllegalArgumentException, IOException {
+            return of(format, options, charReader, DEFAULT_CHAR_BUFFER_SIZE);
+        }
 
         /**
          * Creates a new instance from a char reader.
@@ -1030,7 +1045,7 @@ public final class Csv {
 
     /**
      * CSV writer.
-     * Writes text to a character-output stream, buffering characters so as to provide for the efficient writing.
+     * Writes text to a character-output stream, buffering characters in order to provide efficient writing.
      *
      * <p> The buffer size must be specified. Ideally, it should align with the underlying output
      * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.
@@ -1038,6 +1053,21 @@ public final class Csv {
      * @see java.io.Writer
      */
     public static final class Writer implements LineWriter, Closeable {
+
+        /**
+         * Creates a new instance from a char writer using the {@link #DEFAULT_CHAR_BUFFER_SIZE default char buffer size}.
+         *
+         * @param format     a non-null format
+         * @param options    a non-null options
+         * @param charWriter a non-null char writer
+         * @return a new CSV writer
+         * @throws IllegalArgumentException if the format contains an invalid
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
+         */
+        public static Writer of(Format format, WriterOptions options, java.io.Writer charWriter) throws IllegalArgumentException, IOException {
+            return of(format, options, charWriter, DEFAULT_CHAR_BUFFER_SIZE);
+        }
 
         /**
          * Creates a new instance from a char writer.

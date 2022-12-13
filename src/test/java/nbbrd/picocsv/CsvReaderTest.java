@@ -144,7 +144,7 @@ public class CsvReaderTest {
     @Test
     public void testEmptyLine() throws IOException {
         Sample sample = Sample.EMPTY_LINES;
-        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()), DEFAULT_CHAR_BUFFER_SIZE)) {
+        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()))) {
             assertThat(reader.readLine()).isTrue();
             assertThat(reader.readField()).isFalse();
             assertThat(reader.readLine()).isTrue();
@@ -181,7 +181,7 @@ public class CsvReaderTest {
     @Test
     public void testCharSequence() throws IOException {
         Sample sample = Sample.SIMPLE;
-        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()), DEFAULT_CHAR_BUFFER_SIZE)) {
+        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()))) {
             CharSequence chars = reader;
             reader.readLine();
             reader.readField();

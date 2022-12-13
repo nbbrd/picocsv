@@ -10,8 +10,6 @@ import java.io.StringWriter;
 import java.util.Comparator;
 import java.util.stream.Stream;
 
-import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
-
 public class TableWriterDemo {
 
     public static void main(String[] args) throws IOException {
@@ -27,7 +25,7 @@ public class TableWriterDemo {
     private static void demo(TableWriter<Property> tableWriter) throws IOException {
         System.out.println("--- " + "demo" + " ---");
         StringWriter charWriter = new StringWriter();
-        try (Writer csv = Writer.of(Format.DEFAULT, WriterOptions.DEFAULT, charWriter, DEFAULT_CHAR_BUFFER_SIZE)) {
+        try (Writer csv = Writer.of(Format.DEFAULT, WriterOptions.DEFAULT, charWriter)) {
             tableWriter.lines(csv,
                     Property.getSystemProperties()
                             .filter(property -> property.key.startsWith("java"))

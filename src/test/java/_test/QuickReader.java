@@ -29,7 +29,7 @@ public class QuickReader {
 
     public static <T> T readValue(Parser<T> parser, String input, Csv.Format format, Csv.ReaderOptions options) throws IOException {
         try (java.io.Reader charReader = new StringReader(input)) {
-            try (Csv.Reader reader = Csv.Reader.of(format, options, charReader, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+            try (Csv.Reader reader = Csv.Reader.of(format, options, charReader)) {
                 return parser.accept(reader);
             }
         }

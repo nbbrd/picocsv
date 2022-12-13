@@ -30,8 +30,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
-
 /**
  * @author Philippe Charles
  */
@@ -295,7 +293,7 @@ public class Sample {
 
     private static String toContent(Csv.Format format, Row.Fields... rows) {
         StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(format, Csv.WriterOptions.DEFAULT, result, DEFAULT_CHAR_BUFFER_SIZE)) {
+        try (Csv.Writer writer = Csv.Writer.of(format, Csv.WriterOptions.DEFAULT, result)) {
             Row.writeAll(Arrays.asList(rows), writer);
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);

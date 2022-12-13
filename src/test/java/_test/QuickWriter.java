@@ -29,7 +29,7 @@ public class QuickWriter {
 
     public static <T> String writeValue(T value, Formatter<T> formatter, Csv.Format format, Csv.WriterOptions writerOptions) throws IOException {
         try (java.io.Writer charWriter = new StringWriter()) {
-            try (Csv.Writer writer = Csv.Writer.of(format, writerOptions, charWriter, Csv.DEFAULT_CHAR_BUFFER_SIZE)) {
+            try (Csv.Writer writer = Csv.Writer.of(format, writerOptions, charWriter)) {
                 formatter.accept(value, writer);
             }
             return charWriter.toString();
