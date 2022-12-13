@@ -16,31 +16,25 @@
  */
 package _demo;
 
-import _test.Top5GridMonthly;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.io.StringWriter;
 
 /**
  * @author Philippe Charles
  */
-public class ReadAllLinesDemo {
+public class WriteDemo {
 
     public static void main(String[] args) throws IOException {
-        try (Csv.Reader reader = Top5GridMonthly.open()) {
-            readAllLines(reader)
-                    .forEach(item -> System.out.println(Arrays.toString(item)));
+        StringWriter result = new StringWriter();
+        try (Csv.Writer writer = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, result)) {
+            writer.writeComment("This is a comment");
+            writer.writeField("hello");
+            writer.writeField("wo\"rld");
+            writer.writeEndOfLine();
+            writer.writeField("test");
         }
-    }
-
-    private static List<String[]> readAllLines(Csv.Reader reader) throws IOException {
-        List<String[]> result = new ArrayList<>();
-        while (reader.readLine()) {
-            result.add(Cookbook.readFieldsOfUnknownSize(reader));
-        }
-        return result;
+        System.out.println(result);
     }
 }

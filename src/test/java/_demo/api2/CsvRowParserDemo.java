@@ -1,4 +1,4 @@
-package _demo.parser;
+package _demo.api2;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -8,7 +8,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-import static _demo.Top5GridMonthly.*;
+import static _test.Top5GridMonthly.*;
 
 public class CsvRowParserDemo {
 

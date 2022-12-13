@@ -1,4 +1,4 @@
-package _demo;
+package _test;
 
 import nbbrd.picocsv.Csv;
 
@@ -12,7 +12,6 @@ public class Top5GridMonthly {
     public static final char DELIMITER = ';';
     public static final char QUOTE = '"';
     public static final boolean LENIENT_SEPARATOR = true;
-    public static final int CHAR_BUFFER_SIZE = Csv.DEFAULT_CHAR_BUFFER_SIZE;
 
     private final static byte[] CONTENT = getResourcesAsBytes(Top5GridMonthly.class, "/Top5-Grid-Monthly.csv");
     private final static Charset ENCODING = Charset.forName("windows-1252");
@@ -20,7 +19,7 @@ public class Top5GridMonthly {
     private final static Csv.ReaderOptions OPTIONS = Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(LENIENT_SEPARATOR).build();
 
     public static Csv.Reader open() throws IOException {
-        return Csv.Reader.of(FORMAT, OPTIONS, openStreamReader(), CHAR_BUFFER_SIZE);
+        return Csv.Reader.of(FORMAT, OPTIONS, openStreamReader());
     }
 
     public static InputStreamReader openStreamReader() {

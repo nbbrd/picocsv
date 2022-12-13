@@ -16,6 +16,7 @@
  */
 package _demo;
 
+import _test.Top5GridMonthly;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
@@ -26,26 +27,21 @@ import java.util.List;
 /**
  * @author Philippe Charles
  */
-public class IgnoreEmptyLinesDemo {
+public class ReadIgnoringEmptyLinesDemo {
 
     public static void main(String[] args) throws IOException {
         try (Csv.Reader reader = Top5GridMonthly.open()) {
-            ignoreEmptyLines(reader)
+            readIgnoringEmptyLines(reader)
                     .forEach(item -> System.out.println(Arrays.toString(item)));
         }
     }
 
-    private static List<String[]> ignoreEmptyLines(Csv.Reader reader) throws IOException {
+    private static List<String[]> readIgnoringEmptyLines(Csv.Reader reader) throws IOException {
         List<String[]> result = new ArrayList<>();
-        List<String> row = new ArrayList<>();
-
         while (reader.readLine()) {
-            if (reader.readField()) {
-                do {
-                    row.add(reader.toString());
-                } while (reader.readField());
-                result.add(row.toArray(new String[row.size()]));
-                row.clear();
+            String[] values = Cookbook.readFieldsOfUnknownSize(reader);
+            if (values.length > 0) {
+                result.add(values);
             }
         }
         return result;

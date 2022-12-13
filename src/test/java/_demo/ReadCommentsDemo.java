@@ -16,27 +16,33 @@
  */
 package _demo;
 
+import _test.Top5GridMonthly;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
-import java.io.StringWriter;
-
-import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * @author Philippe Charles
  */
-public class CsvWriterDemo {
+public class ReadCommentsDemo {
 
     public static void main(String[] args) throws IOException {
-        StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, result, DEFAULT_CHAR_BUFFER_SIZE)) {
-            writer.writeComment("This is a comment");
-            writer.writeField("hello");
-            writer.writeField("wo\"rld");
-            writer.writeEndOfLine();
-            writer.writeField("test");
+        try (Csv.Reader reader = Top5GridMonthly.open()) {
+            readComments(reader)
+                    .forEach(item -> System.out.println(Arrays.toString(item)));
         }
-        System.out.println(result);
+    }
+
+    private static List<String[]> readComments(Csv.Reader reader) throws IOException {
+        List<String[]> result = new ArrayList<>();
+        while (reader.readLine()) {
+            if (reader.isComment()) {
+                result.add(Cookbook.readFieldsOfUnknownSize(reader));
+            }
+        }
+        return result;
     }
 }

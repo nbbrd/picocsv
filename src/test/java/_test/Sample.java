@@ -30,8 +30,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
-
 /**
  * @author Philippe Charles
  */
@@ -60,13 +58,17 @@ public class Sample {
         return "Sample(name=" + name
                 + ", format=" + format
                 + ", content=" + StringEscapeUtils.escapeJava(content)
-                + ", rows=" + rows.stream().map(row -> "[" + row + "]").collect(Collectors.joining(","))
+                + ", rows=" + getRowsAsString()
                 + ", withoutEOL=" + withoutEOL
                 + ")";
     }
 
     public Description asDescription(String prefix) {
         return new TextDescription(prefix + " '%s'", getName());
+    }
+
+    public String getRowsAsString() {
+        return rows.stream().map(row -> "[" + row + "]").collect(Collectors.joining(","));
     }
 
     public static final class Builder {
@@ -291,7 +293,7 @@ public class Sample {
 
     private static String toContent(Csv.Format format, Row.Fields... rows) {
         StringWriter result = new StringWriter();
-        try (Csv.Writer writer = Csv.Writer.of(format, Csv.WriterOptions.DEFAULT, result, DEFAULT_CHAR_BUFFER_SIZE)) {
+        try (Csv.Writer writer = Csv.Writer.of(format, Csv.WriterOptions.DEFAULT, result)) {
             Row.writeAll(Arrays.asList(rows), writer);
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);

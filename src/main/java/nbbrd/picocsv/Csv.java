@@ -17,11 +17,35 @@
 package nbbrd.picocsv;
 
 import java.io.Closeable;
+import java.io.Flushable;
 import java.io.IOException;
 import java.util.Objects;
 
 /**
  * Lightweight CSV library for Java.
+ * <p>
+ * This Java library handles CSV content.<br>
+ * While directly usable, it is designed to be the core foundation of other libraries.
+ * <p>
+ * Key points:
+ * <ul>
+ * <li> lightweight library with no dependency
+ * <li> fast and efficient (no heap memory allocation)
+ * <li> designed to be embedded into other libraries as <a href="https://search.maven.org/artifact/com.github.nbbrd.picocsv/picocsv">an external dependency</a> or <a href="https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java">as a single-file source</a>
+ * <li> has a module-info that makes it compatible with <a href="https://www.baeldung.com/java-9-modularity">JPMS</a>
+ * <li> Java 7 minimum requirement
+ * </ul>
+ * <p>
+ * Features:
+ * <ul>
+ * <li> reads/writes CSV from/to character streams
+ * <li> provides a minimalist low-level API
+ * <li> does not interpret content
+ * <li> does not correct invalid files
+ * <li> follows the <a href="https://tools.ietf.org/html/rfc4180">RFC4180</a> specification
+ * <li> supports custom line separator
+ * <li> supports comment character
+ * </ul>
  *
  * @author Philippe Charles
  */
@@ -31,19 +55,36 @@ public final class Csv {
         // static class
     }
 
+    /**
+     * Default character buffer size used to read and write content.
+     */
     public static final int DEFAULT_CHAR_BUFFER_SIZE = 8192;
 
     /**
      * CSV format.
-     * <p>
-     * This format is used both by reader and writer
-     * but is independent of the source of data (stream or files).
+     * This format is used both by reader and writer but is independent of the source of data (stream or files).
      * Therefore, it doesn't deal with encoding.
+     *
+     * <p> This class is immutable and is created by a builder.
+     * <pre>
+     * Csv.Format tsv = Csv.Format.builder().delimiter('\t').build();
+     * </pre>
      */
     public static final class Format {
 
+        /**
+         * Default line separator for Windows OS.
+         */
         public static final String WINDOWS_SEPARATOR = "\r\n";
+
+        /**
+         * Default line separator for Unix and Unix-like OS.
+         */
         public static final String UNIX_SEPARATOR = "\n";
+
+        /**
+         * Default line separator for classic Mac OS.
+         */
         public static final String MACINTOSH_SEPARATOR = "\r";
 
         private static final String DEFAULT_SEPARATOR = WINDOWS_SEPARATOR;
@@ -76,7 +117,7 @@ public final class Csv {
         /**
          * Characters used to separate lines.
          * <p>
-         * The default value is "\r\n".
+         * The default value is <code>"\r\n"</code>.
          *
          * @return a non-null line separator
          * @see <a href="https://en.wikipedia.org/wiki/Newline">Newline</a>
@@ -88,7 +129,7 @@ public final class Csv {
         /**
          * Character used to delimit the values.
          * <p>
-         * The default value is ','.
+         * The default value is <code>','</code>.
          *
          * @return the delimiting character
          */
@@ -120,14 +161,14 @@ public final class Csv {
 
         /**
          * Checks if the current format is valid.
-         * <p>
-         * Validation rules:
+         *
+         * <p> Validation rules:
          * <ul>
          * <li>Separator has one or two chars
          * <li>delimiter != quote != separator chars
          * </ul>
          *
-         * @return true if valid, false otherwise
+         * @return <code>true</code> if valid, <code>false</code> otherwise
          */
         public boolean isValid() {
             return hasValidSize(separator)
@@ -181,6 +222,11 @@ public final class Csv {
                     + ')';
         }
 
+        /**
+         * Creates a new builder using this instance values.
+         *
+         * @return a non-null builder
+         */
         public Builder toBuilder() {
             return new Builder()
                     .separator(separator)
@@ -189,6 +235,11 @@ public final class Csv {
                     .comment(comment);
         }
 
+        /**
+         * Creates a new builder using the default values.
+         *
+         * @return a non-null builder
+         */
         public static Builder builder() {
             return DEFAULT.toBuilder();
         }
@@ -206,26 +257,55 @@ public final class Csv {
             private Builder() {
             }
 
+            /**
+             * Sets the {@link Format#getSeparator() separator} parameter of {@link Format}.
+             *
+             * @param separator a non-null string
+             * @return this builder
+             */
             public Builder separator(String separator) {
                 this.separator = separator;
                 return this;
             }
 
+            /**
+             * Sets the {@link Format#getDelimiter() delimiter} parameter of {@link Format}.
+             *
+             * @param delimiter a character
+             * @return this builder
+             */
             public Builder delimiter(char delimiter) {
                 this.delimiter = delimiter;
                 return this;
             }
 
+            /**
+             * Sets the {@link Format#getQuote() quote} parameter of {@link Format}.
+             *
+             * @param quote a character
+             * @return this builder
+             */
             public Builder quote(char quote) {
                 this.quote = quote;
                 return this;
             }
 
+            /**
+             * Sets the {@link Format#getComment() comment} parameter of {@link Format}.
+             *
+             * @param comment a character
+             * @return this builder
+             */
             public Builder comment(char comment) {
                 this.comment = comment;
                 return this;
             }
 
+            /**
+             * Creates a new instance of {@link Format}.
+             *
+             * @return a non-null new instance
+             */
             public Format build() {
                 return new Format(separator, delimiter, quote, comment);
             }
@@ -234,6 +314,12 @@ public final class Csv {
 
     /**
      * CSV reader options.
+     * Defines how the reader behaves.
+     *
+     * <p> This class is immutable and is created by a builder.
+     * <pre>
+     * Csv.ReaderOptions options = Csv.ReaderOptions.builder().lenientSeparator(false).build();
+     * </pre>
      */
     public static final class ReaderOptions {
 
@@ -270,9 +356,9 @@ public final class Csv {
          * a carriage return ('\r'), a carriage return followed immediately by a
          * line feed, or by reaching the end-of-file (EOF)"</i>.
          * <p>
-         * The default value is {@value ReaderOptions#DEFAULT_LENIENT_SEPARATOR}.
+         * The default value is <code>{@value ReaderOptions#DEFAULT_LENIENT_SEPARATOR}</code>.
          *
-         * @return true if lenient parsing of separator, false otherwise
+         * @return <code>true</code> if lenient parsing of separator, <code>false</code> otherwise
          */
         public boolean isLenientSeparator() {
             return lenientSeparator;
@@ -283,7 +369,7 @@ public final class Csv {
          * to avoid {@link java.lang.OutOfMemoryError} in case a file does not
          * have a valid format. This sets a limit which avoids unwanted JVM crashes.
          * <p>
-         * The default value is {@value ReaderOptions#DEFAULT_MAX_CHARS_PER_FIELD}.
+         * The default value is <code>{@value ReaderOptions#DEFAULT_MAX_CHARS_PER_FIELD}</code>.
          *
          * @return the maximum number of characters for a field
          */
@@ -299,7 +385,7 @@ public final class Csv {
          * <li>maximum number of characters for a field must be positive
          * </ul>
          *
-         * @return true if valid, false otherwise
+         * @return <code>true</code> if valid, <code>false</code> otherwise
          */
         public boolean isValid() {
             return maxCharsPerField > 0;
@@ -332,12 +418,22 @@ public final class Csv {
                     + ')';
         }
 
+        /**
+         * Creates a new builder using this instance values.
+         *
+         * @return a non-null builder
+         */
         public Builder toBuilder() {
             return new Builder()
                     .lenientSeparator(lenientSeparator)
                     .maxCharsPerField(maxCharsPerField);
         }
 
+        /**
+         * Creates a new builder using the default values.
+         *
+         * @return a non-null builder
+         */
         public static Builder builder() {
             return DEFAULT.toBuilder();
         }
@@ -353,16 +449,33 @@ public final class Csv {
             private Builder() {
             }
 
+            /**
+             * Sets the {@link ReaderOptions#isLenientSeparator() lenientSeparator} parameter of {@link ReaderOptions}.
+             *
+             * @param lenientSeparator <code>true</code> if lenient parsing of separator, <code>false</code> otherwise
+             * @return this builder
+             */
             public Builder lenientSeparator(boolean lenientSeparator) {
                 this.lenientSeparator = lenientSeparator;
                 return this;
             }
 
+            /**
+             * Sets the {@link ReaderOptions#getMaxCharsPerField() maxCharsPerField} parameter of {@link ReaderOptions}.
+             *
+             * @param maxCharsPerField the maximum number of characters for a field
+             * @return this builder
+             */
             public Builder maxCharsPerField(int maxCharsPerField) {
                 this.maxCharsPerField = maxCharsPerField;
                 return this;
             }
 
+            /**
+             * Creates a new instance of {@link ReaderOptions}.
+             *
+             * @return a non-null new instance
+             */
             public ReaderOptions build() {
                 return new ReaderOptions(lenientSeparator, maxCharsPerField);
             }
@@ -370,9 +483,62 @@ public final class Csv {
     }
 
     /**
-     * CSV reader.
+     * CSV line reader.
+     * This interface describes all the read operations available on a CSV line.
      */
-    public static final class Reader implements Closeable, CharSequence {
+    public interface LineReader extends CharSequence {
+
+        /**
+         * Reads the next field.
+         *
+         * @return <code>true</code> if not at the end of line, <code>false</code> otherwise
+         * @throws IOException if an I/O error occurs
+         */
+        boolean readField() throws IOException;
+
+        /**
+         * Check if the current line is a comment or not.
+         *
+         * @return <code>true</code> if the current line is a comment, <code>false</code> otherwise
+         */
+        boolean isComment();
+    }
+
+    /**
+     * CSV reader.
+     * Reads CSV from a character-input stream, buffering characters in order to provide efficient reading.
+     *
+     * <p> This class is created by a static factory method.
+     * <pre>
+     * try (java.io.Reader chars = ...; Csv.Reader csv = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, chars)) {
+     *   ...
+     * }
+     * </pre>
+     * While chaining streams on creation is possible, it is recommended to use the "try-with-resources with multiple resources" pattern instead.
+     * This ensures that the resources are properly closed on a class initialization failure.
+     *
+     * <p> The buffer size can be specified. Ideally, it should align with the underlying input
+     * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.<br>
+     * Note that the CSV reader maintains its own buffer so there is no need to create a {@link java.io.BufferedReader}.
+     *
+     * @see java.io.Reader
+     */
+    public static final class Reader implements LineReader, Closeable {
+
+        /**
+         * Creates a new instance from a char reader using the {@link #DEFAULT_CHAR_BUFFER_SIZE default char buffer size}.
+         *
+         * @param format     a non-null format
+         * @param options    a non-null options
+         * @param charReader a non-null char reader
+         * @return a new CSV reader
+         * @throws IllegalArgumentException if the format contains an invalid
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
+         */
+        public static Reader of(Format format, ReaderOptions options, java.io.Reader charReader) throws IllegalArgumentException, IOException {
+            return of(format, options, charReader, DEFAULT_CHAR_BUFFER_SIZE);
+        }
 
         /**
          * Creates a new instance from a char reader.
@@ -436,7 +602,7 @@ public final class Csv {
         /**
          * Reads the next line.
          *
-         * @return true if not at the end of file
+         * @return <code>true</code> if not at the end of file, <code>false</code> otherwise
          * @throws IOException if an I/O error occurs
          */
         public boolean readLine() throws IOException {
@@ -458,12 +624,7 @@ public final class Csv {
             }
         }
 
-        /**
-         * Reads the next field.
-         *
-         * @return true if not at the end of line
-         * @throws IOException if an I/O error occurs
-         */
+        @Override
         public boolean readField() throws IOException {
             switch (state) {
                 case STATE_LAST:
@@ -488,15 +649,16 @@ public final class Csv {
             }
         }
 
-        /**
-         * Check if the current field is a comment or not.
-         *
-         * @return true if the current field is a comment
-         */
+        @Override
         public boolean isComment() {
             return fieldType == FIELD_TYPE_COMMENTED;
         }
 
+        /**
+         * Closes the {@link java.io.Reader chararcter stream} used by this reader.
+         *
+         * @throws IOException if an I/O error occurs
+         */
         @Override
         public void close() throws IOException {
             input.close();
@@ -807,6 +969,12 @@ public final class Csv {
 
     /**
      * CSV writer options.
+     * Defines how the writer behaves.
+     *
+     * <p> This class is immutable and is created by a builder.
+     * <pre>
+     * Csv.WriterOptions options = Csv.WriterOptions.builder().build();
+     * </pre>
      */
     public static final class WriterOptions {
 
@@ -838,10 +1006,20 @@ public final class Csv {
             return "WriterOptions(" + ')';
         }
 
+        /**
+         * Creates a new builder using this instance values.
+         *
+         * @return a non-null builder
+         */
         public Builder toBuilder() {
             return new Builder();
         }
 
+        /**
+         * Creates a new builder using the default values.
+         *
+         * @return a non-null builder
+         */
         public static Builder builder() {
             return DEFAULT.toBuilder();
         }
@@ -854,6 +1032,11 @@ public final class Csv {
             private Builder() {
             }
 
+            /**
+             * Creates a new instance of {@link WriterOptions}.
+             *
+             * @return a non-null new instance
+             */
             public WriterOptions build() {
                 return new WriterOptions();
             }
@@ -861,9 +1044,63 @@ public final class Csv {
     }
 
     /**
-     * CSV writer.
+     * CSV line writer.
+     * This interface describes all the write operations available on a CSV line.
      */
-    public static final class Writer implements Closeable {
+    public interface LineWriter {
+
+        /**
+         * Writes a new comment. Null is handled as empty.
+         *
+         * @param comment a nullable field
+         * @throws IOException if an I/O error occurs
+         */
+        void writeComment(CharSequence comment) throws IOException;
+
+        /**
+         * Writes a new field. Null is handled as empty.
+         *
+         * @param field a nullable field
+         * @throws IOException if an I/O error occurs
+         */
+        void writeField(CharSequence field) throws IOException;
+    }
+
+    /**
+     * CSV writer.
+     * Writes text to a character-output stream, buffering characters in order to provide efficient writing.
+     *
+     * <p> This class is created by a static factory method.
+     * <pre>
+     * try (java.io.Writer chars = ...; Csv.Writer csv = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, chars)) {
+     *   ...
+     * }
+     * </pre>
+     * While chaining streams on creation is possible, it is recommended to use the "try-with-resources with multiple resources" pattern instead.
+     * This ensures that the resources are properly closed on a class initialization failure.
+     *
+     * <p> The buffer size can be specified. Ideally, it should align with the underlying output
+     * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.<br>
+     * Note that the CSV writer maintains its own buffer so there is no need to create a {@link java.io.BufferedWriter}.
+     *
+     * @see java.io.Writer
+     */
+    public static final class Writer implements LineWriter, Flushable, Closeable {
+
+        /**
+         * Creates a new instance from a char writer using the {@link #DEFAULT_CHAR_BUFFER_SIZE default char buffer size}.
+         *
+         * @param format     a non-null format
+         * @param options    a non-null options
+         * @param charWriter a non-null char writer
+         * @return a new CSV writer
+         * @throws IllegalArgumentException if the format contains an invalid
+         *                                  combination of options
+         * @throws IOException              if an I/O error occurs
+         */
+        public static Writer of(Format format, WriterOptions options, java.io.Writer charWriter) throws IllegalArgumentException, IOException {
+            return of(format, options, charWriter, DEFAULT_CHAR_BUFFER_SIZE);
+        }
 
         /**
          * Creates a new instance from a char writer.
@@ -907,12 +1144,7 @@ public final class Csv {
             this.eolEncoder = eolEncoder;
         }
 
-        /**
-         * Writes a new comment. Null comment is handled as empty.
-         *
-         * @param comment a nullable field
-         * @throws IOException if an I/O error occurs
-         */
+        @Override
         public void writeComment(CharSequence comment) throws IOException {
             if (state != STATE_NO_FIELD) {
                 writeEndOfLine();
@@ -941,12 +1173,7 @@ public final class Csv {
                     && eolEncoder.isNewLine(text.charAt(i + 1));
         }
 
-        /**
-         * Writes a new field. Null field is handled as empty.
-         *
-         * @param field a nullable field
-         * @throws IOException if an I/O error occurs
-         */
+        @Override
         public void writeField(CharSequence field) throws IOException {
             switch (state) {
                 case STATE_NO_FIELD: {
@@ -986,13 +1213,28 @@ public final class Csv {
          * @throws IOException if an I/O error occurs
          */
         public void writeEndOfLine() throws IOException {
-            flushField();
+            flush();
             eolEncoder.write(output);
         }
 
         @Override
+        public void flush() throws IOException {
+            if (state == STATE_SINGLE_EMPTY_FIELD) {
+                output.write(quote);
+                output.write(quote);
+            }
+            state = STATE_NO_FIELD;
+        }
+
+        /**
+         * Closes the {@link java.io.Writer character stream} used by this writer.
+         * The content is also flushed if needed before closing.
+         *
+         * @throws IOException if an I/O error occurs
+         */
+        @Override
         public void close() throws IOException {
-            flushField();
+            flush();
             output.close();
         }
 
@@ -1026,14 +1268,6 @@ public final class Csv {
                     output.write(quote);
                     break;
             }
-        }
-
-        private void flushField() throws IOException {
-            if (state == STATE_SINGLE_EMPTY_FIELD) {
-                output.write(quote);
-                output.write(quote);
-            }
-            state = STATE_NO_FIELD;
         }
 
         private int getQuoting(CharSequence field) {
