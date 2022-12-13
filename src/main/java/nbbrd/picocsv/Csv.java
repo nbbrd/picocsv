@@ -62,11 +62,13 @@ public final class Csv {
 
     /**
      * CSV format.
-     * This object is immutable.
-     * <p>
-     * This format is used both by reader and writer
-     * but is independent of the source of data (stream or files).
+     * This format is used both by reader and writer but is independent of the source of data (stream or files).
      * Therefore, it doesn't deal with encoding.
+     *
+     * <p> This class is immutable and is created by a builder.
+     * <pre>
+     * Csv.Format tsv = Csv.Format.builder().delimiter('\t').build();
+     * </pre>
      */
     public static final class Format {
 
@@ -312,7 +314,12 @@ public final class Csv {
 
     /**
      * CSV reader options.
-     * This object is immutable.
+     * Defines how the reader behaves.
+     *
+     * <p> This class is immutable and is created by a builder.
+     * <pre>
+     * Csv.ReaderOptions options = Csv.ReaderOptions.builder().lenientSeparator(false).build();
+     * </pre>
      */
     public static final class ReaderOptions {
 
@@ -501,8 +508,18 @@ public final class Csv {
      * CSV reader.
      * Reads CSV from a character-input stream, buffering characters in order to provide efficient reading.
      *
+     * <p> This class is created by a static factory method.
+     * <pre>
+     * try (java.io.Reader chars = ...; Csv.Reader csv = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, chars)) {
+     *   ...
+     * }
+     * </pre>
+     * While chaining streams on creation is possible, it is recommended to use the "try-with-resources with multiple resources" pattern instead.
+     * This ensures that the resources are properly closed on a class initialization failure.
+     *
      * <p> The buffer size can be specified. Ideally, it should align with the underlying input
-     * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.
+     * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.<br>
+     * Note that the CSV reader maintains its own buffer so there is no need to create a {@link java.io.BufferedReader}.
      *
      * @see java.io.Reader
      */
@@ -952,7 +969,12 @@ public final class Csv {
 
     /**
      * CSV writer options.
-     * This object is immutable.
+     * Defines how the writer behaves.
+     *
+     * <p> This class is immutable and is created by a builder.
+     * <pre>
+     * Csv.WriterOptions options = Csv.WriterOptions.builder().build();
+     * </pre>
      */
     public static final class WriterOptions {
 
@@ -1048,8 +1070,18 @@ public final class Csv {
      * CSV writer.
      * Writes text to a character-output stream, buffering characters in order to provide efficient writing.
      *
+     * <p> This class is created by a static factory method.
+     * <pre>
+     * try (java.io.Writer chars = ...; Csv.Writer csv = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, chars)) {
+     *   ...
+     * }
+     * </pre>
+     * While chaining streams on creation is possible, it is recommended to use the "try-with-resources with multiple resources" pattern instead.
+     * This ensures that the resources are properly closed on a class initialization failure.
+     *
      * <p> The buffer size can be specified. Ideally, it should align with the underlying output
-     * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.
+     * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.<br>
+     * Note that the CSV writer maintains its own buffer so there is no need to create a {@link java.io.BufferedWriter}.
      *
      * @see java.io.Writer
      */

@@ -32,8 +32,8 @@ Features:
 Basic reading of all fields skipping comments:
 
 ```java
-Reader reader = ...;
-try (Csv.Reader csv = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, reader)) {
+try (java.io.Reader chars = ...; 
+        Csv.Reader csv = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, chars)) {
   while (csv.readLine()) {
     if (!csv.isComment()) {
       while (csv.readField()) {
@@ -56,8 +56,8 @@ Csv.ReaderOptions strict = Csv.ReaderOptions.builder().lenientSeparator(false).b
 Basic writing of some fields and comments:
 
 ```java
-Writer writer = ...;
-try (Csv.Writer csv = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, writer)) {
+try (java.io.Writer chars = ...;
+        Csv.Writer csv = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, chars)) {
   csv.writeComment("Some comment");
   csv.writeField("Some field");
   csv.writeEndOfLine();
