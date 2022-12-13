@@ -17,6 +17,7 @@
 package nbbrd.picocsv;
 
 import java.io.Closeable;
+import java.io.Flushable;
 import java.io.IOException;
 import java.util.Objects;
 
@@ -498,9 +499,9 @@ public final class Csv {
 
     /**
      * CSV reader.
-     * Reads CSV from a character-input stream, buffering characters in order to provide for efficient reading.
+     * Reads CSV from a character-input stream, buffering characters in order to provide efficient reading.
      *
-     * <p> The buffer size must be specified. Ideally, it should align with the underlying input
+     * <p> The buffer size can be specified. Ideally, it should align with the underlying input
      * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.
      *
      * @see java.io.Reader
@@ -1047,12 +1048,12 @@ public final class Csv {
      * CSV writer.
      * Writes text to a character-output stream, buffering characters in order to provide efficient writing.
      *
-     * <p> The buffer size must be specified. Ideally, it should align with the underlying output
+     * <p> The buffer size can be specified. Ideally, it should align with the underlying output
      * but the {@link Csv#DEFAULT_CHAR_BUFFER_SIZE} should be ok for most usage.
      *
      * @see java.io.Writer
      */
-    public static final class Writer implements LineWriter, Closeable {
+    public static final class Writer implements LineWriter, Flushable, Closeable {
 
         /**
          * Creates a new instance from a char writer using the {@link #DEFAULT_CHAR_BUFFER_SIZE default char buffer size}.
@@ -1180,8 +1181,17 @@ public final class Csv {
          * @throws IOException if an I/O error occurs
          */
         public void writeEndOfLine() throws IOException {
-            flushField();
+            flush();
             eolEncoder.write(output);
+        }
+
+        @Override
+        public void flush() throws IOException {
+            if (state == STATE_SINGLE_EMPTY_FIELD) {
+                output.write(quote);
+                output.write(quote);
+            }
+            state = STATE_NO_FIELD;
         }
 
         /**
@@ -1192,7 +1202,7 @@ public final class Csv {
          */
         @Override
         public void close() throws IOException {
-            flushField();
+            flush();
             output.close();
         }
 
@@ -1226,14 +1236,6 @@ public final class Csv {
                     output.write(quote);
                     break;
             }
-        }
-
-        private void flushField() throws IOException {
-            if (state == STATE_SINGLE_EMPTY_FIELD) {
-                output.write(quote);
-                output.write(quote);
-            }
-            state = STATE_NO_FIELD;
         }
 
         private int getQuoting(CharSequence field) {

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `Csv.LineReader` and `Csv.LineWriter` to clarify API
 - Add simpler factories to `Csv.Reader` and `Csv.Writer`
+- Add `Flushable` interface to `Csv.Writer`
 
 ### Changed
 
