@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2022-12-14
+
+This is a bugfix release of **picocsv**.   
+picocsv follows [semantic versioning](https://semver.org/).
+
+### Fixed
+
+- Fix invalid byte code version of `package-info.java`
+
 ## [2.2.0] - 2022-12-13
 
 This is a feature release of **picocsv**.   
@@ -109,7 +118,8 @@ picocsv follows [semantic versioning](https://semver.org/).
 
 - Initial release
 
-[Unreleased]: https://github.com/nbbrd/picocsv/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/nbbrd/picocsv/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/nbbrd/picocsv/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/nbbrd/picocsv/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/nbbrd/picocsv/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/nbbrd/picocsv/compare/v1.3.0...v2.0.0
