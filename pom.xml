@@ -282,6 +282,11 @@
                                 <id>default-compile</id>
                                 <configuration>
                                     <release>9</release>
+                                    <excludes>
+                                        <!-- package-info.java is not recompiled as Java7 in the second step for an unknown reason -->
+                                        <!-- this workaround just forces the second compilation by avoiding the first one -->
+                                        <exclude>**/package-info.java</exclude>
+                                    </excludes>
                                 </configuration>
                             </execution>
                             <!-- Second: recompile all but module-info as Java7 -->

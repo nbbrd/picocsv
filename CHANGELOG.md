@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix invalid byte code version of `package-info.java`
+
 ## [2.2.0] - 2022-12-13
 
 This is a feature release of **picocsv**.   
