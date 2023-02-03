@@ -214,7 +214,7 @@
                 </property>
             </activation>
             <properties>
-                <lombok.version>1.18.24</lombok.version>
+                <lombok.version>1.18.26</lombok.version>
                 <jmh.version>1.36</jmh.version>
             </properties>
             <dependencyManagement>
