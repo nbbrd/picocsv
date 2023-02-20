@@ -56,7 +56,7 @@ jobs:
             $-jbang-
 
       - name: Create index.html
-        uses: jbangdev/jbang-action@v0.103.0
+        uses: jbangdev/jbang-action@v0.103.2
         with:
           trust: https://gist.github.com/charphi/
           script: https://gist.github.com/charphi/f44a24eb35dbd61b9f1d7759f0e561bd
