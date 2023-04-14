@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This is a bugfix release of **picocsv**.   
+picocsv follows [semantic versioning](https://semver.org/).
+
+### Fixed
+
+- Fix potential bugs related to system settings
+
 ## [2.2.1] - 2022-12-14
 
 This is a bugfix release of **picocsv**.   

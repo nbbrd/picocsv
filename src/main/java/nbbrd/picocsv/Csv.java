@@ -19,6 +19,7 @@ package nbbrd.picocsv;
 import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -1409,7 +1410,7 @@ public final class Csv {
 
     private static void requireArgument(boolean condition, String format, Object arg) throws IllegalArgumentException {
         if (!condition) {
-            throw new IllegalArgumentException(String.format(format, arg));
+            throw new IllegalArgumentException(String.format(Locale.ROOT, format, arg));
         }
     }
 
