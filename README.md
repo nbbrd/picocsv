@@ -13,7 +13,7 @@ Key points:
   as [an external dependency](https://search.maven.org/artifact/com.github.nbbrd.picocsv/picocsv)
   or [as a single-file source](https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java)
 - has a module-info that makes it compatible with [JPMS](https://www.baeldung.com/java-9-modularity)
-- Java 7 minimum requirement
+- Java 8 minimum requirement
 
 Features:
 

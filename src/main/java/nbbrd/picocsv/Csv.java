@@ -395,7 +395,7 @@ public final class Csv {
         @Override
         public int hashCode() {
             int hash = 7;
-            hash = 37 * hash + hashCodeOf(lenientSeparator);
+            hash = 37 * hash + Boolean.hashCode(lenientSeparator);
             hash = 37 * hash + this.maxCharsPerField;
             return hash;
         }
@@ -1412,11 +1412,6 @@ public final class Csv {
         if (!condition) {
             throw new IllegalArgumentException(String.format(Locale.ROOT, format, arg));
         }
-    }
-
-    // JDK8
-    private static int hashCodeOf(boolean value) {
-        return value ? 1231 : 1237;
     }
 
     private static String prettyPrint(String text) {

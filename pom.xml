@@ -304,9 +304,9 @@
             </build>
         </profile>
 
-        <!-- Run Java7 build with JPMS on JDK9+ -->
+        <!-- Run Java8 build with JPMS on JDK9+ -->
         <profile>
-            <id>java7-with-jpms</id>
+            <id>java8-with-jpms</id>
             <activation>
                 <jdk>[9,)</jdk>
             </activation>
@@ -327,22 +327,22 @@
                                 <configuration>
                                     <release>9</release>
                                     <excludes>
-                                        <!-- package-info.java is not recompiled as Java7 in the second step for an unknown reason -->
+                                        <!-- package-info.java is not recompiled as Java8 in the second step for an unknown reason -->
                                         <!-- this workaround just forces the second compilation by avoiding the first one -->
                                         <exclude>**/package-info.java</exclude>
                                     </excludes>
                                 </configuration>
                             </execution>
-                            <!-- Second: recompile all but module-info as Java7 -->
+                            <!-- Second: recompile all but module-info as Java8 -->
                             <execution>
                                 <id>base-compile</id>
                                 <goals>
                                     <goal>compile</goal>
                                 </goals>
                                 <configuration>
-                                    <source>7</source>
-                                    <target>7</target>
-                                    <release>7</release>
+                                    <source>8</source>
+                                    <target>8</target>
+                                    <release>8</release>
                                     <excludes>
                                         <exclude>module-info.java</exclude>
                                     </excludes>
@@ -439,7 +439,7 @@
                                         <banCircularDependencies/>
                                         <banDuplicateClasses/>
                                         <enforceBytecodeVersion>
-                                            <maxJdkVersion>7</maxJdkVersion>
+                                            <maxJdkVersion>8</maxJdkVersion>
                                             <ignoredScopes>
                                                 <ignoreScope>test</ignoreScope>
                                             </ignoredScopes>
@@ -468,7 +468,7 @@
                         <artifactId>modernizer-maven-plugin</artifactId>
                         <version>2.7.0</version>
                         <configuration>
-                            <javaVersion>1.7</javaVersion>
+                            <javaVersion>1.8</javaVersion>
                         </configuration>
                         <executions>
                             <execution>

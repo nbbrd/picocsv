@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Java 8 minimum requirement
+
 ## [2.2.2] - 2023-04-14
 
 This is a bugfix release of **picocsv**.   
