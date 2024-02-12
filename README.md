@@ -81,3 +81,24 @@ Maven setup:
     <version>LATEST_VERSION</version>
 </dependency>
 ```
+
+## Developing
+
+This project is written in Java and uses [Apache Maven](https://maven.apache.org/) as a build tool.  
+It requires [Java 8 as minimum version](https://whichjdk.com/) and all its dependencies are hosted on [Maven Central](https://search.maven.org/).
+
+The code can be build using any IDE or by just type-in the following commands in a terminal:
+
+```shell
+git clone https://github.com/nbbrd/picocsv.git
+cd picocsv
+mvn clean install
+```
+
+## Contributing
+
+Any contribution is welcome and should be done through pull requests and/or issues.
+
+## Licensing
+
+The code of this project is licensed under the [European Union Public Licence (EUPL)](https://joinup.ec.europa.eu/page/eupl-text-11-12).
