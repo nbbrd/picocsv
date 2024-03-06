@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -183,12 +183,19 @@ extends <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/Object.html
 </tr>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="Csv.Format.Builder.html" title="class in nbbrd.picocsv">Csv.Format.Builder</a></code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#missingFieldAllowed(boolean)">missingFieldAllowed</a></span>&#8203;(boolean&nbsp;missingFieldAllowed)</code></th>
+<td class="colLast">
+<div class="block">Sets the <a href="Csv.Format.html#isMissingFieldAllowed()"><code>Csv.Format.isMissingFieldAllowed()</code></a> () comment} parameter of <a href="Csv.Format.html" title="class in nbbrd.picocsv"><code>Csv.Format</code></a>.</div>
+</td>
+</tr>
+<tr id="i4" class="altColor">
+<td class="colFirst"><code><a href="Csv.Format.Builder.html" title="class in nbbrd.picocsv">Csv.Format.Builder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#quote(char)">quote</a></span>&#8203;(char&nbsp;quote)</code></th>
 <td class="colLast">
 <div class="block">Sets the <a href="Csv.Format.html#getQuote()"><code>quote</code></a> parameter of <a href="Csv.Format.html" title="class in nbbrd.picocsv"><code>Csv.Format</code></a>.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="Csv.Format.Builder.html" title="class in nbbrd.picocsv">Csv.Format.Builder</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#separator(java.lang.String)">separator</a></span>&#8203;(<a href="https://docs.oracle.com/javase/9/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang" class="externalLink">String</a>&nbsp;separator)</code></th>
 <td class="colLast">
@@ -278,6 +285,22 @@ extends <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/Object.html
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>comment</code> - a character</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>this builder</dd>
+</dl>
+</li>
+</ul>
+<a id="missingFieldAllowed(boolean)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>missingFieldAllowed</h4>
+<pre class="methodSignature">public&nbsp;<a href="Csv.Format.Builder.html" title="class in nbbrd.picocsv">Csv.Format.Builder</a>&nbsp;missingFieldAllowed&#8203;(boolean&nbsp;missingFieldAllowed)</pre>
+<div class="block">Sets the <a href="Csv.Format.html#isMissingFieldAllowed()"><code>Csv.Format.isMissingFieldAllowed()</code></a> () comment} parameter of <a href="Csv.Format.html" title="class in nbbrd.picocsv"><code>Csv.Format</code></a>.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>missingFieldAllowed</code> - a boolean</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>this builder</dd>
 </dl>
