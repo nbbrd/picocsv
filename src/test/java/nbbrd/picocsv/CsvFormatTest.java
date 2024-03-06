@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
  */
 public class CsvFormatTest {
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     @Test
     public void testFactories() {
         assertThatNullPointerException()
@@ -45,6 +46,9 @@ public class CsvFormatTest {
 
         assertThat(Csv.Format.builder().comment('e').build().getComment())
                 .isEqualTo('e');
+
+        assertThat(Csv.Format.builder().missingFieldAllowed(false).build().isMissingFieldAllowed())
+                .isEqualTo(false);
     }
 
     @Test
@@ -66,6 +70,7 @@ public class CsvFormatTest {
                 .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().quote('x').build())
                 .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().separator(Csv.Format.MACINTOSH_SEPARATOR).build())
                 .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().comment('x').build())
+                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().missingFieldAllowed(false).build())
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
 
@@ -79,7 +84,7 @@ public class CsvFormatTest {
         assertThat(Csv.Format.DEFAULT.toString())
                 .isEqualTo(Csv.Format.DEFAULT.toString())
                 .isNotEqualTo(other.toString())
-                .isEqualTo("Format(separator=\\r\\n, delimiter=,, quote=\\\", comment=#)");
+                .isEqualTo("Format(separator=\\r\\n, delimiter=,, quote=\\\", comment=#, missingFieldAllowed=true)");
 
         for (char c : Sample.SPECIAL_CHARS) {
             assertThat(Csv.Format.builder().delimiter(c).build().toString())

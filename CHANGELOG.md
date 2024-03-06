@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Format#missingFieldAllowed` option to follow the RFC4180 spec closely [#208](https://github.com/nbbrd/picocsv/issues/208)
+
 ### Changed
 
 - Java 8 minimum requirement

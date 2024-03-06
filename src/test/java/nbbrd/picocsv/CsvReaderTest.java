@@ -154,6 +154,33 @@ public class CsvReaderTest {
     }
 
     @Test
+    void testEveryLineHasAtLeastOneField() throws IOException {
+        String csv = "A\r\n"
+                + "\r\n"
+                + "B\r\n";
+
+        Csv.Format validRFC4180 = RFC4180.toBuilder().missingFieldAllowed(false).build();
+        try (Csv.Reader reader = Csv.Reader.of(validRFC4180, Csv.ReaderOptions.DEFAULT, new StringReader(csv))) {
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue();
+            assertThat(reader.toString()).isEqualTo("A");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue(); // here
+            assertThat(reader).hasToString("");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue();
+            assertThat(reader.toString()).isEqualTo("B");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isFalse();
+        }
+    }
+
+    @Test
     public void testEmptyFirstField() {
         assertThat(Sample
                 .builder()

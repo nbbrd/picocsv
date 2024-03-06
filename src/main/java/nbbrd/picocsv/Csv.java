@@ -92,11 +92,12 @@ public final class Csv {
         private static final char DEFAULT_DELIMITER = ',';
         private static final char DEFAULT_QUOTE = '"';
         private static final char DEFAULT_COMMENT = '#';
+        private static final boolean DEFAULT_MISSING_FIELD_ALLOWED = true;
 
         /**
          * Predefined format as defined by <a href="https://tools.ietf.org/html/rfc4180">RFC 4180</a>.
          */
-        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE, DEFAULT_COMMENT);
+        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE, DEFAULT_COMMENT, DEFAULT_MISSING_FIELD_ALLOWED);
 
         /**
          * Predefined format as alias to {@link Format#RFC4180}.
@@ -107,12 +108,14 @@ public final class Csv {
         private final char delimiter;
         private final char quote;
         private final char comment;
+        private final boolean missingFieldAllowed;
 
-        private Format(String separator, char delimiter, char quote, char comment) {
+        private Format(String separator, char delimiter, char quote, char comment, boolean missingFieldAllowed) {
             this.separator = Objects.requireNonNull(separator, "separator");
             this.delimiter = delimiter;
             this.quote = quote;
             this.comment = comment;
+            this.missingFieldAllowed = missingFieldAllowed;
         }
 
         /**
@@ -161,6 +164,15 @@ public final class Csv {
         }
 
         /**
+         * Determines if missing field is allowed in a record.
+         *
+         * @return <code>true</code> if missing field is allowed, <code>false</code> otherwise
+         */
+        public boolean isMissingFieldAllowed() {
+            return missingFieldAllowed;
+        }
+
+        /**
          * Checks if the current format is valid.
          *
          * <p> Validation rules:
@@ -197,6 +209,7 @@ public final class Csv {
             hash = 37 * hash + this.delimiter;
             hash = 37 * hash + this.quote;
             hash = 37 * hash + this.comment;
+            hash = 37 * hash + (this.missingFieldAllowed ? 1 : 0);
             return hash;
         }
 
@@ -210,6 +223,7 @@ public final class Csv {
             if (this.delimiter != other.delimiter) return false;
             if (this.quote != other.quote) return false;
             if (this.comment != other.comment) return false;
+            if (this.missingFieldAllowed != other.missingFieldAllowed) return false;
             return true;
         }
 
@@ -220,6 +234,7 @@ public final class Csv {
                     + ", delimiter=" + prettyPrint(delimiter)
                     + ", quote=" + prettyPrint(quote)
                     + ", comment=" + prettyPrint(comment)
+                    + ", missingFieldAllowed=" + missingFieldAllowed
                     + ')';
         }
 
@@ -233,7 +248,8 @@ public final class Csv {
                     .separator(separator)
                     .delimiter(delimiter)
                     .quote(quote)
-                    .comment(comment);
+                    .comment(comment)
+                    .missingFieldAllowed(missingFieldAllowed);
         }
 
         /**
@@ -254,6 +270,7 @@ public final class Csv {
             private char delimiter;
             private char quote;
             private char comment;
+            private boolean missingFieldAllowed;
 
             private Builder() {
             }
@@ -303,12 +320,23 @@ public final class Csv {
             }
 
             /**
+             * Sets the {@link Format#isMissingFieldAllowed()} () comment} parameter of {@link Format}.
+             *
+             * @param missingFieldAllowed a boolean
+             * @return this builder
+             */
+            public Builder missingFieldAllowed(boolean missingFieldAllowed) {
+                this.missingFieldAllowed = missingFieldAllowed;
+                return this;
+            }
+
+            /**
              * Creates a new instance of {@link Format}.
              *
              * @return a non-null new instance
              */
             public Format build() {
-                return new Format(separator, delimiter, quote, comment);
+                return new Format(separator, delimiter, quote, comment, missingFieldAllowed);
             }
         }
     }
@@ -565,7 +593,7 @@ public final class Csv {
 
             return new Reader(
                     ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBuffer) : new Input(charReader, charBuffer),
-                    format.getQuote(), format.getDelimiter(), format.getComment(),
+                    format.getQuote(), format.getDelimiter(), format.getComment(), format.isMissingFieldAllowed(),
                     EndOfLineDecoder.of(format, options),
                     new char[options.getMaxCharsPerField()]);
         }
@@ -574,6 +602,7 @@ public final class Csv {
         private final int quoteCode;
         private final int delimiterCode;
         private final int commentCode;
+        private final boolean missingFieldAllowed;
         private final EndOfLineDecoder eolDecoder;
         private final char[] fieldChars;
 
@@ -582,11 +611,12 @@ public final class Csv {
         private int state = STATE_READY;
         private boolean firstField = false;
 
-        private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, EndOfLineDecoder eolDecoder, char[] fieldChars) {
+        private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, boolean missingFieldAllowed, EndOfLineDecoder eolDecoder, char[] fieldChars) {
             this.input = input;
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
             this.commentCode = commentCode;
+            this.missingFieldAllowed = missingFieldAllowed;
             this.eolDecoder = eolDecoder;
             this.fieldChars = fieldChars;
         }
@@ -631,7 +661,7 @@ public final class Csv {
                 case STATE_LAST:
                     if (firstField) {
                         firstField = false;
-                        return isFieldNotNull();
+                        return hasFirstField();
                     }
                     return false;
                 case STATE_NOT_LAST:
@@ -805,8 +835,8 @@ public final class Csv {
             }
         }
 
-        private boolean isFieldNotNull() {
-            return fieldLength > 0 || fieldType != FIELD_TYPE_NORMAL;
+        private boolean hasFirstField() {
+            return !missingFieldAllowed || fieldLength > 0 || fieldType != FIELD_TYPE_NORMAL;
         }
 
         @Override
