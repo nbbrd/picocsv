@@ -20,7 +20,7 @@ import _benchmark.de.siegmar.csvbenchmark.Constant;
 import _benchmark.de.siegmar.csvbenchmark.util.InfiniteDataReader;
 import de.siegmar.fastcsv.reader.CloseableIterator;
 import de.siegmar.fastcsv.reader.CsvReader;
-import de.siegmar.fastcsv.reader.CsvRow;
+import de.siegmar.fastcsv.reader.CsvRecord;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -38,15 +38,15 @@ public class FastCsvBenchmark {
     @State(Scope.Benchmark)
     public static class ReadState {
 
-        CloseableIterator<CsvRow> input;
+        CloseableIterator<CsvRecord> input;
 
         @Setup
         public void setup() throws IOException {
             input = CsvReader.builder()
                     .fieldSeparator(Constant.SEPARATOR)
                     .quoteCharacter(Constant.DELIMITER)
-                    .skipEmptyRows(false)
-                    .build(new InfiniteDataReader(Constant.data))
+                    .skipEmptyLines(false)
+                    .ofCsvRecord(new InfiniteDataReader(Constant.data))
                     .iterator();
         }
 

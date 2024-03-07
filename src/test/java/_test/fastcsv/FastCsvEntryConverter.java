@@ -4,7 +4,7 @@ import _test.Row;
 import _test.Sample;
 import de.siegmar.fastcsv.reader.CommentStrategy;
 import de.siegmar.fastcsv.reader.CsvReader;
-import de.siegmar.fastcsv.reader.CsvRow;
+import de.siegmar.fastcsv.reader.CsvRecord;
 import nbbrd.picocsv.Csv;
 
 import java.io.StringReader;
@@ -58,17 +58,17 @@ public class FastCsvEntryConverter {
 
         return CsvReader
                 .builder()
-                .skipEmptyRows(skipEmptyLines)
+                .skipEmptyLines(skipEmptyLines)
                 .fieldSeparator('↷')
                 .commentCharacter(';')
                 .commentStrategy(commentStrategy)
-                .build(new StringReader(content))
+                .ofCsvRecord(new StringReader(content))
                 .stream()
                 .map(FastCsvEntryConverter::toRow)
                 .collect(Collectors.toList());
     }
 
-    private static Row.Fields toRow(CsvRow row) {
+    private static Row.Fields toRow(CsvRecord row) {
         return new Row.Fields(row.getFields().stream().map(field -> toContent(field).replace('x', '\"')).collect(Collectors.toList()));
     }
 
