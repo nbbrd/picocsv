@@ -607,9 +607,8 @@ public final class Csv {
         private final char[] fieldChars;
 
         private int fieldLength = 0;
-        private int fieldType = FIELD_TYPE_NORMAL;
-        private int state = STATE_READY;
-        private boolean firstField = false;
+        private byte fieldType = FIELD_TYPE_NORMAL;
+        private byte state = STATE_READY;
 
         private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, boolean missingFieldAllowed, EndOfLineDecoder eolDecoder, char[] fieldChars) {
             this.input = input;
@@ -621,14 +620,17 @@ public final class Csv {
             this.fieldChars = fieldChars;
         }
 
-        private static final int STATE_READY = 0;
-        private static final int STATE_NOT_LAST = 1;
-        private static final int STATE_LAST = 2;
-        private static final int STATE_DONE = 3;
+        private static final byte STATE_READY = 0;
+        private static final byte STATE_FIRST = 1;
+        private static final byte STATE_NOT_LAST = 2;
+        private static final byte STATE_LAST = 3;
+        private static final byte STATE_SINGLE = 4;
+        private static final byte STATE_MISSING = 5;
+        private static final byte STATE_DONE = 6;
 
-        private static final int FIELD_TYPE_NORMAL = 0;
-        private static final int FIELD_TYPE_QUOTED = 1;
-        private static final int FIELD_TYPE_COMMENTED = 2;
+        private static final byte FIELD_TYPE_NORMAL = 0;
+        private static final byte FIELD_TYPE_QUOTED = 1;
+        private static final byte FIELD_TYPE_COMMENTED = 2;
 
         /**
          * Reads the next line.
@@ -641,13 +643,16 @@ public final class Csv {
                 case STATE_DONE:
                     return false;
                 case STATE_READY:
+                case STATE_SINGLE:
+                case STATE_MISSING:
                 case STATE_LAST: {
-                    parseFirstField();
+                    parseNextField(true);
                     return state != STATE_DONE;
                 }
+                case STATE_FIRST:
                 case STATE_NOT_LAST: {
                     skipRemainingFields();
-                    parseFirstField();
+                    parseNextField(true);
                     return state != STATE_DONE;
                 }
                 default:
@@ -658,21 +663,19 @@ public final class Csv {
         @Override
         public boolean readField() throws IOException {
             switch (state) {
-                case STATE_LAST:
-                    if (firstField) {
-                        firstField = false;
-                        return hasFirstField();
-                    }
-                    return false;
-                case STATE_NOT_LAST:
-                    if (firstField) {
-                        firstField = false;
-                        return true;
-                    }
-                    parseNextField();
+                case STATE_SINGLE:
+                    state = STATE_LAST;
                     return true;
+                case STATE_MISSING:
+                case STATE_LAST:
                 case STATE_DONE:
                     return false;
+                case STATE_FIRST:
+                    state = STATE_NOT_LAST;
+                    return true;
+                case STATE_NOT_LAST:
+                    parseNextField(false);
+                    return true;
                 case STATE_READY:
                     throw new IllegalStateException();
                 default:
@@ -696,24 +699,18 @@ public final class Csv {
         }
 
         private void skipRemainingFields() throws IOException {
-            firstField = false;
             do {
-                parseNextField();
+                parseNextField(false);
             } while (state == STATE_NOT_LAST);
-        }
-
-        private void parseFirstField() throws IOException {
-            firstField = true;
-            parseNextField();
         }
 
         // WARNING: main loop; lots of duplication to maximize performances
         // WARNING: comparing ints more performant than comparing chars
         // WARNING: local var access slightly quicker that field access
-        private void parseNextField() throws IOException {
+        private void parseNextField(final boolean firstField) throws IOException {
             int fieldLength = this.fieldLength;
-            int fieldType = this.fieldType;
-            int state = this.state;
+            byte fieldType = this.fieldType;
+            byte state = this.state;
 
             try {
                 final int quoteCode = this.quoteCode;
@@ -735,10 +732,10 @@ public final class Csv {
                     } else {
                         /*-end-of-field-*/
                         if (code == delimiterCode) {
-                            state = STATE_NOT_LAST;
+                            state = firstField ? STATE_FIRST : STATE_NOT_LAST;
                             return;
                         } else if (eolDecoder.isEndOfLine(code, input)) {
-                            state = STATE_LAST;
+                            state = firstField ? (missingFieldAllowed ? STATE_MISSING : STATE_SINGLE) : STATE_LAST;
                             return;
                         }
                         /*-append-*/
@@ -758,10 +755,10 @@ public final class Csv {
                         while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                             /*-end-of-field-*/
                             if (code == delimiterCode) {
-                                state = STATE_NOT_LAST;
+                                state = firstField ? STATE_FIRST : STATE_NOT_LAST;
                                 return;
                             } else if (eolDecoder.isEndOfLine(code, input)) {
-                                state = STATE_LAST;
+                                state = firstField ? STATE_SINGLE : STATE_LAST;
                                 return;
                             }
                             /*-append-*/
@@ -769,7 +766,7 @@ public final class Csv {
                         }
                         // EOF
                         {
-                            state = fieldLength > 0 ? STATE_LAST : STATE_DONE;
+                            state = fieldLength > 0 ? (firstField ? STATE_SINGLE : STATE_LAST) : STATE_DONE;
                             return;
                         }
                     }
@@ -789,10 +786,10 @@ public final class Csv {
                                 if (escaped) {
                                     /*-end-of-field-*/
                                     if (code == delimiterCode) {
-                                        state = STATE_NOT_LAST;
+                                        state = firstField ? STATE_FIRST : STATE_NOT_LAST;
                                         return;
                                     } else if (eolDecoder.isEndOfLine(code, input)) {
-                                        state = STATE_LAST;
+                                        state = firstField ? STATE_SINGLE : STATE_LAST;
                                         return;
                                     }
                                 }
@@ -802,7 +799,7 @@ public final class Csv {
                         }
                         // EOF
                         {
-                            state = STATE_LAST;
+                            state = firstField ? STATE_SINGLE : STATE_LAST;
                             return;
                         }
                     }
@@ -810,7 +807,7 @@ public final class Csv {
                         // [Step 2C]: subsequent comment chars
                         while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                             if (eolDecoder.isEndOfLine(code, input)) {
-                                state = STATE_LAST;
+                                state = STATE_SINGLE;
                                 return;
                             }
                             /*-append-*/
@@ -818,7 +815,7 @@ public final class Csv {
                         }
                         // EOF
                         {
-                            state = STATE_LAST;
+                            state = STATE_SINGLE;
                             return;
                         }
                     }
@@ -833,10 +830,6 @@ public final class Csv {
                 this.fieldType = fieldType;
                 this.state = state;
             }
-        }
-
-        private boolean hasFirstField() {
-            return !missingFieldAllowed || fieldLength > 0 || fieldType != FIELD_TYPE_NORMAL;
         }
 
         @Override
