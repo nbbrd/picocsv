@@ -159,7 +159,7 @@ public class CsvReaderTest {
                 + "\r\n"
                 + "B\r\n";
 
-        Csv.Format validRFC4180 = RFC4180.toBuilder().missingFieldAllowed(false).build();
+        Csv.Format validRFC4180 = RFC4180.toBuilder().acceptMissingField(false).build();
         try (Csv.Reader reader = Csv.Reader.of(validRFC4180, Csv.ReaderOptions.DEFAULT, new StringReader(csv))) {
             assertThat(reader.readLine()).isTrue();
             assertThat(reader.readField()).isTrue();

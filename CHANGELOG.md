@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `Format#missingFieldAllowed` option to follow the RFC4180 spec closely [#208](https://github.com/nbbrd/picocsv/issues/208)
+- Add `Format#acceptMissingField` option to follow the RFC4180 spec closely [#208](https://github.com/nbbrd/picocsv/issues/208)
 
 ### Changed
 

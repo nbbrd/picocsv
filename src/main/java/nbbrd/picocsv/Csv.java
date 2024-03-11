@@ -108,14 +108,14 @@ public final class Csv {
         private final char delimiter;
         private final char quote;
         private final char comment;
-        private final boolean missingFieldAllowed;
+        private final boolean acceptMissingField;
 
-        private Format(String separator, char delimiter, char quote, char comment, boolean missingFieldAllowed) {
+        private Format(String separator, char delimiter, char quote, char comment, boolean acceptMissingField) {
             this.separator = Objects.requireNonNull(separator, "separator");
             this.delimiter = delimiter;
             this.quote = quote;
             this.comment = comment;
-            this.missingFieldAllowed = missingFieldAllowed;
+            this.acceptMissingField = acceptMissingField;
         }
 
         /**
@@ -164,12 +164,12 @@ public final class Csv {
         }
 
         /**
-         * Determines if missing field is allowed in a record.
+         * Determines if missing field is accepted in a record.
          *
-         * @return <code>true</code> if missing field is allowed, <code>false</code> otherwise
+         * @return <code>true</code> if missing field is accepted, <code>false</code> otherwise
          */
-        public boolean isMissingFieldAllowed() {
-            return missingFieldAllowed;
+        public boolean isAcceptMissingField() {
+            return acceptMissingField;
         }
 
         /**
@@ -209,7 +209,7 @@ public final class Csv {
             hash = 37 * hash + this.delimiter;
             hash = 37 * hash + this.quote;
             hash = 37 * hash + this.comment;
-            hash = 37 * hash + (this.missingFieldAllowed ? 1 : 0);
+            hash = 37 * hash + (this.acceptMissingField ? 1 : 0);
             return hash;
         }
 
@@ -223,7 +223,7 @@ public final class Csv {
             if (this.delimiter != other.delimiter) return false;
             if (this.quote != other.quote) return false;
             if (this.comment != other.comment) return false;
-            if (this.missingFieldAllowed != other.missingFieldAllowed) return false;
+            if (this.acceptMissingField != other.acceptMissingField) return false;
             return true;
         }
 
@@ -234,7 +234,7 @@ public final class Csv {
                     + ", delimiter=" + prettyPrint(delimiter)
                     + ", quote=" + prettyPrint(quote)
                     + ", comment=" + prettyPrint(comment)
-                    + ", missingFieldAllowed=" + missingFieldAllowed
+                    + ", acceptMissingField=" + acceptMissingField
                     + ')';
         }
 
@@ -249,7 +249,7 @@ public final class Csv {
                     .delimiter(delimiter)
                     .quote(quote)
                     .comment(comment)
-                    .missingFieldAllowed(missingFieldAllowed);
+                    .acceptMissingField(acceptMissingField);
         }
 
         /**
@@ -270,7 +270,7 @@ public final class Csv {
             private char delimiter;
             private char quote;
             private char comment;
-            private boolean missingFieldAllowed;
+            private boolean acceptMissingField;
 
             private Builder() {
             }
@@ -320,13 +320,13 @@ public final class Csv {
             }
 
             /**
-             * Sets the {@link Format#isMissingFieldAllowed()} () comment} parameter of {@link Format}.
+             * Sets the {@link Format#isAcceptMissingField()} () comment} parameter of {@link Format}.
              *
-             * @param missingFieldAllowed a boolean
+             * @param acceptMissingField a boolean
              * @return this builder
              */
-            public Builder missingFieldAllowed(boolean missingFieldAllowed) {
-                this.missingFieldAllowed = missingFieldAllowed;
+            public Builder acceptMissingField(boolean acceptMissingField) {
+                this.acceptMissingField = acceptMissingField;
                 return this;
             }
 
@@ -336,7 +336,7 @@ public final class Csv {
              * @return a non-null new instance
              */
             public Format build() {
-                return new Format(separator, delimiter, quote, comment, missingFieldAllowed);
+                return new Format(separator, delimiter, quote, comment, acceptMissingField);
             }
         }
     }
@@ -593,7 +593,7 @@ public final class Csv {
 
             return new Reader(
                     ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBuffer) : new Input(charReader, charBuffer),
-                    format.getQuote(), format.getDelimiter(), format.getComment(), format.isMissingFieldAllowed(),
+                    format.getQuote(), format.getDelimiter(), format.getComment(), format.isAcceptMissingField(),
                     EndOfLineDecoder.of(format, options),
                     new char[options.getMaxCharsPerField()]);
         }
@@ -610,12 +610,12 @@ public final class Csv {
         private byte fieldType = FIELD_TYPE_NORMAL;
         private byte state = STATE_0_READY;
 
-        private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, boolean missingFieldAllowed, EndOfLineDecoder eolDecoder, char[] fieldChars) {
+        private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, boolean acceptMissingField, EndOfLineDecoder eolDecoder, char[] fieldChars) {
             this.input = input;
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
             this.commentCode = commentCode;
-            this.emptyLineState = missingFieldAllowed ? STATE_5_MISSING : STATE_4_SINGLE;
+            this.emptyLineState = acceptMissingField ? STATE_5_MISSING : STATE_4_SINGLE;
             this.eolDecoder = eolDecoder;
             this.fieldChars = fieldChars;
         }

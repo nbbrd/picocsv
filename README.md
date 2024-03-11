@@ -25,6 +25,9 @@ Features:
 - supports custom line separator
 - supports comment character
 
+⚠️ _Note that the `Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.  
+The default value is currently `true` but will be reversed in the next major release._
+
 ## Examples
 
 ### Read examples

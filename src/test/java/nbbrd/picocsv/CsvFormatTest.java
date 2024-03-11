@@ -47,7 +47,7 @@ public class CsvFormatTest {
         assertThat(Csv.Format.builder().comment('e').build().getComment())
                 .isEqualTo('e');
 
-        assertThat(Csv.Format.builder().missingFieldAllowed(false).build().isMissingFieldAllowed())
+        assertThat(Csv.Format.builder().acceptMissingField(false).build().isAcceptMissingField())
                 .isEqualTo(false);
     }
 
@@ -70,7 +70,7 @@ public class CsvFormatTest {
                 .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().quote('x').build())
                 .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().separator(Csv.Format.MACINTOSH_SEPARATOR).build())
                 .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().comment('x').build())
-                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().missingFieldAllowed(false).build())
+                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().acceptMissingField(false).build())
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
 
@@ -84,7 +84,7 @@ public class CsvFormatTest {
         assertThat(Csv.Format.DEFAULT.toString())
                 .isEqualTo(Csv.Format.DEFAULT.toString())
                 .isNotEqualTo(other.toString())
-                .isEqualTo("Format(separator=\\r\\n, delimiter=,, quote=\\\", comment=#, missingFieldAllowed=true)");
+                .isEqualTo("Format(separator=\\r\\n, delimiter=,, quote=\\\", comment=#, acceptMissingField=true)");
 
         for (char c : Sample.SPECIAL_CHARS) {
             assertThat(Csv.Format.builder().delimiter(c).build().toString())
