@@ -48,7 +48,7 @@ import java.util.Objects;
  * <li> supports comment character
  * </ul>
  *
- * ⚠️ <i></i>Note that the <code>Format#acceptMissingField</code> option must be set to <code>false</code> to closely follow the RFC4180 specification.
+ * ⚠️ <i>Note that the <code>Format#acceptMissingField</code> option must be set to <code>false</code> to closely follow the RFC4180 specification.
  * The default value is currently <code>true</code> but will be reversed in the next major release.</i>
  *
  * @author Philippe Charles
@@ -431,6 +431,7 @@ public final class Csv {
             return hash;
         }
 
+        @SuppressWarnings("RedundantIfStatement")
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
@@ -1047,12 +1048,14 @@ public final class Csv {
         private WriterOptions() {
         }
 
+        @SuppressWarnings("UnnecessaryLocalVariable")
         @Override
         public int hashCode() {
             int hash = 7;
             return hash;
         }
 
+        @SuppressWarnings("unused")
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;

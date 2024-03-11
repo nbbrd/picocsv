@@ -1,5 +1,6 @@
 package _test;
 
+import lombok.EqualsAndHashCode;
 import nbbrd.picocsv.Csv;
 import org.apache.commons.text.StringEscapeUtils;
 
@@ -16,6 +17,7 @@ public abstract class Row {
     private Row() {
     }
 
+    @EqualsAndHashCode(callSuper = false)
     @lombok.Value
     public static class Empty extends Row {
 
@@ -25,6 +27,7 @@ public abstract class Row {
         }
     }
 
+    @EqualsAndHashCode(callSuper = false)
     @lombok.Value
     public static class Comment extends Row {
 
@@ -37,6 +40,7 @@ public abstract class Row {
         }
     }
 
+    @EqualsAndHashCode(callSuper = false)
     @lombok.Value
     public static class Fields extends Row {
 
