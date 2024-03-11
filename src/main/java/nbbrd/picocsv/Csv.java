@@ -34,7 +34,7 @@ import java.util.Objects;
  * <li> fast and efficient (no heap memory allocation)
  * <li> designed to be embedded into other libraries as <a href="https://search.maven.org/artifact/com.github.nbbrd.picocsv/picocsv">an external dependency</a> or <a href="https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java">as a single-file source</a>
  * <li> has a module-info that makes it compatible with <a href="https://www.baeldung.com/java-9-modularity">JPMS</a>
- * <li> Java 7 minimum requirement
+ * <li> Java 8 minimum requirement
  * </ul>
  * <p>
  * Features:
@@ -47,6 +47,9 @@ import java.util.Objects;
  * <li> supports custom line separator
  * <li> supports comment character
  * </ul>
+ *
+ * ⚠️ <i></i>Note that the <code>Format#acceptMissingField</code> option must be set to <code>false</code> to closely follow the RFC4180 specification.
+ * The default value is currently <code>true</code> but will be reversed in the next major release.</i>
  *
  * @author Philippe Charles
  */
@@ -92,12 +95,12 @@ public final class Csv {
         private static final char DEFAULT_DELIMITER = ',';
         private static final char DEFAULT_QUOTE = '"';
         private static final char DEFAULT_COMMENT = '#';
-        private static final boolean DEFAULT_MISSING_FIELD_ALLOWED = true;
+        private static final boolean DEFAULT_ACCEPT_MISSING_FIELD = true;
 
         /**
          * Predefined format as defined by <a href="https://tools.ietf.org/html/rfc4180">RFC 4180</a>.
          */
-        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE, DEFAULT_COMMENT, DEFAULT_MISSING_FIELD_ALLOWED);
+        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE, DEFAULT_COMMENT, DEFAULT_ACCEPT_MISSING_FIELD);
 
         /**
          * Predefined format as alias to {@link Format#RFC4180}.
