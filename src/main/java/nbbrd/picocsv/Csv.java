@@ -602,7 +602,7 @@ public final class Csv {
         private final int quoteCode;
         private final int delimiterCode;
         private final int commentCode;
-        private final boolean missingFieldAllowed;
+        private final byte emptyLineState;
         private final EndOfLineDecoder eolDecoder;
         private final char[] fieldChars;
 
@@ -615,7 +615,7 @@ public final class Csv {
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
             this.commentCode = commentCode;
-            this.missingFieldAllowed = missingFieldAllowed;
+            this.emptyLineState = missingFieldAllowed ? STATE_5_MISSING : STATE_4_SINGLE;
             this.eolDecoder = eolDecoder;
             this.fieldChars = fieldChars;
         }
@@ -765,56 +765,14 @@ public final class Csv {
 
                 fieldLength = 0;
 
-                // [Step 1]: first char
-                fieldType = FIELD_TYPE_NORMAL;
+                // [STEP 1]: first char
                 if (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+
+                    // FIELD_TYPE_QUOTED
                     if (code == quoteCode) {
                         fieldType = FIELD_TYPE_QUOTED;
-                    } else if (firstField && code == commentCode) {
-                        fieldType = FIELD_TYPE_COMMENTED;
-                    } else {
-                        /*-end-of-field-*/
-                        if (code == delimiterCode) {
-                            state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
-                            return;
-                        } else if (eolDecoder.isEndOfLine(code, input)) {
-                            state = firstField ? (missingFieldAllowed ? STATE_5_MISSING : STATE_4_SINGLE) : STATE_3_LAST;
-                            return;
-                        }
-                        /*-append-*/
-                        fieldChars[fieldLength++] = (char) code;
-                    }
-                } else {
-                    // EOF
-                    {
-                        state = STATE_6_DONE;
-                        return;
-                    }
-                }
 
-                switch (fieldType) {
-                    case FIELD_TYPE_NORMAL: {
-                        // [Step 2A]: subsequent chars without escape
-                        while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
-                            /*-end-of-field-*/
-                            if (code == delimiterCode) {
-                                state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
-                                return;
-                            } else if (eolDecoder.isEndOfLine(code, input)) {
-                                state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
-                                return;
-                            }
-                            /*-append-*/
-                            fieldChars[fieldLength++] = (char) code;
-                        }
-                        // EOF
-                        {
-                            state = fieldLength > 0 ? (firstField ? STATE_4_SINGLE : STATE_3_LAST) : STATE_6_DONE;
-                            return;
-                        }
-                    }
-                    case FIELD_TYPE_QUOTED: {
-                        // [Step 2B]: subsequent chars with escape
+                        // [STEP 2B]: subsequent chars with escape
                         boolean escaped = false;
                         while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                             if (code == quoteCode) {
@@ -831,7 +789,9 @@ public final class Csv {
                                     if (code == delimiterCode) {
                                         state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
                                         return;
-                                    } else if (eolDecoder.isEndOfLine(code, input)) {
+                                    }
+                                    /*end-of-line*/
+                                    if (eolDecoder.isEndOfLine(code, input)) {
                                         state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                         return;
                                     }
@@ -840,15 +800,18 @@ public final class Csv {
                                 fieldChars[fieldLength++] = (char) code;
                             }
                         }
-                        // EOF
-                        {
-                            state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
-                            return;
-                        }
+                        // EOF STEP 2B
+                        state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
+                        return;
                     }
-                    case FIELD_TYPE_COMMENTED: {
-                        // [Step 2C]: subsequent comment chars
+
+                    // FIELD_TYPE_COMMENTED
+                    if (firstField && code == commentCode) {
+                        fieldType = FIELD_TYPE_COMMENTED;
+
+                        // [STEP 2C]: subsequent comment chars
                         while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                            /*end-of-line*/
                             if (eolDecoder.isEndOfLine(code, input)) {
                                 state = STATE_4_SINGLE;
                                 return;
@@ -856,15 +819,49 @@ public final class Csv {
                             /*-append-*/
                             fieldChars[fieldLength++] = (char) code;
                         }
-                        // EOF
-                        {
-                            state = STATE_4_SINGLE;
+                        // EOF STEP 2C
+                        state = STATE_4_SINGLE;
+                        return;
+                    }
+
+                    // FIELD_TYPE_NORMAL
+                    fieldType = FIELD_TYPE_NORMAL;
+                    /*-end-of-field-*/
+                    if (code == delimiterCode) {
+                        state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
+                        return;
+                    }
+                    /*end-of-line*/
+                    if (eolDecoder.isEndOfLine(code, input)) {
+                        state = firstField ? emptyLineState : STATE_3_LAST;
+                        return;
+                    }
+                    /*-append-*/
+                    fieldChars[fieldLength++] = (char) code;
+
+                    // [STEP 2A]: subsequent chars without escape
+                    while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                        /*-end-of-field-*/
+                        if (code == delimiterCode) {
+                            state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
                             return;
                         }
+                        /*end-of-line*/
+                        if (eolDecoder.isEndOfLine(code, input)) {
+                            state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
+                            return;
+                        }
+                        /*-append-*/
+                        fieldChars[fieldLength++] = (char) code;
                     }
-                    default:
-                        throw newUnreachable();
+                    // EOF STEP 2A
+                    state = fieldLength > 0 ? (firstField ? STATE_4_SINGLE : STATE_3_LAST) : STATE_6_DONE;
+                    return;
+
                 }
+                // EOF STEP 1
+                state = STATE_6_DONE;
+                return;
 
             } catch (IndexOutOfBoundsException ex) {
                 throw new IOException("Field overflow", ex);
@@ -964,16 +961,10 @@ public final class Csv {
 
             public static EndOfLineDecoder of(Format format, ReaderOptions options) {
                 String eol = format.getSeparator();
-                switch (eol.length()) {
-                    case 1:
-                        return new SingleDecoder(eol.charAt(0));
-                    case 2:
-                        return options.isLenientSeparator()
-                                ? new LenientDecoder(eol.charAt(0), eol.charAt(1))
-                                : new DualDecoder(eol.charAt(0), eol.charAt(1));
-                    default:
-                        throw newUnreachable();
-                }
+                if (eol.length() == 1) return new SingleDecoder(eol.charAt(0));
+                return options.isLenientSeparator()
+                        ? new LenientDecoder(eol.charAt(0), eol.charAt(1))
+                        : new DualDecoder(eol.charAt(0), eol.charAt(1));
             }
 
             private static final class SingleDecoder extends EndOfLineDecoder {
