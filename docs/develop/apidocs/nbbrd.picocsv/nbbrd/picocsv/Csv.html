@@ -140,7 +140,7 @@ extends <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/Object.html
  <li> fast and efficient (no heap memory allocation)
  <li> designed to be embedded into other libraries as <a href="https://search.maven.org/artifact/com.github.nbbrd.picocsv/picocsv">an external dependency</a> or <a href="https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java">as a single-file source</a>
  <li> has a module-info that makes it compatible with <a href="https://www.baeldung.com/java-9-modularity">JPMS</a>
- <li> Java 7 minimum requirement
+ <li> Java 8 minimum requirement
  </ul>
  <p>
  Features:
@@ -152,7 +152,10 @@ extends <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/Object.html
  <li> follows the <a href="https://tools.ietf.org/html/rfc4180">RFC4180</a> specification
  <li> supports custom line separator
  <li> supports comment character
- </ul></div>
+ </ul>
+
+ ⚠️ <i>Note that the <code>Format#acceptMissingField</code> option must be set to <code>false</code> to closely follow the RFC4180 specification.
+ The default value is currently <code>true</code> but will be reversed in the next major release.</i></div>
 <dl>
 <dt><span class="simpleTagLabel">Author:</span></dt>
 <dd>Philippe Charles</dd>
