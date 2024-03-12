@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2024-03-12
+
+This is a feature release of **picocsv**.   
+picocsv follows [semantic versioning](https://semver.org/).
+
 ### Added
 
 - Add `Format#acceptMissingField` option to follow the RFC4180 spec closely [#208](https://github.com/nbbrd/picocsv/issues/208)
@@ -135,7 +140,8 @@ picocsv follows [semantic versioning](https://semver.org/).
 
 - Initial release
 
-[Unreleased]: https://github.com/nbbrd/picocsv/compare/v2.2.2...HEAD
+[Unreleased]: https://github.com/nbbrd/picocsv/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/nbbrd/picocsv/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/nbbrd/picocsv/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/nbbrd/picocsv/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/nbbrd/picocsv/compare/v2.1.0...v2.2.0
