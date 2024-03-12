@@ -55,9 +55,6 @@ import java.util.Objects;
  */
 public final class Csv {
 
-    private static final int EOF_CODE = -1;
-    private static final int NULL_CODE = -2;
-
     private Csv() {
         // static class
     }
@@ -613,14 +610,18 @@ public final class Csv {
             }
 
             return new Reader(
-                    new Input(charReader, charBuffer),
+                    charReader, charBuffer,
                     format.getQuote(), format.getDelimiter(), format.getComment(), format.isAcceptMissingField(),
                     new char[options.getMaxCharsPerField()],
                     eol, first, second
                     );
         }
 
-        private final Input input;
+        private final java.io.Reader charReader;
+        private final char[] buffer;
+
+        private int length = 0;
+        private int index = 0;
         private final int quoteCode;
         private final int delimiterCode;
         private final int commentCode;
@@ -634,11 +635,12 @@ public final class Csv {
         private int fieldLength = 0;
         private byte fieldType = FIELD_TYPE_NORMAL;
         private byte state = STATE_0_READY;
-        private int ahead = NULL_CODE;
+        private int ahead = EOF_CODE;
 
 
-        private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, boolean acceptMissingField, char[] fieldChars, int eol, int first, int second) {
-            this.input = input;
+        private Reader(java.io.Reader charReader, char[] buffer, int quoteCode, int delimiterCode, int commentCode, boolean acceptMissingField, char[] fieldChars, int eol, int first, int second) {
+            this.charReader = charReader;
+            this.buffer = buffer;
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
             this.commentCode = commentCode;
@@ -771,7 +773,7 @@ public final class Csv {
          */
         @Override
         public void close() throws IOException {
-            input.close();
+            charReader.close();
         }
 
         private void skipRemainingFields() throws IOException {
@@ -786,6 +788,8 @@ public final class Csv {
         private void parseNextField(final boolean firstField) throws IOException {
             int fieldLength = this.fieldLength;
             int ahead = this.ahead;
+            int index = this.index;
+            int length = this.length;
 
             try {
                 final int quoteCode = this.quoteCode;
@@ -793,15 +797,16 @@ public final class Csv {
 //                final int commentCode = this.commentCode;
                 final char[] fieldChars = this.fieldChars;
 
-//                final Input input = this.input;
+                final java.io.Reader charReader = this.charReader;
+                final char[] buffer = this.buffer;
 
                 int code;
 
                 fieldLength = 0;
 
                 // [STEP 1]: first char
-                if (/*-next-*/ (code = (ahead != NULL_CODE ? ahead : input.read())) != EOF_CODE) {
-                    ahead = NULL_CODE;
+                if (/*-next-*/ (code = (ahead != EOF_CODE ? ahead : ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]))) != EOF_CODE) {
+                    ahead = EOF_CODE;
 
                     // FIELD_TYPE_QUOTED
                     if (code == quoteCode) {
@@ -809,8 +814,8 @@ public final class Csv {
 
                         // [STEP 2B]: subsequent chars with escape
                         boolean escaped = false;
-                        while (/*-next-*/ (code = (ahead != NULL_CODE ? ahead : input.read())) != EOF_CODE) {
-                            ahead = NULL_CODE;
+                        while (/*-next-*/ (code = (ahead != EOF_CODE ? ahead : ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]))) != EOF_CODE) {
+                            ahead = EOF_CODE;
                             if (code == quoteCode) {
                                 if (!escaped) {
                                     escaped = true;
@@ -835,13 +840,13 @@ public final class Csv {
                                                     state = eolState;
                                                     return;
                                                 case EOL_TYPE_DUAL_STRICT:
-                                                    ahead = input.read();
-                                                    if ((ahead = (ahead == second ? NULL_CODE : ahead)) != NULL_CODE) break;
+                                                    ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
+                                                    if ((ahead = (ahead == second ? EOF_CODE : ahead)) != EOF_CODE) break;
                                                     state = eolState;
                                                     return;
                                                 case EOL_TYPE_DUAL_LENIENT:
-                                                    ahead = input.read();
-                                                    ahead = (ahead == second ? NULL_CODE : ahead);
+                                                    ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
+                                                    ahead = (ahead == second ? EOF_CODE : ahead);
                                                     state = eolState;
                                                     return;
                                             }
@@ -865,8 +870,8 @@ public final class Csv {
                         fieldType = FIELD_TYPE_COMMENTED;
 
                         // [STEP 2C]: subsequent comment chars
-                        while (/*-next-*/ (code = (ahead != NULL_CODE ? ahead : input.read())) != EOF_CODE) {
-                            ahead = NULL_CODE;
+                        while (/*-next-*/ (code = (ahead != EOF_CODE ? ahead : ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]))) != EOF_CODE) {
+                            ahead = EOF_CODE;
                             /*end-of-line*/
                             {
                                 byte eolState = STATE_4_SINGLE;
@@ -876,13 +881,13 @@ public final class Csv {
                                             state = eolState;
                                             return;
                                         case EOL_TYPE_DUAL_STRICT:
-                                            ahead = input.read();
-                                            if ((ahead = (ahead == second ? NULL_CODE : ahead)) != NULL_CODE) break;
+                                            ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
+                                            if ((ahead = (ahead == second ? EOF_CODE : ahead)) != EOF_CODE) break;
                                             state = eolState;
                                             return;
                                         case EOL_TYPE_DUAL_LENIENT:
-                                            ahead = input.read();
-                                            ahead = (ahead == second ? NULL_CODE : ahead);
+                                            ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
+                                            ahead = (ahead == second ? EOF_CODE : ahead);
                                             state = eolState;
                                             return;
                                     }
@@ -915,13 +920,13 @@ public final class Csv {
                                     state = eolState;
                                     return;
                                 case EOL_TYPE_DUAL_STRICT:
-                                    ahead = input.read();
-                                    if ((ahead = (ahead == second ? NULL_CODE : ahead)) != NULL_CODE) break;
+                                    ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
+                                    if ((ahead = (ahead == second ? EOF_CODE : ahead)) != EOF_CODE) break;
                                     state = eolState;
                                     return;
                                 case EOL_TYPE_DUAL_LENIENT:
-                                    ahead = input.read();
-                                    ahead = (ahead == second ? NULL_CODE : ahead);
+                                    ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
+                                    ahead = (ahead == second ? EOF_CODE : ahead);
                                     state = eolState;
                                     return;
                             }
@@ -934,8 +939,8 @@ public final class Csv {
                     fieldChars[fieldLength++] = (char) code;
 
                     // [STEP 2A]: subsequent chars without escape
-                    while (/*-next-*/ (code = (ahead != NULL_CODE ? ahead : input.read())) != EOF_CODE) {
-                        ahead = NULL_CODE;
+                    while (/*-next-*/ (code = (ahead != EOF_CODE ? ahead : ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]))) != EOF_CODE) {
+                        ahead = EOF_CODE;
                         /*-end-of-field-*/
                         if (code == delimiterCode) {
                             state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
@@ -950,13 +955,13 @@ public final class Csv {
                                         state = eolState;
                                         return;
                                     case EOL_TYPE_DUAL_STRICT:
-                                        ahead = input.read();
-                                        if ((ahead = (ahead == second ? NULL_CODE : ahead)) != NULL_CODE) break;
+                                        ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
+                                        if ((ahead = (ahead == second ? EOF_CODE : ahead)) != EOF_CODE) break;
                                         state = eolState;
                                         return;
                                     case EOL_TYPE_DUAL_LENIENT:
-                                        ahead = input.read();
-                                        ahead = (ahead == second ? NULL_CODE : ahead);
+                                        ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
+                                        ahead = (ahead == second ? EOF_CODE : ahead);
                                         state = eolState;
                                         return;
                                 }
@@ -982,6 +987,8 @@ public final class Csv {
             } finally {
                 this.fieldLength = fieldLength;
                 this.ahead = ahead;
+                this.length = length;
+                this.index = index;
             }
         }
 
@@ -1009,29 +1016,6 @@ public final class Csv {
                 throw new IndexOutOfBoundsException(String.valueOf(end));
             }
             return new String(fieldChars, start, end - start);
-        }
-
-        private static class Input implements Closeable {
-
-            private final java.io.Reader charReader;
-            private final char[] buffer;
-
-            private int length = 0;
-            private int index = 0;
-
-            private Input(java.io.Reader charReader, char[] charBuffer) {
-                this.charReader = charReader;
-                this.buffer = charBuffer;
-            }
-
-            @Override
-            public void close() throws IOException {
-                charReader.close();
-            }
-
-            public int read() throws IOException {
-                return (index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1];
-            }
         }
     }
 
@@ -1472,6 +1456,8 @@ public final class Csv {
             }
         }
     }
+
+    private static final int EOF_CODE = -1;
 
     private static RuntimeException newUnreachable() {
         return new RuntimeException("Unreachable");
