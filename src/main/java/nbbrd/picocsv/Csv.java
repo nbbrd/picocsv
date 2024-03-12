@@ -595,60 +595,58 @@ public final class Csv {
 
             char[] charBuffer = new char[charBufferSize];
 
-            int eol;
-            int first;
-            int second;
+            byte eolType;
+            int eolCode0;
+            int eolCode1;
 
             if (format.getSeparator().length() == 1) {
-                eol = EOL_TYPE_SINGLE;
-                first = format.getSeparator().charAt(0);
-                second = EOF_CODE;
+                eolType = EOL_TYPE_SINGLE;
+                eolCode0 = format.getSeparator().charAt(0);
+                eolCode1 = EOF_CODE;
             } else {
-                eol = options.isLenientSeparator() ? EOL_TYPE_DUAL_LENIENT : EOL_TYPE_DUAL_STRICT;
-                first = format.getSeparator().charAt(0);
-                second = format.getSeparator().charAt(1);
+                eolType = options.isLenientSeparator() ? EOL_TYPE_DUAL_LENIENT : EOL_TYPE_DUAL_STRICT;
+                eolCode0 = format.getSeparator().charAt(0);
+                eolCode1 = format.getSeparator().charAt(1);
             }
 
             return new Reader(
                     charReader, charBuffer,
-                    format.getQuote(), format.getDelimiter(), format.getComment(), format.isAcceptMissingField(),
+                    format.getQuote(), format.getDelimiter(), format.getComment(), format.isAcceptMissingField() ? STATE_5_MISSING : STATE_4_SINGLE,
                     new char[options.getMaxCharsPerField()],
-                    eol, first, second
-                    );
+                    eolType, eolCode0, eolCode1
+            );
         }
 
         private final java.io.Reader charReader;
         private final char[] buffer;
-
-        private int length = 0;
-        private int index = 0;
         private final int quoteCode;
         private final int delimiterCode;
         private final int commentCode;
         private final byte emptyLineState;
         private final char[] fieldChars;
+        private final byte eolType;
+        private final int eolCode0;
+        private final int eol1Code1;
 
-        private final int eol;
-        private final int first;
-        private final int second;
-
+        private int length = 0;
+        private int index = 0;
         private int fieldLength = 0;
         private byte fieldType = FIELD_TYPE_NORMAL;
         private byte state = STATE_0_READY;
         private int ahead = EOF_CODE;
 
 
-        private Reader(java.io.Reader charReader, char[] buffer, int quoteCode, int delimiterCode, int commentCode, boolean acceptMissingField, char[] fieldChars, int eol, int first, int second) {
+        private Reader(java.io.Reader charReader, char[] buffer, int quoteCode, int delimiterCode, int commentCode, byte emptyLineState, char[] fieldChars, byte eolType, int eolCode0, int eol1Code1) {
             this.charReader = charReader;
             this.buffer = buffer;
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
             this.commentCode = commentCode;
-            this.emptyLineState = acceptMissingField ? STATE_5_MISSING : STATE_4_SINGLE;
+            this.emptyLineState = emptyLineState;
             this.fieldChars = fieldChars;
-            this.eol = eol;
-            this.first = first;
-            this.second = second;
+            this.eolType = eolType;
+            this.eolCode0 = eolCode0;
+            this.eol1Code1 = eol1Code1;
         }
 
         private static final byte STATE_0_READY = 0;
@@ -659,13 +657,13 @@ public final class Csv {
         private static final byte STATE_5_MISSING = 5;
         private static final byte STATE_6_DONE = 6;
 
-        private static final byte FIELD_TYPE_NORMAL = 0;
-        private static final byte FIELD_TYPE_QUOTED = 1;
-        private static final byte FIELD_TYPE_COMMENTED = 2;
+        private static final byte FIELD_TYPE_NORMAL = 10;
+        private static final byte FIELD_TYPE_QUOTED = 11;
+        private static final byte FIELD_TYPE_COMMENTED = 12;
 
-        private static final byte EOL_TYPE_SINGLE = 0;
-        private static final byte EOL_TYPE_DUAL_STRICT = 1;
-        private static final byte EOL_TYPE_DUAL_LENIENT = 2;
+        private static final byte EOL_TYPE_SINGLE = 20;
+        private static final byte EOL_TYPE_DUAL_STRICT = 21;
+        private static final byte EOL_TYPE_DUAL_LENIENT = 22;
 
         /**
          * Reads the next line.
@@ -834,23 +832,24 @@ public final class Csv {
                                     /*end-of-line*/
                                     {
                                         byte eolState = firstField ? STATE_4_SINGLE : STATE_3_LAST;
-                                        if (code == first) {
-                                            switch (eol) {
+                                        if (code == eolCode0) {
+                                            switch (eolType) {
                                                 case EOL_TYPE_SINGLE:
                                                     state = eolState;
                                                     return;
                                                 case EOL_TYPE_DUAL_STRICT:
                                                     ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                                    if ((ahead = (ahead == second ? EOF_CODE : ahead)) != EOF_CODE) break;
+                                                    if ((ahead = (ahead == eol1Code1 ? EOF_CODE : ahead)) != EOF_CODE)
+                                                        break;
                                                     state = eolState;
                                                     return;
                                                 case EOL_TYPE_DUAL_LENIENT:
                                                     ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                                    ahead = (ahead == second ? EOF_CODE : ahead);
+                                                    ahead = (ahead == eol1Code1 ? EOF_CODE : ahead);
                                                     state = eolState;
                                                     return;
                                             }
-                                        } else if (eol == EOL_TYPE_DUAL_LENIENT && code == second) {
+                                        } else if (eolType == EOL_TYPE_DUAL_LENIENT && code == eol1Code1) {
                                             state = eolState;
                                             return;
                                         }
@@ -875,23 +874,23 @@ public final class Csv {
                             /*end-of-line*/
                             {
                                 byte eolState = STATE_4_SINGLE;
-                                if (code == first) {
-                                    switch (eol) {
+                                if (code == eolCode0) {
+                                    switch (eolType) {
                                         case EOL_TYPE_SINGLE:
                                             state = eolState;
                                             return;
                                         case EOL_TYPE_DUAL_STRICT:
                                             ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                            if ((ahead = (ahead == second ? EOF_CODE : ahead)) != EOF_CODE) break;
+                                            if ((ahead = (ahead == eol1Code1 ? EOF_CODE : ahead)) != EOF_CODE) break;
                                             state = eolState;
                                             return;
                                         case EOL_TYPE_DUAL_LENIENT:
                                             ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                            ahead = (ahead == second ? EOF_CODE : ahead);
+                                            ahead = (ahead == eol1Code1 ? EOF_CODE : ahead);
                                             state = eolState;
                                             return;
                                     }
-                                } else if (eol == EOL_TYPE_DUAL_LENIENT && code == second) {
+                                } else if (eolType == EOL_TYPE_DUAL_LENIENT && code == eol1Code1) {
                                     state = eolState;
                                     return;
                                 }
@@ -914,23 +913,23 @@ public final class Csv {
                     /*end-of-line*/
                     {
                         byte eolState = firstField ? emptyLineState : STATE_3_LAST;
-                        if (code == first) {
-                            switch (eol) {
+                        if (code == eolCode0) {
+                            switch (eolType) {
                                 case EOL_TYPE_SINGLE:
                                     state = eolState;
                                     return;
                                 case EOL_TYPE_DUAL_STRICT:
                                     ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                    if ((ahead = (ahead == second ? EOF_CODE : ahead)) != EOF_CODE) break;
+                                    if ((ahead = (ahead == eol1Code1 ? EOF_CODE : ahead)) != EOF_CODE) break;
                                     state = eolState;
                                     return;
                                 case EOL_TYPE_DUAL_LENIENT:
                                     ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                    ahead = (ahead == second ? EOF_CODE : ahead);
+                                    ahead = (ahead == eol1Code1 ? EOF_CODE : ahead);
                                     state = eolState;
                                     return;
                             }
-                        } else if (eol == EOL_TYPE_DUAL_LENIENT && code == second) {
+                        } else if (eolType == EOL_TYPE_DUAL_LENIENT && code == eol1Code1) {
                             state = eolState;
                             return;
                         }
@@ -949,23 +948,23 @@ public final class Csv {
                         /*end-of-line*/
                         {
                             byte eolState = firstField ? STATE_4_SINGLE : STATE_3_LAST;
-                            if (code == first) {
-                                switch (eol) {
+                            if (code == eolCode0) {
+                                switch (eolType) {
                                     case EOL_TYPE_SINGLE:
                                         state = eolState;
                                         return;
                                     case EOL_TYPE_DUAL_STRICT:
                                         ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                        if ((ahead = (ahead == second ? EOF_CODE : ahead)) != EOF_CODE) break;
+                                        if ((ahead = (ahead == eol1Code1 ? EOF_CODE : ahead)) != EOF_CODE) break;
                                         state = eolState;
                                         return;
                                     case EOL_TYPE_DUAL_LENIENT:
                                         ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                        ahead = (ahead == second ? EOF_CODE : ahead);
+                                        ahead = (ahead == eol1Code1 ? EOF_CODE : ahead);
                                         state = eolState;
                                         return;
                                 }
-                            } else if (eol == EOL_TYPE_DUAL_LENIENT && code == second) {
+                            } else if (eolType == EOL_TYPE_DUAL_LENIENT && code == eol1Code1) {
                                 state = eolState;
                                 return;
                             }
