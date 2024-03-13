@@ -13,7 +13,7 @@ Key points:
   as [an external dependency](https://search.maven.org/artifact/com.github.nbbrd.picocsv/picocsv)
   or [as a single-file source](https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java)
 - has a module-info that makes it compatible with [JPMS](https://www.baeldung.com/java-9-modularity)
-- Java 7 minimum requirement
+- Java 8 minimum requirement
 
 Features:
 
@@ -24,6 +24,9 @@ Features:
 - follows the [RFC4180](https://tools.ietf.org/html/rfc4180) specification
 - supports custom line separator
 - supports comment character
+
+⚠️ _Note that the `Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.
+The default value is currently `true` but will be reversed in the next major release._
 
 ## Examples
 
@@ -81,3 +84,24 @@ Maven setup:
     <version>LATEST_VERSION</version>
 </dependency>
 ```
+
+## Developing
+
+This project is written in Java and uses [Apache Maven](https://maven.apache.org/) as a build tool.  
+It requires [Java 8 as minimum version](https://whichjdk.com/) and all its dependencies are hosted on [Maven Central](https://search.maven.org/).
+
+The code can be build using any IDE or by just type-in the following commands in a terminal:
+
+```shell
+git clone https://github.com/nbbrd/picocsv.git
+cd picocsv
+mvn clean install
+```
+
+## Contributing
+
+Any contribution is welcome and should be done through pull requests and/or issues.
+
+## Licensing
+
+The code of this project is licensed under the [European Union Public Licence (EUPL)](https://joinup.ec.europa.eu/page/eupl-text-11-12).

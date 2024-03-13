@@ -34,7 +34,7 @@ import java.util.Objects;
  * <li> fast and efficient (no heap memory allocation)
  * <li> designed to be embedded into other libraries as <a href="https://search.maven.org/artifact/com.github.nbbrd.picocsv/picocsv">an external dependency</a> or <a href="https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java">as a single-file source</a>
  * <li> has a module-info that makes it compatible with <a href="https://www.baeldung.com/java-9-modularity">JPMS</a>
- * <li> Java 7 minimum requirement
+ * <li> Java 8 minimum requirement
  * </ul>
  * <p>
  * Features:
@@ -47,6 +47,9 @@ import java.util.Objects;
  * <li> supports custom line separator
  * <li> supports comment character
  * </ul>
+ *
+ * ⚠️ <i>Note that the <code>Format#acceptMissingField</code> option must be set to <code>false</code> to closely follow the RFC4180 specification.
+ * The default value is currently <code>true</code> but will be reversed in the next major release.</i>
  *
  * @author Philippe Charles
  */
@@ -92,11 +95,12 @@ public final class Csv {
         private static final char DEFAULT_DELIMITER = ',';
         private static final char DEFAULT_QUOTE = '"';
         private static final char DEFAULT_COMMENT = '#';
+        private static final boolean DEFAULT_ACCEPT_MISSING_FIELD = true;
 
         /**
          * Predefined format as defined by <a href="https://tools.ietf.org/html/rfc4180">RFC 4180</a>.
          */
-        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE, DEFAULT_COMMENT);
+        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE, DEFAULT_COMMENT, DEFAULT_ACCEPT_MISSING_FIELD);
 
         /**
          * Predefined format as alias to {@link Format#RFC4180}.
@@ -107,12 +111,14 @@ public final class Csv {
         private final char delimiter;
         private final char quote;
         private final char comment;
+        private final boolean acceptMissingField;
 
-        private Format(String separator, char delimiter, char quote, char comment) {
+        private Format(String separator, char delimiter, char quote, char comment, boolean acceptMissingField) {
             this.separator = Objects.requireNonNull(separator, "separator");
             this.delimiter = delimiter;
             this.quote = quote;
             this.comment = comment;
+            this.acceptMissingField = acceptMissingField;
         }
 
         /**
@@ -161,6 +167,15 @@ public final class Csv {
         }
 
         /**
+         * Determines if missing field is accepted in a record.
+         *
+         * @return <code>true</code> if missing field is accepted, <code>false</code> otherwise
+         */
+        public boolean isAcceptMissingField() {
+            return acceptMissingField;
+        }
+
+        /**
          * Checks if the current format is valid.
          *
          * <p> Validation rules:
@@ -197,6 +212,7 @@ public final class Csv {
             hash = 37 * hash + this.delimiter;
             hash = 37 * hash + this.quote;
             hash = 37 * hash + this.comment;
+            hash = 37 * hash + (this.acceptMissingField ? 1 : 0);
             return hash;
         }
 
@@ -210,6 +226,7 @@ public final class Csv {
             if (this.delimiter != other.delimiter) return false;
             if (this.quote != other.quote) return false;
             if (this.comment != other.comment) return false;
+            if (this.acceptMissingField != other.acceptMissingField) return false;
             return true;
         }
 
@@ -220,6 +237,7 @@ public final class Csv {
                     + ", delimiter=" + prettyPrint(delimiter)
                     + ", quote=" + prettyPrint(quote)
                     + ", comment=" + prettyPrint(comment)
+                    + ", acceptMissingField=" + acceptMissingField
                     + ')';
         }
 
@@ -233,7 +251,8 @@ public final class Csv {
                     .separator(separator)
                     .delimiter(delimiter)
                     .quote(quote)
-                    .comment(comment);
+                    .comment(comment)
+                    .acceptMissingField(acceptMissingField);
         }
 
         /**
@@ -254,6 +273,7 @@ public final class Csv {
             private char delimiter;
             private char quote;
             private char comment;
+            private boolean acceptMissingField;
 
             private Builder() {
             }
@@ -303,12 +323,23 @@ public final class Csv {
             }
 
             /**
+             * Sets the {@link Format#isAcceptMissingField()} () comment} parameter of {@link Format}.
+             *
+             * @param acceptMissingField a boolean
+             * @return this builder
+             */
+            public Builder acceptMissingField(boolean acceptMissingField) {
+                this.acceptMissingField = acceptMissingField;
+                return this;
+            }
+
+            /**
              * Creates a new instance of {@link Format}.
              *
              * @return a non-null new instance
              */
             public Format build() {
-                return new Format(separator, delimiter, quote, comment);
+                return new Format(separator, delimiter, quote, comment, acceptMissingField);
             }
         }
     }
@@ -395,11 +426,12 @@ public final class Csv {
         @Override
         public int hashCode() {
             int hash = 7;
-            hash = 37 * hash + hashCodeOf(lenientSeparator);
+            hash = 37 * hash + Boolean.hashCode(lenientSeparator);
             hash = 37 * hash + this.maxCharsPerField;
             return hash;
         }
 
+        @SuppressWarnings("RedundantIfStatement")
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
@@ -565,7 +597,7 @@ public final class Csv {
 
             return new Reader(
                     ReadAheadInput.isNeeded(format, options) ? new ReadAheadInput(charReader, charBuffer) : new Input(charReader, charBuffer),
-                    format.getQuote(), format.getDelimiter(), format.getComment(),
+                    format.getQuote(), format.getDelimiter(), format.getComment(), format.isAcceptMissingField(),
                     EndOfLineDecoder.of(format, options),
                     new char[options.getMaxCharsPerField()]);
         }
@@ -574,31 +606,35 @@ public final class Csv {
         private final int quoteCode;
         private final int delimiterCode;
         private final int commentCode;
+        private final byte emptyLineState;
         private final EndOfLineDecoder eolDecoder;
         private final char[] fieldChars;
 
         private int fieldLength = 0;
-        private int fieldType = FIELD_TYPE_NORMAL;
-        private int state = STATE_READY;
-        private boolean firstField = false;
+        private byte fieldType = FIELD_TYPE_NORMAL;
+        private byte state = STATE_0_READY;
 
-        private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, EndOfLineDecoder eolDecoder, char[] fieldChars) {
+        private Reader(Input input, int quoteCode, int delimiterCode, int commentCode, boolean acceptMissingField, EndOfLineDecoder eolDecoder, char[] fieldChars) {
             this.input = input;
             this.quoteCode = quoteCode;
             this.delimiterCode = delimiterCode;
             this.commentCode = commentCode;
+            this.emptyLineState = acceptMissingField ? STATE_5_MISSING : STATE_4_SINGLE;
             this.eolDecoder = eolDecoder;
             this.fieldChars = fieldChars;
         }
 
-        private static final int STATE_READY = 0;
-        private static final int STATE_NOT_LAST = 1;
-        private static final int STATE_LAST = 2;
-        private static final int STATE_DONE = 3;
+        private static final byte STATE_0_READY = 0;
+        private static final byte STATE_1_FIRST = 1;
+        private static final byte STATE_2_NOT_LAST = 2;
+        private static final byte STATE_3_LAST = 3;
+        private static final byte STATE_4_SINGLE = 4;
+        private static final byte STATE_5_MISSING = 5;
+        private static final byte STATE_6_DONE = 6;
 
-        private static final int FIELD_TYPE_NORMAL = 0;
-        private static final int FIELD_TYPE_QUOTED = 1;
-        private static final int FIELD_TYPE_COMMENTED = 2;
+        private static final byte FIELD_TYPE_NORMAL = 0;
+        private static final byte FIELD_TYPE_QUOTED = 1;
+        private static final byte FIELD_TYPE_COMMENTED = 2;
 
         /**
          * Reads the next line.
@@ -606,45 +642,89 @@ public final class Csv {
          * @return <code>true</code> if not at the end of file, <code>false</code> otherwise
          * @throws IOException if an I/O error occurs
          */
+        @SuppressWarnings("DuplicateBranchesInSwitch")
         public boolean readLine() throws IOException {
+            // WARNING: try to force JVM "tableswitch"
+            // WARNING: see https://docs.oracle.com/javase/specs/jvms/se18/html/jvms-6.html#jvms-6.5.tableswitch
+            // WARNING: default value in JDK21 -XX:MinJumpTableSize=10
             switch (state) {
-                case STATE_DONE:
-                    return false;
-                case STATE_READY:
-                case STATE_LAST: {
-                    parseFirstField();
-                    return state != STATE_DONE;
-                }
-                case STATE_NOT_LAST: {
+                case STATE_0_READY:
+                    parseNextField(true);
+                    return state != STATE_6_DONE;
+                case STATE_1_FIRST:
                     skipRemainingFields();
-                    parseFirstField();
-                    return state != STATE_DONE;
-                }
+                    parseNextField(true);
+                    return state != STATE_6_DONE;
+                case STATE_2_NOT_LAST:
+                    skipRemainingFields();
+                    parseNextField(true);
+                    return state != STATE_6_DONE;
+                case STATE_3_LAST:
+                    parseNextField(true);
+                    return state != STATE_6_DONE;
+                case STATE_4_SINGLE:
+                    parseNextField(true);
+                    return state != STATE_6_DONE;
+                case STATE_5_MISSING:
+                    parseNextField(true);
+                    return state != STATE_6_DONE;
+                case STATE_6_DONE:
+                    return false;
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                case 16:
+                case 17:
+                case 18:
+                    return false;
                 default:
                     throw newUnreachable();
             }
         }
 
+        @SuppressWarnings("DuplicateBranchesInSwitch")
         @Override
         public boolean readField() throws IOException {
+            // WARNING: try to force JVM "tableswitch"
+            // WARNING: see https://docs.oracle.com/javase/specs/jvms/se18/html/jvms-6.html#jvms-6.5.tableswitch
+            // WARNING: default value in JDK21 -XX:MinJumpTableSize=10
             switch (state) {
-                case STATE_LAST:
-                    if (firstField) {
-                        firstField = false;
-                        return isFieldNotNull();
-                    }
-                    return false;
-                case STATE_NOT_LAST:
-                    if (firstField) {
-                        firstField = false;
-                        return true;
-                    }
-                    parseNextField();
-                    return true;
-                case STATE_DONE:
-                    return false;
-                case STATE_READY:
+                case STATE_0_READY:
                     throw new IllegalStateException();
+                case STATE_1_FIRST:
+                    state = STATE_2_NOT_LAST;
+                    return true;
+                case STATE_2_NOT_LAST:
+                    parseNextField(false);
+                    return true;
+                case STATE_3_LAST:
+                    return false;
+                case STATE_4_SINGLE:
+                    state = STATE_3_LAST;
+                    return true;
+                case STATE_5_MISSING:
+                    return false;
+                case STATE_6_DONE:
+                    return false;
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                case 16:
+                case 17:
+                case 18:
+                    return false;
                 default:
                     throw newUnreachable();
             }
@@ -666,24 +746,18 @@ public final class Csv {
         }
 
         private void skipRemainingFields() throws IOException {
-            firstField = false;
             do {
-                parseNextField();
-            } while (state == STATE_NOT_LAST);
-        }
-
-        private void parseFirstField() throws IOException {
-            firstField = true;
-            parseNextField();
+                parseNextField(false);
+            } while (state == STATE_2_NOT_LAST);
         }
 
         // WARNING: main loop; lots of duplication to maximize performances
         // WARNING: comparing ints more performant than comparing chars
         // WARNING: local var access slightly quicker that field access
-        private void parseNextField() throws IOException {
+        private void parseNextField(final boolean firstField) throws IOException {
             int fieldLength = this.fieldLength;
-            int fieldType = this.fieldType;
-            int state = this.state;
+            byte fieldType = this.fieldType;
+            byte state = this.state;
 
             try {
                 final int quoteCode = this.quoteCode;
@@ -695,56 +769,14 @@ public final class Csv {
 
                 fieldLength = 0;
 
-                // [Step 1]: first char
-                fieldType = FIELD_TYPE_NORMAL;
+                // [STEP 1]: first char
                 if (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+
+                    // FIELD_TYPE_QUOTED
                     if (code == quoteCode) {
                         fieldType = FIELD_TYPE_QUOTED;
-                    } else if (firstField && code == commentCode) {
-                        fieldType = FIELD_TYPE_COMMENTED;
-                    } else {
-                        /*-end-of-field-*/
-                        if (code == delimiterCode) {
-                            state = STATE_NOT_LAST;
-                            return;
-                        } else if (eolDecoder.isEndOfLine(code, input)) {
-                            state = STATE_LAST;
-                            return;
-                        }
-                        /*-append-*/
-                        fieldChars[fieldLength++] = (char) code;
-                    }
-                } else {
-                    // EOF
-                    {
-                        state = STATE_DONE;
-                        return;
-                    }
-                }
 
-                switch (fieldType) {
-                    case FIELD_TYPE_NORMAL: {
-                        // [Step 2A]: subsequent chars without escape
-                        while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
-                            /*-end-of-field-*/
-                            if (code == delimiterCode) {
-                                state = STATE_NOT_LAST;
-                                return;
-                            } else if (eolDecoder.isEndOfLine(code, input)) {
-                                state = STATE_LAST;
-                                return;
-                            }
-                            /*-append-*/
-                            fieldChars[fieldLength++] = (char) code;
-                        }
-                        // EOF
-                        {
-                            state = fieldLength > 0 ? STATE_LAST : STATE_DONE;
-                            return;
-                        }
-                    }
-                    case FIELD_TYPE_QUOTED: {
-                        // [Step 2B]: subsequent chars with escape
+                        // [STEP 2B]: subsequent chars with escape
                         boolean escaped = false;
                         while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
                             if (code == quoteCode) {
@@ -759,10 +791,12 @@ public final class Csv {
                                 if (escaped) {
                                     /*-end-of-field-*/
                                     if (code == delimiterCode) {
-                                        state = STATE_NOT_LAST;
+                                        state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
                                         return;
-                                    } else if (eolDecoder.isEndOfLine(code, input)) {
-                                        state = STATE_LAST;
+                                    }
+                                    /*end-of-line*/
+                                    if (eolDecoder.isEndOfLine(code, input)) {
+                                        state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                         return;
                                     }
                                 }
@@ -770,31 +804,68 @@ public final class Csv {
                                 fieldChars[fieldLength++] = (char) code;
                             }
                         }
-                        // EOF
-                        {
-                            state = STATE_LAST;
-                            return;
-                        }
+                        // EOF STEP 2B
+                        state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
+                        return;
                     }
-                    case FIELD_TYPE_COMMENTED: {
-                        // [Step 2C]: subsequent comment chars
+
+                    // FIELD_TYPE_COMMENTED
+                    if (firstField && code == commentCode) {
+                        fieldType = FIELD_TYPE_COMMENTED;
+
+                        // [STEP 2C]: subsequent comment chars
                         while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                            /*end-of-line*/
                             if (eolDecoder.isEndOfLine(code, input)) {
-                                state = STATE_LAST;
+                                state = STATE_4_SINGLE;
                                 return;
                             }
                             /*-append-*/
                             fieldChars[fieldLength++] = (char) code;
                         }
-                        // EOF
-                        {
-                            state = STATE_LAST;
+                        // EOF STEP 2C
+                        state = STATE_4_SINGLE;
+                        return;
+                    }
+
+                    // FIELD_TYPE_NORMAL
+                    fieldType = FIELD_TYPE_NORMAL;
+                    /*-end-of-field-*/
+                    if (code == delimiterCode) {
+                        state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
+                        return;
+                    }
+                    /*end-of-line*/
+                    if (eolDecoder.isEndOfLine(code, input)) {
+                        state = firstField ? emptyLineState : STATE_3_LAST;
+                        return;
+                    }
+                    /*-append-*/
+                    fieldChars[fieldLength++] = (char) code;
+
+                    // [STEP 2A]: subsequent chars without escape
+                    while (/*-next-*/ (code = input.read()) != Input.EOF_CODE) {
+                        /*-end-of-field-*/
+                        if (code == delimiterCode) {
+                            state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
                             return;
                         }
+                        /*end-of-line*/
+                        if (eolDecoder.isEndOfLine(code, input)) {
+                            state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
+                            return;
+                        }
+                        /*-append-*/
+                        fieldChars[fieldLength++] = (char) code;
                     }
-                    default:
-                        throw newUnreachable();
+                    // EOF STEP 2A
+                    state = fieldLength > 0 ? (firstField ? STATE_4_SINGLE : STATE_3_LAST) : STATE_6_DONE;
+                    return;
+
                 }
+                // EOF STEP 1
+                state = STATE_6_DONE;
+                return;
 
             } catch (IndexOutOfBoundsException ex) {
                 throw new IOException("Field overflow", ex);
@@ -803,10 +874,6 @@ public final class Csv {
                 this.fieldType = fieldType;
                 this.state = state;
             }
-        }
-
-        private boolean isFieldNotNull() {
-            return fieldLength > 0 || fieldType != FIELD_TYPE_NORMAL;
         }
 
         @Override
@@ -898,16 +965,10 @@ public final class Csv {
 
             public static EndOfLineDecoder of(Format format, ReaderOptions options) {
                 String eol = format.getSeparator();
-                switch (eol.length()) {
-                    case 1:
-                        return new SingleDecoder(eol.charAt(0));
-                    case 2:
-                        return options.isLenientSeparator()
-                                ? new LenientDecoder(eol.charAt(0), eol.charAt(1))
-                                : new DualDecoder(eol.charAt(0), eol.charAt(1));
-                    default:
-                        throw newUnreachable();
-                }
+                if (eol.length() == 1) return new SingleDecoder(eol.charAt(0));
+                return options.isLenientSeparator()
+                        ? new LenientDecoder(eol.charAt(0), eol.charAt(1))
+                        : new DualDecoder(eol.charAt(0), eol.charAt(1));
             }
 
             private static final class SingleDecoder extends EndOfLineDecoder {
@@ -987,12 +1048,14 @@ public final class Csv {
         private WriterOptions() {
         }
 
+        @SuppressWarnings("UnnecessaryLocalVariable")
         @Override
         public int hashCode() {
             int hash = 7;
             return hash;
         }
 
+        @SuppressWarnings("unused")
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
@@ -1412,11 +1475,6 @@ public final class Csv {
         if (!condition) {
             throw new IllegalArgumentException(String.format(Locale.ROOT, format, arg));
         }
-    }
-
-    // JDK8
-    private static int hashCodeOf(boolean value) {
-        return value ? 1231 : 1237;
     }
 
     private static String prettyPrint(String text) {

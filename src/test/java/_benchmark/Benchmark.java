@@ -29,6 +29,7 @@ public class Benchmark {
     public static void main(String[] args) throws Exception {
         Options options = new OptionsBuilder()
                 .include(ByFieldBenchmark.class.getSimpleName())
+                .include(ByRecordBenchmark.class.getSimpleName())
                 .include(FastCsvBenchmark.class.getSimpleName())
                 .build();
         new Runner(options).run();

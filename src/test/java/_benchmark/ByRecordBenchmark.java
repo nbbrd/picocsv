@@ -18,14 +18,14 @@ package _benchmark;
 
 import _benchmark.de.siegmar.csvbenchmark.Constant;
 import _benchmark.de.siegmar.csvbenchmark.util.InfiniteDataReader;
-import de.siegmar.fastcsv.reader.CloseableIterator;
-import de.siegmar.fastcsv.reader.CsvReader;
-import de.siegmar.fastcsv.reader.CsvRecord;
+import nbbrd.picocsv.Csv;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author Philippe Charles
@@ -33,31 +33,41 @@ import java.io.IOException;
 @Fork(value = 1, warmups = 1)
 @Warmup(iterations = 3)
 @BenchmarkMode(Mode.Throughput)
-public class FastCsvBenchmark {
+public class ByRecordBenchmark {
 
     @State(Scope.Benchmark)
     public static class ReadState {
 
-        CloseableIterator<CsvRecord> input;
+        Csv.Reader input;
+        List<String> record;
 
         @Setup
         public void setup() throws IOException {
-            input = CsvReader.builder()
-                    .fieldSeparator(Constant.SEPARATOR)
-                    .quoteCharacter(Constant.DELIMITER)
-                    .skipEmptyLines(false)
-                    .ofCsvRecord(new InfiniteDataReader(Constant.data))
-                    .iterator();
+            Csv.Format format = Csv.Format.DEFAULT
+                    .toBuilder()
+                    .delimiter(Constant.SEPARATOR)
+                    .separator(Csv.Format.UNIX_SEPARATOR)
+                    .quote(Constant.DELIMITER)
+                    .build();
+
+            input = Csv.Reader.of(format, Csv.ReaderOptions.DEFAULT, new InfiniteDataReader(Constant.data), Constant.data.length() * 32);
+            record = new ArrayList<>();
         }
 
         @TearDown
         public void teardown() throws IOException {
             input.close();
+            record.clear();
         }
     }
 
     @Benchmark
     public void readLine(ReadState state, Blackhole blackhole) throws IOException {
-        blackhole.consume(state.input.next());
+        state.record.clear();
+        state.input.readLine();
+        while (state.input.readField()) {
+            state.record.add(state.input.toString());
+        }
+        blackhole.consume(state.record);
     }
 }

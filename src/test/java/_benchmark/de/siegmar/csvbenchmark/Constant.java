@@ -30,7 +30,7 @@ public final class Constant {
                 .lineDelimiter(LINE_DELIMITER)
                 .quoteCharacter(DELIMITER)
                 .build(line)) {
-            appender.writeRow(row);
+            appender.writeRecord(row);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
