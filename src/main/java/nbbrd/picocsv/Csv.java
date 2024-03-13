@@ -626,17 +626,16 @@ public final class Csv {
         private final char[] fieldChars;
         private final byte eolType;
         private final int eolCode0;
-        private final int eol1Code1;
+        private final int eolCode1;
 
-        private int length = 0;
-        private int index = 0;
+        private int bufferLength = 0;
+        private int bufferIndex = 0;
         private int fieldLength = 0;
         private byte fieldType = FIELD_TYPE_NORMAL;
         private byte state = STATE_0_READY;
-        private int ahead = EOF_CODE;
 
 
-        private Reader(java.io.Reader charReader, char[] buffer, int quoteCode, int delimiterCode, int commentCode, byte emptyLineState, char[] fieldChars, byte eolType, int eolCode0, int eol1Code1) {
+        private Reader(java.io.Reader charReader, char[] buffer, int quoteCode, int delimiterCode, int commentCode, byte emptyLineState, char[] fieldChars, byte eolType, int eolCode0, int eolCode1) {
             this.charReader = charReader;
             this.buffer = buffer;
             this.quoteCode = quoteCode;
@@ -646,7 +645,7 @@ public final class Csv {
             this.fieldChars = fieldChars;
             this.eolType = eolType;
             this.eolCode0 = eolCode0;
-            this.eol1Code1 = eol1Code1;
+            this.eolCode1 = eolCode1;
         }
 
         private static final byte STATE_0_READY = 0;
@@ -785,9 +784,8 @@ public final class Csv {
         // WARNING: local var access slightly quicker that field access
         private void parseNextField(final boolean firstField) throws IOException {
             int fieldLength = this.fieldLength;
-            int ahead = this.ahead;
-            int index = this.index;
-            int length = this.length;
+            int i = this.bufferIndex;
+            int l = this.bufferLength;
 
             try {
                 final int quoteCode = this.quoteCode;
@@ -795,68 +793,71 @@ public final class Csv {
 //                final int commentCode = this.commentCode;
                 final char[] fieldChars = this.fieldChars;
 
-                final java.io.Reader charReader = this.charReader;
-                final char[] buffer = this.buffer;
+                final java.io.Reader s = this.charReader;
+                final char[] b = this.buffer;
 
-                int code;
+                final byte eolType = this.eolType;
+                final int eolCode0 = this.eolCode0;
+                final int eolCode1 = this.eolCode1;
+
+                int firstCode;
 
                 fieldLength = 0;
 
                 // [STEP 1]: first char
-                if (/*-next-*/ (code = (ahead != EOF_CODE ? ahead : ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]))) != EOF_CODE) {
-                    ahead = EOF_CODE;
+                if ((firstCode = (/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/)) != EOF_CODE) {
 
                     // FIELD_TYPE_QUOTED
-                    if (code == quoteCode) {
+                    if (firstCode == quoteCode) {
                         fieldType = FIELD_TYPE_QUOTED;
 
                         // [STEP 2B]: subsequent chars with escape
                         boolean escaped = false;
-                        while (/*-next-*/ (code = (ahead != EOF_CODE ? ahead : ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]))) != EOF_CODE) {
-                            ahead = EOF_CODE;
-                            if (code == quoteCode) {
+                        for (int subCode; (subCode = (/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/)) != EOF_CODE; ) {
+                            if (subCode == quoteCode) {
                                 if (!escaped) {
                                     escaped = true;
                                 } else {
                                     escaped = false;
                                     /*-append-*/
-                                    fieldChars[fieldLength++] = (char) code;
+                                    fieldChars[fieldLength++] = (char) subCode;
                                 }
                             } else {
                                 if (escaped) {
                                     /*-end-of-field-*/
-                                    if (code == delimiterCode) {
+                                    if (subCode == delimiterCode) {
                                         state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
                                         return;
                                     }
-                                    /*end-of-line*/
+                                    /*-end-of-line-*/
                                     {
-                                        byte eolState = firstField ? STATE_4_SINGLE : STATE_3_LAST;
-                                        if (code == eolCode0) {
+                                        if (subCode == eolCode0) {
                                             switch (eolType) {
                                                 case EOL_TYPE_SINGLE:
-                                                    state = eolState;
+                                                    state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                                     return;
                                                 case EOL_TYPE_DUAL_STRICT:
-                                                    ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                                    if ((ahead = (ahead == eol1Code1 ? EOF_CODE : ahead)) != EOF_CODE)
+                                                    if ((/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/) != eolCode1) {
+                                                        i--;
                                                         break;
-                                                    state = eolState;
+                                                    }
+                                                    state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                                     return;
                                                 case EOL_TYPE_DUAL_LENIENT:
-                                                    ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                                    ahead = (ahead == eol1Code1 ? EOF_CODE : ahead);
-                                                    state = eolState;
+                                                    if ((/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/) != eolCode1) {
+                                                        i--;
+                                                    }
+                                                    state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                                     return;
                                             }
-                                        } else if (eolType == EOL_TYPE_DUAL_LENIENT && code == eol1Code1) {
-                                            state = eolState;
+                                        } else if (eolType == EOL_TYPE_DUAL_LENIENT && subCode == eolCode1) {
+                                            state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                             return;
                                         }
                                     }
                                 }
                                 /*-append-*/
-                                fieldChars[fieldLength++] = (char) code;
+                                fieldChars[fieldLength++] = (char) subCode;
                             }
                         }
                         // EOF STEP 2B
@@ -865,38 +866,39 @@ public final class Csv {
                     }
 
                     // FIELD_TYPE_COMMENTED
-                    if (firstField && code == commentCode) {
+                    if (firstField && firstCode == commentCode) {
                         fieldType = FIELD_TYPE_COMMENTED;
 
                         // [STEP 2C]: subsequent comment chars
-                        while (/*-next-*/ (code = (ahead != EOF_CODE ? ahead : ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]))) != EOF_CODE) {
-                            ahead = EOF_CODE;
-                            /*end-of-line*/
+                        for (int subCode; (subCode = (/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/)) != EOF_CODE; ) {
+                            /*-end-of-line-*/
                             {
-                                byte eolState = STATE_4_SINGLE;
-                                if (code == eolCode0) {
+                                if (subCode == eolCode0) {
                                     switch (eolType) {
                                         case EOL_TYPE_SINGLE:
-                                            state = eolState;
+                                            state = STATE_4_SINGLE;
                                             return;
                                         case EOL_TYPE_DUAL_STRICT:
-                                            ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                            if ((ahead = (ahead == eol1Code1 ? EOF_CODE : ahead)) != EOF_CODE) break;
-                                            state = eolState;
+                                            if ((/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/) != eolCode1) {
+                                                i--;
+                                                break;
+                                            }
+                                            state = STATE_4_SINGLE;
                                             return;
                                         case EOL_TYPE_DUAL_LENIENT:
-                                            ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                            ahead = (ahead == eol1Code1 ? EOF_CODE : ahead);
-                                            state = eolState;
+                                            if ((/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/) != eolCode1) {
+                                                i--;
+                                            }
+                                            state = STATE_4_SINGLE;
                                             return;
                                     }
-                                } else if (eolType == EOL_TYPE_DUAL_LENIENT && code == eol1Code1) {
-                                    state = eolState;
+                                } else if (eolType == EOL_TYPE_DUAL_LENIENT && subCode == eolCode1) {
+                                    state = STATE_4_SINGLE;
                                     return;
                                 }
                             }
                             /*-append-*/
-                            fieldChars[fieldLength++] = (char) code;
+                            fieldChars[fieldLength++] = (char) subCode;
                         }
                         // EOF STEP 2C
                         state = STATE_4_SINGLE;
@@ -906,71 +908,74 @@ public final class Csv {
                     // FIELD_TYPE_NORMAL
                     fieldType = FIELD_TYPE_NORMAL;
                     /*-end-of-field-*/
-                    if (code == delimiterCode) {
+                    if (firstCode == delimiterCode) {
                         state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
                         return;
                     }
-                    /*end-of-line*/
+                    /*-end-of-line-*/
                     {
-                        byte eolState = firstField ? emptyLineState : STATE_3_LAST;
-                        if (code == eolCode0) {
+                        if (firstCode == eolCode0) {
                             switch (eolType) {
                                 case EOL_TYPE_SINGLE:
-                                    state = eolState;
+                                    state = firstField ? emptyLineState : STATE_3_LAST;
                                     return;
                                 case EOL_TYPE_DUAL_STRICT:
-                                    ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                    if ((ahead = (ahead == eol1Code1 ? EOF_CODE : ahead)) != EOF_CODE) break;
-                                    state = eolState;
+                                    if ((/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/) != eolCode1) {
+                                        i--;
+                                        break;
+                                    }
+                                    state = firstField ? emptyLineState : STATE_3_LAST;
                                     return;
                                 case EOL_TYPE_DUAL_LENIENT:
-                                    ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                    ahead = (ahead == eol1Code1 ? EOF_CODE : ahead);
-                                    state = eolState;
+                                    if ((/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/) != eolCode1) {
+                                        i--;
+                                    }
+                                    state = firstField ? emptyLineState : STATE_3_LAST;
                                     return;
                             }
-                        } else if (eolType == EOL_TYPE_DUAL_LENIENT && code == eol1Code1) {
-                            state = eolState;
+                        } else if (eolType == EOL_TYPE_DUAL_LENIENT && firstCode == eolCode1) {
+                            state = firstField ? emptyLineState : STATE_3_LAST;
                             return;
                         }
                     }
                     /*-append-*/
-                    fieldChars[fieldLength++] = (char) code;
+                    fieldChars[fieldLength++] = (char) firstCode;
 
                     // [STEP 2A]: subsequent chars without escape
-                    while (/*-next-*/ (code = (ahead != EOF_CODE ? ahead : ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]))) != EOF_CODE) {
-                        ahead = EOF_CODE;
+                    for (int subCode; (subCode = (/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/)) != EOF_CODE; ) {
                         /*-end-of-field-*/
-                        if (code == delimiterCode) {
+                        if (subCode == delimiterCode) {
                             state = firstField ? STATE_1_FIRST : STATE_2_NOT_LAST;
                             return;
                         }
-                        /*end-of-line*/
+                        /*-end-of-line-*/
                         {
-                            byte eolState = firstField ? STATE_4_SINGLE : STATE_3_LAST;
-                            if (code == eolCode0) {
+                            if (subCode == eolCode0) {
                                 switch (eolType) {
                                     case EOL_TYPE_SINGLE:
-                                        state = eolState;
+                                        state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                         return;
                                     case EOL_TYPE_DUAL_STRICT:
-                                        ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                        if ((ahead = (ahead == eol1Code1 ? EOF_CODE : ahead)) != EOF_CODE) break;
-                                        state = eolState;
+                                        if ((/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/) != eolCode1) {
+                                            i--;
+                                            break;
+                                        }
+                                        state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                         return;
                                     case EOL_TYPE_DUAL_LENIENT:
-                                        ahead = ((index < length) ? buffer[index++] : ((length = charReader.read(buffer)) == EOF_CODE) ? EOF_CODE : buffer[(index = 1) - 1]);
-                                        ahead = (ahead == eol1Code1 ? EOF_CODE : ahead);
-                                        state = eolState;
+                                        if ((/*next>*/ i < l ? b[i++] : (l = s.read(b)) == EOF_CODE ? EOF_CODE : b[(i = 1) - 1] /*<next*/) != eolCode1) {
+                                            i--;
+                                        }
+                                        state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                         return;
                                 }
-                            } else if (eolType == EOL_TYPE_DUAL_LENIENT && code == eol1Code1) {
-                                state = eolState;
+                            } else if (eolType == EOL_TYPE_DUAL_LENIENT && subCode == eolCode1) {
+                                state = firstField ? STATE_4_SINGLE : STATE_3_LAST;
                                 return;
                             }
                         }
                         /*-append-*/
-                        fieldChars[fieldLength++] = (char) code;
+                        fieldChars[fieldLength++] = (char) subCode;
                     }
                     // EOF STEP 2A
                     state = fieldLength > 0 ? (firstField ? STATE_4_SINGLE : STATE_3_LAST) : STATE_6_DONE;
@@ -985,9 +990,8 @@ public final class Csv {
                 throw new IOException("Field overflow", ex);
             } finally {
                 this.fieldLength = fieldLength;
-                this.ahead = ahead;
-                this.length = length;
-                this.index = index;
+                this.bufferLength = l;
+                this.bufferIndex = i;
             }
         }
 
