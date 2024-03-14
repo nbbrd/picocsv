@@ -16,6 +16,7 @@
  */
 package nbbrd.picocsv;
 
+import _demo.Cookbook;
 import _test.QuickReader;
 import _test.QuickReader.VoidParser;
 import _test.Row;
@@ -32,14 +33,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static _test.QuickReader.read;
 import static _test.Sample.INVALID_FORMAT;
+import static java.util.stream.Collectors.joining;
 import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 import static nbbrd.picocsv.Csv.Format.*;
 import static org.assertj.core.api.Assertions.*;
@@ -95,11 +94,17 @@ public class CsvReaderTest {
                 assertThat(readRows(sample, Csv.ReaderOptions.DEFAULT, RowParser.SKIP_FIRST))
                         .describedAs(sample.asDescription("Reading"))
                         .isEmpty();
+                assertThat(readRows(sample, Csv.ReaderOptions.DEFAULT, RowParser.SKIP_NOT_LAST))
+                        .describedAs(sample.asDescription("Reading"))
+                        .isEmpty();
                 break;
             default:
                 assertThat(readRows(sample, Csv.ReaderOptions.DEFAULT, RowParser.SKIP_FIRST))
                         .describedAs(sample.asDescription("Reading"))
-                        .containsExactlyElementsOf(copyWithout(sample.getRows(), 0));
+                        .containsExactlyElementsOf(sample.getRows().subList(1, sample.getRows().size()));
+                assertThat(readRows(sample, Csv.ReaderOptions.DEFAULT, RowParser.SKIP_NOT_LAST))
+                        .describedAs(sample.asDescription("Reading"))
+                        .containsExactlyElementsOf(sample.getRows().subList(2, sample.getRows().size()));
                 break;
         }
     }
@@ -111,7 +116,7 @@ public class CsvReaderTest {
 
         assertThatIllegalStateException()
                 .describedAs(sample.asDescription("Reading"))
-                .isThrownBy(() -> read(readFieldBeforeLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT));
+                .isThrownBy(() -> QuickReader.read(readFieldBeforeLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT));
     }
 
     @Test
@@ -128,8 +133,8 @@ public class CsvReaderTest {
 
     @Test
     public void testReusableFieldOverflow() {
-        String field1 = IntStream.range(0, 70).mapToObj(i -> "A").collect(Collectors.joining());
-        String field2 = IntStream.range(0, 10).mapToObj(i -> "B").collect(Collectors.joining());
+        String field1 = IntStream.range(0, 70).mapToObj(i -> "A").collect(joining());
+        String field2 = IntStream.range(0, 10).mapToObj(i -> "B").collect(joining());
 
         assertThat(Sample
                 .builder()
@@ -405,6 +410,120 @@ public class CsvReaderTest {
                 .isTrue();
     }
 
+    @Test
+    public void testSurrogatePair() {
+        String grinning = "😀";
+        String wink = "😉";
+        assertThat(Sample
+                .builder()
+                .format(RFC4180)
+                .content(grinning + ",hello\r\nworld," + wink + "\r\n")
+                .rowFields(grinning, "hello").rowFields("world", wink)
+                .build()
+        ).is(validWithStrict).is(validWithLenient);
+    }
+
+    @Test
+    public void testEndOfLine() throws IOException {
+        Csv.ReaderOptions strict = Csv.ReaderOptions.DEFAULT;
+        Csv.ReaderOptions lenient = Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(true).build();
+
+        Csv.Format single = RFC4180.toBuilder().separator("␊").quote('=').comment('!').build();
+        Csv.Format dual = RFC4180.toBuilder().separator("␍␊").quote('=').comment('!').build();
+
+        // FIELD_TYPE_QUOTED
+        {
+            // 1. EOL_TYPE_SINGLE
+            assertThat(format("=A=␊B", single, strict)).isEqualTo("A⏎B");
+            assertThat(format("=A=␊", single, strict)).isEqualTo("A");
+            assertThat(format("=A=␊B", single, lenient)).isEqualTo("A⏎B");
+            assertThat(format("=A=␊", single, lenient)).isEqualTo("A");
+            // 2. EOL_TYPE_DUAL_STRICT
+            assertThat(format("=A=␍␊B", dual, strict)).isEqualTo("A⏎B");
+            assertThat(format("=A=␍␊", dual, strict)).isEqualTo("A");
+            assertThat(format("=A=␍B", dual, strict)).isEqualTo("A␍B");
+            assertThat(format("=A=␍", dual, strict)).isEqualTo("A␍");
+            // 3. EOL_TYPE_DUAL_LENIENT first
+            assertThat(format("=A=␍B", dual, lenient)).isEqualTo("A⏎B");
+            assertThat(format("=A=␍", dual, lenient)).isEqualTo("A");
+            // 4. EOL_TYPE_DUAL_LENIENT full
+            assertThat(format("=A=␍␊B", dual, lenient)).isEqualTo("A⏎B");
+            assertThat(format("=A=␍␊", dual, lenient)).isEqualTo("A");
+            // 5. EOL_TYPE_DUAL_LENIENT second
+            assertThat(format("=A=␊B", dual, lenient)).isEqualTo("A⏎B");
+            assertThat(format("=A=␊", dual, lenient)).isEqualTo("A");
+        }
+
+        // FIELD_TYPE_COMMENTED
+        {
+            // 1. EOL_TYPE_SINGLE
+            assertThat(format("!A␊B", single, strict)).isEqualTo("B");
+            assertThat(format("!A␊", single, strict)).isEqualTo("");
+            assertThat(format("!A␊B", single, lenient)).isEqualTo("B");
+            assertThat(format("!A␊", single, lenient)).isEqualTo("");
+            // 2. EOL_TYPE_DUAL_STRICT
+            assertThat(format("!A␍␊B", dual, strict)).isEqualTo("B");
+            assertThat(format("!A␍␊", dual, strict)).isEqualTo("");
+            assertThat(format("!A␍B", dual, strict)).isEqualTo("");
+            assertThat(format("!A␍", dual, strict)).isEqualTo("");
+            // 3. EOL_TYPE_DUAL_LENIENT first
+            assertThat(format("!A␍B", dual, lenient)).isEqualTo("B");
+            assertThat(format("!A␍", dual, lenient)).isEqualTo("");
+            // 4. EOL_TYPE_DUAL_LENIENT full
+            assertThat(format("!A␍␊B", dual, lenient)).isEqualTo("B");
+            assertThat(format("!A␍␊", dual, lenient)).isEqualTo("");
+            // 5. EOL_TYPE_DUAL_LENIENT second
+            assertThat(format("!A␊B", dual, lenient)).isEqualTo("B");
+            assertThat(format("!A␊", dual, lenient)).isEqualTo("");
+        }
+
+        // FIELD_TYPE_NORMAL empty
+        {
+            // 1. EOL_TYPE_SINGLE
+            assertThat(format("␊B", single, strict)).isEqualTo("⏎B");
+            assertThat(format("␊", single, strict)).isEqualTo("");
+            assertThat(format("␊B", single, lenient)).isEqualTo("⏎B");
+            assertThat(format("␊", single, lenient)).isEqualTo("");
+            // 2. EOL_TYPE_DUAL_STRICT
+            assertThat(format("␍␊B", dual, strict)).isEqualTo("⏎B");
+            assertThat(format("␍␊", dual, strict)).isEqualTo("");
+            assertThat(format("␍B", dual, strict)).isEqualTo("␍B");
+            assertThat(format("␍", dual, strict)).isEqualTo("␍");
+            // 3. EOL_TYPE_DUAL_LENIENT first
+            assertThat(format("␍B", dual, lenient)).isEqualTo("⏎B");
+            assertThat(format("␍", dual, lenient)).isEqualTo("");
+            // 4. EOL_TYPE_DUAL_LENIENT full
+            assertThat(format("␍␊B", dual, lenient)).isEqualTo("⏎B");
+            assertThat(format("␍␊", dual, lenient)).isEqualTo("");
+            // 5. EOL_TYPE_DUAL_LENIENT second
+            assertThat(format("␊B", dual, lenient)).isEqualTo("⏎B");
+            assertThat(format("␊", dual, lenient)).isEqualTo("");
+        }
+
+        // FIELD_TYPE_NORMAL non-empty
+        {
+            // 1. EOL_TYPE_SINGLE
+            assertThat(format("A␊B", single, strict)).isEqualTo("A⏎B");
+            assertThat(format("A␊", single, strict)).isEqualTo("A");
+            assertThat(format("A␊B", single, lenient)).isEqualTo("A⏎B");
+            assertThat(format("A␊", single, lenient)).isEqualTo("A");
+            // 2. EOL_TYPE_DUAL_STRICT
+            assertThat(format("A␍␊B", dual, strict)).isEqualTo("A⏎B");
+            assertThat(format("A␍␊", dual, strict)).isEqualTo("A");
+            assertThat(format("A␍B", dual, strict)).isEqualTo("A␍B");
+            assertThat(format("A␍", dual, strict)).isEqualTo("A␍");
+            // 3. EOL_TYPE_DUAL_LENIENT first
+            assertThat(format("A␍B", dual, lenient)).isEqualTo("A⏎B");
+            assertThat(format("A␍", dual, lenient)).isEqualTo("A");
+            // 4. EOL_TYPE_DUAL_LENIENT full
+            assertThat(format("A␍␊B", dual, lenient)).isEqualTo("A⏎B");
+            assertThat(format("A␍␊", dual, lenient)).isEqualTo("A");
+            // 5. EOL_TYPE_DUAL_LENIENT second
+            assertThat(format("A␊B", dual, lenient)).isEqualTo("A⏎B");
+            assertThat(format("A␊", dual, lenient)).isEqualTo("A");
+        }
+    }
+
     @ParameterizedTest
     @MethodSource("_test.fastcsv.FastCsvEntry#loadAll")
     public void testFastCsvSamples(FastCsvEntry entry) throws IOException {
@@ -450,12 +569,30 @@ public class CsvReaderTest {
                 reader.readLine();
                 return Row.readAll(reader, Row::appendEmpty, Row::appendComment, Row::appendFields);
             }
+        }, SKIP_NOT_LAST {
+            @Override
+            public List<Row> accept(Csv.Reader reader) throws IOException {
+                reader.readLine();
+                reader.readField();
+                reader.readLine();
+                return Row.readAll(reader, Row::appendEmpty, Row::appendComment, Row::appendFields);
+            }
         }
     }
 
-    private static <T> List<T> copyWithout(List<T> source, int index) {
-        LinkedList<T> result = new LinkedList<>(source);
-        result.remove(index);
-        return result;
+    private static String format(String input, Csv.Format format, Csv.ReaderOptions options) throws IOException {
+        return QuickReader.readValue(CsvReaderTest::format, input, format, options);
+    }
+
+    private static String format(Csv.Reader reader) throws IOException {
+        try {
+            return Cookbook.asStream(reader)
+                    .filter(lineReader -> !lineReader.isComment())
+                    .map(((Cookbook.LineParser<String[]>) Cookbook::readLineOfUnknownSize).asUnchecked())
+                    .map(array -> String.join("↷", array))
+                    .collect(joining("⏎"));
+        } catch (UncheckedIOException ex) {
+            throw ex.getCause();
+        }
     }
 }
