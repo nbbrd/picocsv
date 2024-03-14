@@ -81,6 +81,24 @@ public class Cookbook {
         return asStream(reader).map(lineParser.asUnchecked());
     }
 
+    public static <T> void writeRecords(@NonNull Csv.Writer writer, @NonNull Map<String, String> map) throws IOException {
+        writeRecords(writer, LineFormatter.onMapEntry(), map.entrySet());
+    }
+
+    public static <T> void writeRecords(@NonNull Csv.Writer writer, @NonNull LineFormatter<T> formatter, @NonNull Iterable<T> iterable) throws IOException {
+        writeRecords(writer, formatter, iterable.iterator());
+    }
+
+    public static <T> void writeRecords(@NonNull Csv.Writer writer, @NonNull LineFormatter<T> formatter, @NonNull Iterator<T> iterator) throws IOException {
+        if (iterator.hasNext()) {
+            formatter.format(writer, iterator.next());
+            while (iterator.hasNext()) {
+                writer.writeEndOfLine();
+                formatter.format(writer, iterator.next());
+            }
+        }
+    }
+
     @lombok.RequiredArgsConstructor
     private static final class ArrayLineReader implements Csv.LineReader {
 
@@ -173,6 +191,13 @@ public class Cookbook {
                 } catch (IOException ex) {
                     throw new UncheckedIOException(ex);
                 }
+            };
+        }
+
+        static @NonNull LineFormatter<Map.Entry<String, String>> onMapEntry() {
+            return (line, value) -> {
+                line.writeField(value.getKey());
+                line.writeField(value.getValue());
             };
         }
     }

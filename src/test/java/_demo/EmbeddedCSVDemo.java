@@ -31,29 +31,30 @@ public class EmbeddedCSVDemo {
 
     public static void main(String[] args) throws IOException {
 
+        Csv.Format mainFormat = Csv.Format.DEFAULT;
         Csv.Format embeddedFormat = Csv.Format.builder().delimiter('=').separator(",").build();
 
         StringWriter mainString = new StringWriter();
-        try (Csv.Writer main = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, mainString)) {
+        try (Csv.Writer main = Csv.Writer.of(mainFormat, Csv.WriterOptions.DEFAULT, mainString)) {
             main.writeField("NAME");
             main.writeField("PROPERTIES");
             main.writeEndOfLine();
 
             for (Record record : Record.getData()) {
                 main.writeField(record.getName());
-                StringWriter embeddedString = new StringWriter();
-                try (Csv.Writer embedded = Csv.Writer.of(embeddedFormat, Csv.WriterOptions.DEFAULT, embeddedString)) {
-                    for (Map.Entry<String, String> property : record.getProperties().entrySet()) {
-                        embedded.writeField(property.getKey());
-                        embedded.writeField(property.getValue());
-                        embedded.writeEndOfLine();
-                    }
-                }
-                main.writeField(embeddedString.toString());
+                main.writeField(getEmbeddedCSV(embeddedFormat, record.properties));
                 main.writeEndOfLine();
             }
         }
         System.out.println(mainString);
+    }
+
+    private static String getEmbeddedCSV(Csv.Format embeddedFormat, Map<String, String> properties) throws IOException {
+        StringWriter embeddedString = new StringWriter();
+        try (Csv.Writer embedded = Csv.Writer.of(embeddedFormat, Csv.WriterOptions.DEFAULT, embeddedString)) {
+            Cookbook.writeRecords(embedded, properties);
+        }
+        return embeddedString.toString();
     }
 
     @lombok.Value
@@ -67,8 +68,13 @@ public class EmbeddedCSVDemo {
 
         static List<Record> getData() {
             List<Record> result = new ArrayList<>();
-            result.add(Record.builder().name("name1").property("key1", "value1").build());
-            result.add(Record.builder().name("name2").property("key2", "value2").build());
+            result.add(Record.builder().name("name1")
+                    .property("key1", "value1")
+                    .build());
+            result.add(Record.builder().name("name2")
+                    .property("key2", "value2")
+                    .property("key3", "value3")
+                    .build());
             return result;
         }
     }
