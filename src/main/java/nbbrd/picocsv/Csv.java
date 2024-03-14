@@ -45,7 +45,7 @@ import java.util.Objects;
  * <li> does not correct invalid files
  * <li> follows the <a href="https://tools.ietf.org/html/rfc4180">RFC4180</a> specification
  * <li> supports custom line separator
- * <li> supports comment character
+ * <li> supports custom comment character
  * </ul>
  * <p>
  * ⚠️ <i>Note that the <code>Format#acceptMissingField</code> option must be set to <code>false</code> to closely follow the RFC4180 specification.

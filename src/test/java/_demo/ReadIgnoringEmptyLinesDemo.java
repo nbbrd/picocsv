@@ -39,7 +39,7 @@ public class ReadIgnoringEmptyLinesDemo {
     private static List<String[]> readIgnoringEmptyLines(Csv.Reader reader) throws IOException {
         List<String[]> result = new ArrayList<>();
         while (reader.readLine()) {
-            String[] values = Cookbook.readFieldsOfUnknownSize(reader);
+            String[] values = Cookbook.readLineOfUnknownSize(reader);
             if (values.length > 0) {
                 result.add(values);
             }

@@ -39,6 +39,6 @@ public class ReadHeaderDemo {
     }
 
     private static Optional<String[]> readHeader(Csv.Reader reader) throws IOException {
-        return Cookbook.skipComments(reader) ? Optional.of(Cookbook.readFieldsOfUnknownSize(reader)) : Optional.empty();
+        return Cookbook.skipComments(reader) ? Optional.of(Cookbook.readLineOfUnknownSize(reader)) : Optional.empty();
     }
 }
