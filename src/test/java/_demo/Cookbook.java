@@ -3,8 +3,11 @@ package _demo;
 import lombok.NonNull;
 import nbbrd.picocsv.Csv;
 
+import java.io.Closeable;
+import java.io.Flushable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.CharBuffer;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -97,6 +100,14 @@ public class Cookbook {
                 formatter.format(writer, iterator.next());
             }
         }
+    }
+
+    public static @NonNull java.io.Reader asCharReader(@NonNull Readable readable) {
+        return readable instanceof java.io.Reader ? (java.io.Reader) readable : new ReadableAdapter(readable);
+    }
+
+    public static @NonNull java.io.Writer asCharWriter(@NonNull Appendable appendable) {
+        return appendable instanceof java.io.Writer ? (java.io.Writer) appendable : new AppendableAdapter(appendable);
     }
 
     @lombok.RequiredArgsConstructor
@@ -199,6 +210,43 @@ public class Cookbook {
                 line.writeField(value.getKey());
                 line.writeField(value.getValue());
             };
+        }
+    }
+
+    @lombok.AllArgsConstructor
+    private static final class ReadableAdapter extends java.io.Reader {
+
+        private final Readable readable;
+
+        @Override
+        public int read(char[] cbuf, int off, int len) throws IOException {
+            return readable.read(CharBuffer.wrap(cbuf, off, len));
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (readable instanceof Closeable) ((Closeable) readable).close();
+        }
+    }
+
+    @lombok.AllArgsConstructor
+    private static final class AppendableAdapter extends java.io.Writer {
+
+        private final Appendable appendable;
+
+        @Override
+        public void write(char[] cbuf, int off, int len) throws IOException {
+            appendable.append(CharBuffer.wrap(cbuf, off, len));
+        }
+
+        @Override
+        public void flush() throws IOException {
+            if (appendable instanceof Flushable) ((Flushable) appendable).flush();
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (appendable instanceof Closeable) ((Closeable) appendable).close();
         }
     }
 }
