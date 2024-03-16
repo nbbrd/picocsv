@@ -24,11 +24,14 @@ import _test.Sample;
 import _test.fastcsv.FastCsvEntry;
 import _test.fastcsv.FastCsvEntryConverter;
 import _test.fastcsv.FastCsvEntryRowsParser;
+import lombok.NonNull;
+import lombok.Value;
 import org.assertj.core.api.Condition;
 import org.assertj.core.condition.VerboseCondition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -36,6 +39,7 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static _test.Sample.INVALID_FORMAT;
 import static java.util.stream.Collectors.joining;
@@ -423,104 +427,110 @@ public class CsvReaderTest {
         ).is(validWithStrict).is(validWithLenient);
     }
 
-    @Test
-    public void testEndOfLine() throws IOException {
-        Csv.ReaderOptions strict = Csv.ReaderOptions.DEFAULT;
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, DEFAULT_CHAR_BUFFER_SIZE})
+    public void testEndOfLine(int charBufferSize) throws IOException {
+        Csv.ReaderOptions strict = Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(false).build();
         Csv.ReaderOptions lenient = Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(true).build();
 
-        Csv.Format single = RFC4180.toBuilder().separator("␊").quote('=').comment('!').build();
-        Csv.Format dual = RFC4180.toBuilder().separator("␍␊").quote('=').comment('!').build();
+        Csv.Format single = RFC4180.toBuilder().separator(UNIX_SEPARATOR).build();
+        Csv.Format dual = RFC4180.toBuilder().separator(WINDOWS_SEPARATOR).build();
+
+        SymbolParser singleStrict = new SymbolParser(single, strict, charBufferSize);
+        SymbolParser singleLenient = new SymbolParser(single, lenient, charBufferSize);
+        SymbolParser dualStrict = new SymbolParser(dual, strict, charBufferSize);
+        SymbolParser dualLenient = new SymbolParser(dual, lenient, charBufferSize);
 
         // FIELD_TYPE_QUOTED
         {
             // 1. EOL_TYPE_SINGLE
-            assertThat(format("=A=␊B", single, strict)).isEqualTo("A⏎B");
-            assertThat(format("=A=␊", single, strict)).isEqualTo("A");
-            assertThat(format("=A=␊B", single, lenient)).isEqualTo("A⏎B");
-            assertThat(format("=A=␊", single, lenient)).isEqualTo("A");
+            assertThat(singleStrict.parse("=A=␊B")).isEqualTo("A⏎B");
+            assertThat(singleStrict.parse("=A=␊")).isEqualTo("A");
+            assertThat(singleLenient.parse("=A=␊B")).isEqualTo("A⏎B");
+            assertThat(singleLenient.parse("=A=␊")).isEqualTo("A");
             // 2. EOL_TYPE_DUAL_STRICT
-            assertThat(format("=A=␍␊B", dual, strict)).isEqualTo("A⏎B");
-            assertThat(format("=A=␍␊", dual, strict)).isEqualTo("A");
-            assertThat(format("=A=␍B", dual, strict)).isEqualTo("A␍B");
-            assertThat(format("=A=␍", dual, strict)).isEqualTo("A␍");
+            assertThat(dualStrict.parse("=A=␍␊B")).isEqualTo("A⏎B");
+            assertThat(dualStrict.parse("=A=␍␊")).isEqualTo("A");
+            assertThat(dualStrict.parse("=A=␍B")).isEqualTo("A␍B");
+            assertThat(dualStrict.parse("=A=␍")).isEqualTo("A␍");
             // 3. EOL_TYPE_DUAL_LENIENT first
-            assertThat(format("=A=␍B", dual, lenient)).isEqualTo("A⏎B");
-            assertThat(format("=A=␍", dual, lenient)).isEqualTo("A");
+            assertThat(dualLenient.parse("=A=␍B")).isEqualTo("A⏎B");
+            assertThat(dualLenient.parse("=A=␍")).isEqualTo("A");
             // 4. EOL_TYPE_DUAL_LENIENT full
-            assertThat(format("=A=␍␊B", dual, lenient)).isEqualTo("A⏎B");
-            assertThat(format("=A=␍␊", dual, lenient)).isEqualTo("A");
+            assertThat(dualLenient.parse("=A=␍␊B")).isEqualTo("A⏎B");
+            assertThat(dualLenient.parse("=A=␍␊")).isEqualTo("A");
             // 5. EOL_TYPE_DUAL_LENIENT second
-            assertThat(format("=A=␊B", dual, lenient)).isEqualTo("A⏎B");
-            assertThat(format("=A=␊", dual, lenient)).isEqualTo("A");
+            assertThat(dualLenient.parse("=A=␊B")).isEqualTo("A⏎B");
+            assertThat(dualLenient.parse("=A=␊")).isEqualTo("A");
         }
 
         // FIELD_TYPE_COMMENTED
         {
             // 1. EOL_TYPE_SINGLE
-            assertThat(format("!A␊B", single, strict)).isEqualTo("B");
-            assertThat(format("!A␊", single, strict)).isEqualTo("");
-            assertThat(format("!A␊B", single, lenient)).isEqualTo("B");
-            assertThat(format("!A␊", single, lenient)).isEqualTo("");
+            assertThat(singleStrict.parse("!A␊B")).isEqualTo("…A⏎B");
+            assertThat(singleStrict.parse("!A␊")).isEqualTo("…A");
+            assertThat(singleLenient.parse("!A␊B")).isEqualTo("…A⏎B");
+            assertThat(singleLenient.parse("!A␊")).isEqualTo("…A");
             // 2. EOL_TYPE_DUAL_STRICT
-            assertThat(format("!A␍␊B", dual, strict)).isEqualTo("B");
-            assertThat(format("!A␍␊", dual, strict)).isEqualTo("");
-            assertThat(format("!A␍B", dual, strict)).isEqualTo("");
-            assertThat(format("!A␍", dual, strict)).isEqualTo("");
+            assertThat(dualStrict.parse("!A␍␊B")).isEqualTo("…A⏎B");
+            assertThat(dualStrict.parse("!A␍␊")).isEqualTo("…A");
+            assertThat(dualStrict.parse("!A␍B")).isEqualTo("…A␍B");
+            assertThat(dualStrict.parse("!A␍")).isEqualTo("…A␍");
             // 3. EOL_TYPE_DUAL_LENIENT first
-            assertThat(format("!A␍B", dual, lenient)).isEqualTo("B");
-            assertThat(format("!A␍", dual, lenient)).isEqualTo("");
+            assertThat(dualLenient.parse("!A␍B")).isEqualTo("…A⏎B");
+            assertThat(dualLenient.parse("!A␍")).isEqualTo("…A");
             // 4. EOL_TYPE_DUAL_LENIENT full
-            assertThat(format("!A␍␊B", dual, lenient)).isEqualTo("B");
-            assertThat(format("!A␍␊", dual, lenient)).isEqualTo("");
+            assertThat(dualLenient.parse("!A␍␊B")).isEqualTo("…A⏎B");
+            assertThat(dualLenient.parse("!A␍␊")).isEqualTo("…A");
             // 5. EOL_TYPE_DUAL_LENIENT second
-            assertThat(format("!A␊B", dual, lenient)).isEqualTo("B");
-            assertThat(format("!A␊", dual, lenient)).isEqualTo("");
+            assertThat(dualLenient.parse("!A␊B")).isEqualTo("…A⏎B");
+            assertThat(dualLenient.parse("!A␊")).isEqualTo("…A");
         }
 
         // FIELD_TYPE_NORMAL empty
         {
             // 1. EOL_TYPE_SINGLE
-            assertThat(format("␊B", single, strict)).isEqualTo("⏎B");
-            assertThat(format("␊", single, strict)).isEqualTo("");
-            assertThat(format("␊B", single, lenient)).isEqualTo("⏎B");
-            assertThat(format("␊", single, lenient)).isEqualTo("");
+            assertThat(singleStrict.parse("␊B")).isEqualTo("⏎B");
+            assertThat(singleStrict.parse("␊")).isEqualTo("");
+            assertThat(singleLenient.parse("␊B")).isEqualTo("⏎B");
+            assertThat(singleLenient.parse("␊")).isEqualTo("");
             // 2. EOL_TYPE_DUAL_STRICT
-            assertThat(format("␍␊B", dual, strict)).isEqualTo("⏎B");
-            assertThat(format("␍␊", dual, strict)).isEqualTo("");
-            assertThat(format("␍B", dual, strict)).isEqualTo("␍B");
-            assertThat(format("␍", dual, strict)).isEqualTo("␍");
+            assertThat(dualStrict.parse("␍␊B")).isEqualTo("⏎B");
+            assertThat(dualStrict.parse("␍␊")).isEqualTo("");
+            assertThat(dualStrict.parse("␍B")).isEqualTo("␍B");
+            assertThat(dualStrict.parse("␍")).isEqualTo("␍");
             // 3. EOL_TYPE_DUAL_LENIENT first
-            assertThat(format("␍B", dual, lenient)).isEqualTo("⏎B");
-            assertThat(format("␍", dual, lenient)).isEqualTo("");
+            assertThat(dualLenient.parse("␍B")).isEqualTo("⏎B");
+            assertThat(dualLenient.parse("␍")).isEqualTo("");
             // 4. EOL_TYPE_DUAL_LENIENT full
-            assertThat(format("␍␊B", dual, lenient)).isEqualTo("⏎B");
-            assertThat(format("␍␊", dual, lenient)).isEqualTo("");
+            assertThat(dualLenient.parse("␍␊B")).isEqualTo("⏎B");
+            assertThat(dualLenient.parse("␍␊")).isEqualTo("");
             // 5. EOL_TYPE_DUAL_LENIENT second
-            assertThat(format("␊B", dual, lenient)).isEqualTo("⏎B");
-            assertThat(format("␊", dual, lenient)).isEqualTo("");
+            assertThat(dualLenient.parse("␊B")).isEqualTo("⏎B");
+            assertThat(dualLenient.parse("␊")).isEqualTo("");
         }
 
         // FIELD_TYPE_NORMAL non-empty
         {
             // 1. EOL_TYPE_SINGLE
-            assertThat(format("A␊B", single, strict)).isEqualTo("A⏎B");
-            assertThat(format("A␊", single, strict)).isEqualTo("A");
-            assertThat(format("A␊B", single, lenient)).isEqualTo("A⏎B");
-            assertThat(format("A␊", single, lenient)).isEqualTo("A");
+            assertThat(singleStrict.parse("A␊B")).isEqualTo("A⏎B");
+            assertThat(singleStrict.parse("A␊")).isEqualTo("A");
+            assertThat(singleLenient.parse("A␊B")).isEqualTo("A⏎B");
+            assertThat(singleLenient.parse("A␊")).isEqualTo("A");
             // 2. EOL_TYPE_DUAL_STRICT
-            assertThat(format("A␍␊B", dual, strict)).isEqualTo("A⏎B");
-            assertThat(format("A␍␊", dual, strict)).isEqualTo("A");
-            assertThat(format("A␍B", dual, strict)).isEqualTo("A␍B");
-            assertThat(format("A␍", dual, strict)).isEqualTo("A␍");
+            assertThat(dualStrict.parse("A␍␊B")).isEqualTo("A⏎B");
+            assertThat(dualStrict.parse("A␍␊")).isEqualTo("A");
+            assertThat(dualStrict.parse("A␍B")).isEqualTo("A␍B");
+            assertThat(dualStrict.parse("A␍")).isEqualTo("A␍");
             // 3. EOL_TYPE_DUAL_LENIENT first
-            assertThat(format("A␍B", dual, lenient)).isEqualTo("A⏎B");
-            assertThat(format("A␍", dual, lenient)).isEqualTo("A");
+            assertThat(dualLenient.parse("A␍B")).isEqualTo("A⏎B");
+            assertThat(dualLenient.parse("A␍")).isEqualTo("A");
             // 4. EOL_TYPE_DUAL_LENIENT full
-            assertThat(format("A␍␊B", dual, lenient)).isEqualTo("A⏎B");
-            assertThat(format("A␍␊", dual, lenient)).isEqualTo("A");
+            assertThat(dualLenient.parse("A␍␊B")).isEqualTo("A⏎B");
+            assertThat(dualLenient.parse("A␍␊")).isEqualTo("A");
             // 5. EOL_TYPE_DUAL_LENIENT second
-            assertThat(format("A␊B", dual, lenient)).isEqualTo("A⏎B");
-            assertThat(format("A␊", dual, lenient)).isEqualTo("A");
+            assertThat(dualLenient.parse("A␊B")).isEqualTo("A⏎B");
+            assertThat(dualLenient.parse("A␊")).isEqualTo("A");
         }
     }
 
@@ -580,19 +590,46 @@ public class CsvReaderTest {
         }
     }
 
-    private static String format(String input, Csv.Format format, Csv.ReaderOptions options) throws IOException {
-        return QuickReader.readValue(CsvReaderTest::format, input, format, options);
-    }
+    @lombok.AllArgsConstructor
+    private static final class SymbolParser {
 
-    private static String format(Csv.Reader reader) throws IOException {
-        try {
-            return Cookbook.asStream(reader)
-                    .filter(lineReader -> !lineReader.isComment())
-                    .map(((Cookbook.LineParser<String[]>) Cookbook::readLineOfUnknownSize).asUnchecked())
-                    .map(array -> String.join("↷", array))
-                    .collect(joining("⏎"));
-        } catch (UncheckedIOException ex) {
-            throw ex.getCause();
+        private final Csv.Format format;
+        private final Csv.ReaderOptions options;
+        private final int charBufferSize;
+
+        public @NonNull String parse(@NonNull String input) throws IOException {
+            return QuickReader.readValue(SymbolParser::parse, fromSymbols(input), format, options, charBufferSize);
+        }
+
+        private static String fromSymbols(String input) {
+            return input
+                    .replace('!', '#')
+                    .replace('=', '"')
+                    .replace('␍', '\r')
+                    .replace('␊', '\n');
+        }
+
+
+        private static String toSymbols(String input) {
+            return input
+                    .replace('#', '!')
+                    .replace('"', '=')
+                    .replace('\r', '␍')
+                    .replace('\n', '␊');
+        }
+
+        private static String parse(Csv.Reader reader) throws IOException {
+            try {
+                return Cookbook.asStream(reader)
+                        .map(Cookbook.LineParser.unchecked(SymbolParser::parse))
+                        .collect(joining("⏎"));
+            } catch (UncheckedIOException ex) {
+                throw ex.getCause();
+            }
+        }
+
+        private static String parse(Csv.LineReader lineReader) throws IOException {
+            return (lineReader.isComment() ? "…" : "") + Stream.of(Cookbook.readLineOfUnknownSize(lineReader)).map(SymbolParser::toSymbols).collect(joining("↷"));
         }
     }
 }

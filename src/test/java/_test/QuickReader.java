@@ -35,6 +35,14 @@ public class QuickReader {
         }
     }
 
+    public static <T> T readValue(Parser<T> parser, String input, Csv.Format format, Csv.ReaderOptions options, int charBufferSize) throws IOException {
+        try (java.io.Reader charReader = new StringReader(input)) {
+            try (Csv.Reader reader = Csv.Reader.of(format, options, charReader, charBufferSize)) {
+                return parser.accept(reader);
+            }
+        }
+    }
+
     public static void read(VoidParser parser, String input, Csv.Format format, Csv.ReaderOptions options) throws IOException {
         readValue(stream -> {
             parser.accept(stream);

@@ -167,7 +167,7 @@ public class Cookbook {
         @Override
         protected boolean moveNext() {
             try {
-                return skipComments(reader);
+                return reader.readLine();
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
@@ -187,6 +187,10 @@ public class Cookbook {
                     throw new UncheckedIOException(ex);
                 }
             };
+        }
+
+        static <T> @NonNull Function<Csv.LineReader, T> unchecked(@NonNull LineParser<T> lineParser) {
+            return lineParser.asUnchecked();
         }
     }
 
