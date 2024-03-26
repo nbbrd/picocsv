@@ -1281,6 +1281,7 @@ public final class Csv {
                 output.write(quote);
             }
             state = STATE_NO_FIELD;
+            output.flush();
         }
 
         /**
@@ -1349,7 +1350,7 @@ public final class Csv {
         private static final int STATE_SINGLE_EMPTY_FIELD = 1;
         private static final int STATE_MULTI_FIELD = 2;
 
-        private static final class Output implements Closeable {
+        private static final class Output implements Closeable, Flushable {
 
             private final java.io.Writer charWriter;
             private final char[] buffer;
@@ -1363,7 +1364,7 @@ public final class Csv {
 
             public void write(char c) throws IOException {
                 if (length == buffer.length) {
-                    flush();
+                    flushBuffer();
                 }
                 buffer[length++] = c;
             }
@@ -1371,7 +1372,7 @@ public final class Csv {
             public void write(CharSequence chars) throws IOException {
                 int charsLength = chars.length();
                 if (length + charsLength >= buffer.length) {
-                    flush();
+                    flushBuffer();
                     if (charsLength >= buffer.length) {
                         charWriter.append(chars);
                         return;
@@ -1389,13 +1390,21 @@ public final class Csv {
 
             @Override
             public void close() throws IOException {
-                flush();
+                flushBuffer();
                 charWriter.close();
             }
 
-            private void flush() throws IOException {
+            private void flushBuffer() throws IOException {
                 charWriter.write(buffer, 0, length);
                 length = 0;
+            }
+
+            @Override
+            public void flush() throws IOException {
+                if (length != 0) {
+                    flushBuffer();
+                }
+                charWriter.flush();
             }
         }
 
