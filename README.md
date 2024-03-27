@@ -23,7 +23,7 @@ Features:
 - does not correct invalid files
 - follows the [RFC4180](https://tools.ietf.org/html/rfc4180) specification
 - supports custom line separator
-- supports comment character
+- supports custom comment character
 
 ⚠️ _Note that the `Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.
 The default value is currently `true` but will be reversed in the next major release._
@@ -72,6 +72,12 @@ try (java.io.Writer chars = ...;
 ```java
 Csv.Format tsv = Csv.Format.builder().delimiter('\t').build();
 ```
+
+### Readable/Appendable
+
+picocsv only supports `java.io.Reader`/`java.io.Writer` as input/output for performance reasons.
+However, it is still possible to use `Readable`/`Appendable` by wrapping them in adapters.
+See [`Cookbook#asCharReader(Readable)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java) and [`Cookbook#asCharWriter(Appendable)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java).
 
 ## Setup
 

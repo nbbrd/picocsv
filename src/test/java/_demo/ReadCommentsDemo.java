@@ -40,7 +40,7 @@ public class ReadCommentsDemo {
         List<String[]> result = new ArrayList<>();
         while (reader.readLine()) {
             if (reader.isComment()) {
-                result.add(Cookbook.readFieldsOfUnknownSize(reader));
+                result.add(Cookbook.readLineOfUnknownSize(reader));
             }
         }
         return result;

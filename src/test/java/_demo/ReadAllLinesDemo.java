@@ -39,7 +39,7 @@ public class ReadAllLinesDemo {
     private static List<String[]> readAllLines(Csv.Reader reader) throws IOException {
         List<String[]> result = new ArrayList<>();
         while (reader.readLine()) {
-            result.add(Cookbook.readFieldsOfUnknownSize(reader));
+            result.add(Cookbook.readLineOfUnknownSize(reader));
         }
         return result;
     }

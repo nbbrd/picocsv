@@ -56,14 +56,14 @@ public class ReadColumnsDemo {
         if (Cookbook.skipComments(reader)) {
             List<String[]> result = new ArrayList<>();
 
-            String[] header = Cookbook.readFieldsOfUnknownSize(reader);
+            String[] header = Cookbook.readLineOfUnknownSize(reader);
 
             int[] mapping = mapper.apply(header);
             int size = getFieldsSize(mapping);
 
-            result.add(Cookbook.readFieldsOfFixedSize(Cookbook.asLineReader(header), mapping, size));
+            result.add(Cookbook.readLineOfFixedSize(Cookbook.asLineReader(header), mapping, size));
             while (Cookbook.skipComments(reader)) {
-                result.add(Cookbook.readFieldsOfFixedSize(reader, mapping, size));
+                result.add(Cookbook.readLineOfFixedSize(reader, mapping, size));
             }
 
             return result;

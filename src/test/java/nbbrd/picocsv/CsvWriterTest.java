@@ -221,6 +221,20 @@ public class CsvWriterTest {
         ), Csv.WriterOptions.DEFAULT);
     }
 
+    @Test
+    void flushesALineToTheUnderlyingWriter() throws IOException {
+        StringWriter buf = new StringWriter();
+
+        Csv.Writer csvWriter = Csv.Writer.of(Csv.Format.RFC4180, Csv.WriterOptions.DEFAULT, buf);
+        csvWriter.writeField("foo");
+        csvWriter.writeField("bar");
+        csvWriter.writeField("baz");
+        csvWriter.writeEndOfLine();
+        csvWriter.flush();
+
+        assertThat(buf.toString()).isEqualTo("foo,bar,baz\r\n");
+    }
+
     private static Sample getOverflowSample(String... fields) {
         return Sample
                 .builder()

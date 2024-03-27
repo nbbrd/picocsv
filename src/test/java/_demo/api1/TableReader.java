@@ -16,16 +16,14 @@
  */
 package _demo.api1;
 
+import _demo.Cookbook;
 import lombok.NonNull;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.Spliterator;
-import java.util.Spliterators;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import static _demo.Cookbook.*;
 
@@ -36,13 +34,13 @@ import static _demo.Cookbook.*;
 @lombok.Builder(toBuilder = true)
 public class TableReader<T> {
 
-    @NonNull Function<String[], RowReader<T>> rowFactory;
+    @NonNull Function<String[], LineParser<T>> rowFactory;
 
     @lombok.With
     @lombok.Builder.Default
     int skipLines = 0;
 
-    public static <X> @NonNull TableReaderBuilder<X> builder(@NonNull Function<String[], RowReader<X>> factory) {
+    public static <X> @NonNull TableReaderBuilder<X> builder(@NonNull Function<String[], LineParser<X>> factory) {
         return new TableReaderBuilder<X>().rowFactory(factory);
     }
 
@@ -54,13 +52,13 @@ public class TableReader<T> {
         return builder(rowFactoryOfMapper(mapperByName(names), names.length)).build();
     }
 
-    public static <X> @NonNull TableReader<X> byLine(@NonNull RowReader<X> function) {
+    public static <X> @NonNull TableReader<X> byLine(@NonNull Cookbook.LineParser<X> function) {
         return builder(ignore -> function).build();
     }
 
     public @NonNull Stream<T> lines(@NonNull Csv.Reader reader) {
         try {
-            return linesWithoutHeader(reader, readHeaderLine(reader));
+            return linesWithoutHeader(reader, readHeader(reader));
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);
         }
@@ -72,17 +70,14 @@ public class TableReader<T> {
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);
         }
-        RowReader<T> rowReader = rowFactory.apply(header);
-        return StreamSupport
-                .stream(Spliterators.spliteratorUnknownSize(new RowIterator(reader), Spliterator.ORDERED | Spliterator.NONNULL), false)
-                .map(rowReader.asUnchecked());
+        return asStream(reader, rowFactory.apply(header));
     }
 
-    private static Function<String[], RowReader<String[]>> rowFactoryOfMapper(Function<String[], int[]> mapper, int columnCount) {
+    private static Function<String[], LineParser<String[]>> rowFactoryOfMapper(Function<String[], int[]> mapper, int columnCount) {
         return header -> rowReaderOfMapping(mapper.apply(header), columnCount);
     }
 
-    private static RowReader<String[]> rowReaderOfMapping(int[] mapping, int columnCount) {
-        return line -> readFieldsOfFixedSize(line, mapping, columnCount);
+    private static LineParser<String[]> rowReaderOfMapping(int[] mapping, int columnCount) {
+        return line -> readLineOfFixedSize(line, mapping, columnCount);
     }
 }
