@@ -1,6 +1,7 @@
 # picocsv - lightweight CSV library for Java
 
 [![Download](https://img.shields.io/github/release/nbbrd/picocsv.svg)](https://github.com/nbbrd/picocsv/releases/latest)
+[![Changes](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fnbbrd%2Fpicocsv%2Fbadges%2Funreleased-changes.json)](https://github.com/nbbrd/picocsv/blob/develop/CHANGELOG.md)
 
 This Java library handles CSV content.  
 While directly usable, it is designed to be the core foundation of other libraries.
