@@ -34,16 +34,16 @@ jobs:
       - name: Build pages
         run: |
           mvn -B -ntp install javadoc:javadoc -DskipTests
-          touch ./target/site/.nojekyll
+          touch ./target/reports/.nojekyll
 
       - name: Add redirection to Javadoc
-        run: echo "<html><head><meta http-equiv=\"refresh\" content=\"0; url='apidocs'\"/></head></html>" > ./target/site/index.html
+        run: echo "<html><head><meta http-equiv=\"refresh\" content=\"0; url='apidocs'\"/></head></html>" > ./target/reports/index.html
 
       - name: Deploy pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/site
+          publish_dir: ./target/reports
           destination_dir: ./docs/${{ env.DOC_SLUG }}
 
       - name: Create summary
