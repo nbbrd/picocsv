@@ -677,23 +677,29 @@ public final class Csv {
             // WARNING: default value in JDK21 -XX:MinJumpTableSize=10
             switch (state) {
                 case STATE_0_READY:
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_1_FIRST:
                     skipRemainingFields();
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_2_NOT_LAST:
                     skipRemainingFields();
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_3_LAST:
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_4_SINGLE:
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_5_MISSING:
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_6_DONE:
@@ -779,9 +785,21 @@ public final class Csv {
             } while (state == STATE_2_NOT_LAST);
         }
 
+        private void relocateBuffer() throws IOException {
+            if (bufferIndex > buffer.length / 2) {
+                int remainingChars = buffer.length - bufferIndex;
+                System.arraycopy(buffer, bufferIndex, buffer, 0, remainingChars);
+                int newChars = charReader.read(buffer, remainingChars, bufferIndex);
+                bufferIndex = 0;
+                bufferLength = remainingChars + newChars;
+            }
+        }
+
         // WARNING: main loop; lots of duplication to maximize performances
         // WARNING: comparing ints more performant than comparing chars
         // WARNING: local var access slightly quicker that field access
+        // WARNING: the main trick is to never get out of this method when reading a field
+        // WARNING: and therefore never have to fill the buffer
         private void parseNextField(final boolean firstField) throws IOException {
             int fieldLength = this.fieldLength;
             int i = this.bufferIndex;
