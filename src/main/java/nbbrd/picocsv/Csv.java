@@ -241,6 +241,37 @@ public final class Csv {
                     + ')';
         }
 
+        private static String prettyPrint(String text) {
+            StringBuilder result = new StringBuilder();
+            for (int i = 0; i < text.length(); i++) {
+                result.append(prettyPrint(text.charAt(i)));
+            }
+            return result.toString();
+        }
+
+        private static String prettyPrint(char c) {
+            switch (c) {
+                case '\t':
+                    return "\\t";
+                case '\b':
+                    return "\\b";
+                case '\n':
+                    return "\\n";
+                case '\r':
+                    return "\\r";
+                case '\f':
+                    return "\\f";
+//            case '\'':
+//                return "\\'";
+                case '\"':
+                    return "\\\"";
+                case '\\':
+                    return "\\\\";
+                default:
+                    return String.valueOf(c);
+            }
+        }
+
         /**
          * Creates a new builder using this instance values.
          *
@@ -634,7 +665,6 @@ public final class Csv {
         private byte fieldType = FIELD_TYPE_NORMAL;
         private byte state = STATE_0_READY;
 
-
         private Reader(java.io.Reader charReader, char[] buffer, int quoteCode, int delimiterCode, int commentCode, byte emptyLineState, char[] fieldChars, byte eolType, int eolCode0, int eolCode1) {
             this.charReader = charReader;
             this.buffer = buffer;
@@ -663,6 +693,8 @@ public final class Csv {
         private static final byte EOL_TYPE_SINGLE = 20;
         private static final byte EOL_TYPE_DUAL_STRICT = 21;
         private static final byte EOL_TYPE_DUAL_LENIENT = 22;
+
+        private static final int EOF_CODE = -1;
 
         /**
          * Reads the next line.
@@ -718,7 +750,7 @@ public final class Csv {
                 case 18:
                     return false;
                 default:
-                    throw newUnreachable();
+                    throw new RuntimeException("Unreachable");
             }
         }
 
@@ -760,7 +792,7 @@ public final class Csv {
                 case 18:
                     return false;
                 default:
-                    throw newUnreachable();
+                    throw new RuntimeException("Unreachable");
             }
         }
 
@@ -1226,18 +1258,18 @@ public final class Csv {
             if (state != STATE_NO_FIELD) {
                 writeEndOfLine();
             }
-            output.write(this.comment);
-            if (comment != null && comment.length() > 0) {
+            output.appendChar(this.comment);
+            if (isNotEmpty(comment)) {
                 for (int i = 0; i < comment.length(); i++) {
                     char c = comment.charAt(i);
                     if (c == eol0 || c == eol1) {
                         writeEndOfLine();
-                        output.write(this.comment);
+                        output.appendChar(this.comment);
                         if (isSkipSecondEOL(comment, i)) {
                             i++;
                         }
                     } else {
-                        output.write(c);
+                        output.appendChar(c);
                     }
                 }
             }
@@ -1266,14 +1298,14 @@ public final class Csv {
                 }
                 case STATE_SINGLE_EMPTY_FIELD: {
                     state = STATE_MULTI_FIELD;
-                    output.write(delimiter);
+                    output.appendChar(delimiter);
                     if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
                     }
                     break;
                 }
                 case STATE_MULTI_FIELD: {
-                    output.write(delimiter);
+                    output.appendChar(delimiter);
                     if (isNotEmpty(field)) {
                         writeNonEmptyField(field);
                     }
@@ -1289,16 +1321,16 @@ public final class Csv {
          */
         public void writeEndOfLine() throws IOException {
             flush();
-            output.write(eol0);
+            output.appendChar(eol0);
             if (eol1 != NO_SECOND_EOL)
-                output.write(eol1);
+                output.appendChar(eol1);
         }
 
         @Override
         public void flush() throws IOException {
             if (state == STATE_SINGLE_EMPTY_FIELD) {
-                output.write(quote);
-                output.write(quote);
+                output.appendChar(quote);
+                output.appendChar(quote);
             }
             state = STATE_NO_FIELD;
             output.flush();
@@ -1316,8 +1348,8 @@ public final class Csv {
             output.close();
         }
 
-        private boolean isNotEmpty(CharSequence field) {
-            return field != null && field.length() != 0;
+        private static boolean isNotEmpty(CharSequence text) {
+            return text != null && text.length() != 0;
         }
 
         private void writeNonEmptyField(CharSequence field) throws IOException {
@@ -1327,23 +1359,23 @@ public final class Csv {
         private void writeNonEmptyField(CharSequence field, int quoting) throws IOException {
             switch (quoting) {
                 case QUOTING_NONE:
-                    output.write(field);
+                    output.appendChars(field);
                     break;
                 case QUOTING_PARTIAL:
-                    output.write(quote);
-                    output.write(field);
-                    output.write(quote);
+                    output.appendChar(quote);
+                    output.appendChars(field);
+                    output.appendChar(quote);
                     break;
                 case QUOTING_FULL:
-                    output.write(quote);
+                    output.appendChar(quote);
                     for (int i = 0; i < field.length(); i++) {
                         char c = field.charAt(i);
                         if (c == quote) {
-                            output.write(c);
+                            output.appendChar(c);
                         }
-                        output.write(c);
+                        output.appendChar(c);
                     }
-                    output.write(quote);
+                    output.appendChar(quote);
                     break;
             }
         }
@@ -1377,23 +1409,23 @@ public final class Csv {
             private final java.io.Writer charWriter;
             private final char[] buffer;
 
-            private int length = 0;
+            private int bufferLength = 0;
 
             private Output(java.io.Writer charWriter, char[] charBuffer) {
                 this.charWriter = charWriter;
                 this.buffer = charBuffer;
             }
 
-            public void write(char c) throws IOException {
-                if (length == buffer.length) {
+            private void appendChar(char c) throws IOException {
+                if (bufferLength == buffer.length) {
                     flushBuffer();
                 }
-                buffer[length++] = c;
+                buffer[bufferLength++] = c;
             }
 
-            public void write(CharSequence chars) throws IOException {
+            private void appendChars(CharSequence chars) throws IOException {
                 int charsLength = chars.length();
-                if (length + charsLength >= buffer.length) {
+                if (bufferLength + charsLength >= buffer.length) {
                     flushBuffer();
                     if (charsLength >= buffer.length) {
                         charWriter.append(chars);
@@ -1401,13 +1433,18 @@ public final class Csv {
                     }
                 }
                 if (chars instanceof String) {
-                    ((String) chars).getChars(0, charsLength, buffer, length);
-                    length += charsLength;
+                    ((String) chars).getChars(0, charsLength, buffer, bufferLength);
+                    bufferLength += charsLength;
                 } else {
                     for (int i = 0; i < charsLength; i++) {
-                        buffer[length++] = chars.charAt(i);
+                        buffer[bufferLength++] = chars.charAt(i);
                     }
                 }
+            }
+
+            private void flushBuffer() throws IOException {
+                charWriter.write(buffer, 0, bufferLength);
+                bufferLength = 0;
             }
 
             @Override
@@ -1416,14 +1453,9 @@ public final class Csv {
                 charWriter.close();
             }
 
-            private void flushBuffer() throws IOException {
-                charWriter.write(buffer, 0, length);
-                length = 0;
-            }
-
             @Override
             public void flush() throws IOException {
-                if (length != 0) {
+                if (bufferLength != 0) {
                     flushBuffer();
                 }
                 charWriter.flush();
@@ -1431,46 +1463,9 @@ public final class Csv {
         }
     }
 
-    private static final int EOF_CODE = -1;
-
-    private static RuntimeException newUnreachable() {
-        return new RuntimeException("Unreachable");
-    }
-
     private static void requireArgument(boolean condition, String format, Object arg) throws IllegalArgumentException {
         if (!condition) {
             throw new IllegalArgumentException(String.format(Locale.ROOT, format, arg));
-        }
-    }
-
-    private static String prettyPrint(String text) {
-        StringBuilder result = new StringBuilder();
-        for (int i = 0; i < text.length(); i++) {
-            result.append(prettyPrint(text.charAt(i)));
-        }
-        return result.toString();
-    }
-
-    private static String prettyPrint(char c) {
-        switch (c) {
-            case '\t':
-                return "\\t";
-            case '\b':
-                return "\\b";
-            case '\n':
-                return "\\n";
-            case '\r':
-                return "\\r";
-            case '\f':
-                return "\\f";
-//            case '\'':
-//                return "\\'";
-            case '\"':
-                return "\\\"";
-            case '\\':
-                return "\\\\";
-            default:
-                return String.valueOf(c);
         }
     }
 }
