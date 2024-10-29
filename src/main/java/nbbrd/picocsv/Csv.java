@@ -1199,7 +1199,7 @@ public final class Csv {
             return new Writer(
                     new Output(charWriter, new char[charBufferSize]),
                     format.getQuote(), format.getDelimiter(), format.getComment(),
-                    EndOfLineEncoder.of(format)
+                    format.getSeparator().charAt(0), format.getSeparator().length() == 1 ? NO_SECOND_EOL : format.getSeparator().charAt(1)
             );
         }
 
@@ -1207,16 +1207,18 @@ public final class Csv {
         private final char quote;
         private final char delimiter;
         private final char comment;
-        private final EndOfLineEncoder eolEncoder;
+        private final char eol0;
+        private final char eol1;
 
         private int state = STATE_NO_FIELD;
 
-        private Writer(Output output, char quote, char delimiter, char comment, EndOfLineEncoder eolEncoder) {
+        private Writer(Output output, char quote, char delimiter, char comment, char eol0, char eol1) {
             this.output = output;
             this.quote = quote;
             this.delimiter = delimiter;
             this.comment = comment;
-            this.eolEncoder = eolEncoder;
+            this.eol0 = eol0;
+            this.eol1 = eol1;
         }
 
         @Override
@@ -1228,7 +1230,7 @@ public final class Csv {
             if (comment != null && comment.length() > 0) {
                 for (int i = 0; i < comment.length(); i++) {
                     char c = comment.charAt(i);
-                    if (eolEncoder.isNewLine(c)) {
+                    if (c == eol0 || c == eol1) {
                         writeEndOfLine();
                         output.write(this.comment);
                         if (isSkipSecondEOL(comment, i)) {
@@ -1243,9 +1245,7 @@ public final class Csv {
         }
 
         private boolean isSkipSecondEOL(CharSequence text, int i) {
-            return eolEncoder instanceof EndOfLineEncoder.DualEncoder
-                    && i + 1 < text.length()
-                    && eolEncoder.isNewLine(text.charAt(i + 1));
+            return eol1 != NO_SECOND_EOL && i + 1 < text.length() && text.charAt(i + 1) == eol1;
         }
 
         @Override
@@ -1289,7 +1289,9 @@ public final class Csv {
          */
         public void writeEndOfLine() throws IOException {
             flush();
-            eolEncoder.write(output);
+            output.write(eol0);
+            if (eol1 != NO_SECOND_EOL)
+                output.write(eol1);
         }
 
         @Override
@@ -1353,7 +1355,7 @@ public final class Csv {
                 if (c == quote) {
                     return QUOTING_FULL;
                 }
-                if (c == delimiter || eolEncoder.isNewLine(c)) {
+                if (c == delimiter || c == eol0 || c == eol1) {
                     result = QUOTING_PARTIAL;
                 }
             }
@@ -1367,6 +1369,8 @@ public final class Csv {
         private static final int STATE_NO_FIELD = 0;
         private static final int STATE_SINGLE_EMPTY_FIELD = 1;
         private static final int STATE_MULTI_FIELD = 2;
+
+        private static final char NO_SECOND_EOL = '\0';
 
         private static final class Output implements Closeable, Flushable {
 
@@ -1423,66 +1427,6 @@ public final class Csv {
                     flushBuffer();
                 }
                 charWriter.flush();
-            }
-        }
-
-        private static abstract class EndOfLineEncoder {
-
-            abstract public void write(Output output) throws IOException;
-
-            abstract public boolean isNewLine(char c);
-
-            public static EndOfLineEncoder of(Format format) {
-                String eol = format.getSeparator();
-                switch (eol.length()) {
-                    case 1:
-                        return new SingleEncoder(eol.charAt(0));
-                    case 2:
-                        return new DualEncoder(eol.charAt(0), eol.charAt(1));
-                    default:
-                        throw newUnreachable();
-                }
-            }
-
-            private static final class SingleEncoder extends EndOfLineEncoder {
-
-                private final char single;
-
-                private SingleEncoder(char single) {
-                    this.single = single;
-                }
-
-                @Override
-                public void write(Output output) throws IOException {
-                    output.write(single);
-                }
-
-                @Override
-                public boolean isNewLine(char c) {
-                    return c == single;
-                }
-            }
-
-            private static final class DualEncoder extends EndOfLineEncoder {
-
-                private final char first;
-                private final char second;
-
-                private DualEncoder(char first, char second) {
-                    this.first = first;
-                    this.second = second;
-                }
-
-                @Override
-                public void write(Output output) throws IOException {
-                    output.write(first);
-                    output.write(second);
-                }
-
-                @Override
-                public boolean isNewLine(char c) {
-                    return c == first || c == second;
-                }
             }
         }
     }
