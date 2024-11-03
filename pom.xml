@@ -9,7 +9,7 @@
     <packaging>jar</packaging>
 
     <name>picocsv</name>
-    <description>Lightweight CSV library for Java</description>
+    <description>Unusual CSV library for Java</description>
     <url>https://github.com/${x.github.user}/${x.github.repo}</url>
     <inceptionYear>2019</inceptionYear>
 

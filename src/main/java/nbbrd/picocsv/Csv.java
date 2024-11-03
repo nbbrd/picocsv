@@ -23,10 +23,10 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * Lightweight CSV library for Java.
+ * Unusual CSV library for Java.
  * <p>
- * This Java library handles CSV content.<br>
- * While directly usable, it is designed to be the core foundation of other libraries.
+ * Picocsv is an unusual CSV library designed to be embedded in other libraries. <br>
+ * While it can be used directly, it's main purpose is to be the core foundation of those other libraries.
  * <p>
  * Key points:
  * <ul>
