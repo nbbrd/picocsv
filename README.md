@@ -80,6 +80,13 @@ picocsv only supports `java.io.Reader`/`java.io.Writer` as input/output for perf
 However, it is still possible to use `Readable`/`Appendable` by wrapping them in adapters.
 See [`Cookbook#asCharReader(Readable)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java) and [`Cookbook#asCharWriter(Appendable)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java).
 
+### Disabling comments
+
+Comments can be disabled by setting the null character `\0` as the comment character.
+```java
+Csv.Format noComment = Csv.Format.builder().comment('\0').build();
+```
+
 ## Setup
 
 Maven setup:
