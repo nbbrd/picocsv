@@ -27,7 +27,7 @@ Features:
 - supports custom line separator
 - supports custom comment character
 
-⚠️ _Note that the `Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.
+⚠️ _Note that the `Csv.Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.
 The default value is currently `true` but will be reversed in the next major release._
 
 ## Examples
@@ -83,9 +83,38 @@ See [`Cookbook#asCharReader(Readable)`](https://github.com/nbbrd/picocsv/blob/de
 
 ### Disabling comments
 
-Comments can be disabled by setting the null character `\0` as the comment character.
+Comments can be disabled by setting the `Csv.Format#comment` option to the null character `\0`.
 ```java
 Csv.Format noComment = Csv.Format.builder().comment('\0').build();
+```
+⚠️ _Note that this might lead to problems since binary data is allowed in RFC-4180-bis.
+It will be fixed in a future release._
+
+### Skipping comments
+
+Comments can be skipped by using the `Csv.Reader#isComment()` method.
+```java
+while (csv.readLine()) {
+    if (!csv.isComment()) {
+        while (csv.readField()) { ... }
+    }
+}
+```
+
+### Skipping empty lines
+
+Empty lines are valid lines represented by a single empty field in RFC-4180.  
+However, it is still possible to skip them by using the `Csv.Format#acceptMissingField` option.
+```java
+Csv.Format format = Csv.Format.builder().acceptMissingField(true).build();
+try (Csv.Reader csv = ...) {
+    while (csv.readLine()) {
+        if (!csv.readField()) {
+            continue; // line without field => empty line
+        }
+        do { ... } while (csv.readField());
+    }
+}
 ```
 
 ## Setup
