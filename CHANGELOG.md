@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add buffer relocation in reader to stabilize performances
+- Add full support of quoting [#211](https://github.com/nbbrd/picocsv/issues/211)
 
 ### Changed
 

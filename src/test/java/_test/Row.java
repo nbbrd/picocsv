@@ -48,11 +48,11 @@ public abstract class Row {
         public static final Fields EMPTY_FIELD = new Fields(Collections.singletonList(""));
 
         @lombok.NonNull
-        List<String> fields;
+        List<? extends CharSequence> fields;
 
         @Override
         public String toString() {
-            return "{" + fields.stream().map(StringEscapeUtils::escapeJava).collect(Collectors.joining("|")) + "}";
+            return "{" + fields.stream().map(Object::toString).map(StringEscapeUtils::escapeJava).collect(Collectors.joining("|")) + "}";
         }
     }
 
@@ -83,7 +83,7 @@ public abstract class Row {
             } else if (row instanceof Comment) {
                 writer.writeComment(((Comment) row).getComment());
             } else if (row instanceof Fields) {
-                for (String field : ((Fields) row).getFields()) {
+                for (CharSequence field : ((Fields) row).getFields()) {
                     writer.writeField(field);
                 }
                 writer.writeEndOfLine();

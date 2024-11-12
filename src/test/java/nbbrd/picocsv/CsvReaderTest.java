@@ -25,7 +25,6 @@ import _test.fastcsv.FastCsvEntry;
 import _test.fastcsv.FastCsvEntryConverter;
 import _test.fastcsv.FastCsvEntryRowsParser;
 import lombok.NonNull;
-import lombok.Value;
 import org.assertj.core.api.Condition;
 import org.assertj.core.condition.VerboseCondition;
 import org.junit.jupiter.api.Test;
@@ -35,6 +34,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.function.Function;
@@ -87,6 +87,43 @@ public class CsvReaderTest {
         assertThat(sample)
                 .is(validWithStrict)
                 .is(validWithLenient);
+    }
+
+    @ParameterizedTest
+    @MethodSource("_test.Sample#getAllSamples")
+    public void testFullSupportOfQuoting(Sample sample) throws IOException {
+        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()))) {
+            StringWriter actual = new StringWriter();
+            try (Csv.Writer writer = Csv.Writer.of(sample.getFormat(), Csv.WriterOptions.DEFAULT, actual)) {
+                if (reader.readLine()) {
+                    boolean wasComment = false;
+                    if (reader.isComment()) {
+                        wasComment = true;
+                        writer.writeComment(reader);
+                    } else {
+                        while (reader.readField()) {
+                            if (reader.isQuoted()) writer.writeQuotedField(reader);
+                            else writer.writeField(reader);
+                        }
+                    }
+                    while (reader.readLine()) {
+                        if (!wasComment) writer.writeEndOfLine();
+                        if (reader.isComment()) {
+                            wasComment = true;
+                            writer.writeComment(reader);
+                        } else {
+                            wasComment = false;
+                            while (reader.readField()) {
+                                if (reader.isQuoted()) writer.writeQuotedField(reader);
+                                else writer.writeField(reader);
+                            }
+                        }
+                    }
+                    if (!sample.isWithoutEOL()) writer.writeEndOfLine();
+                }
+            }
+            assertThat(actual.toString()).isEqualTo(sample.getContent());
+        }
     }
 
     @ParameterizedTest
@@ -412,6 +449,20 @@ public class CsvReaderTest {
         };
         assertThat(QuickReader.readValue(isCommentAfterField, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
                 .isTrue();
+    }
+
+    @Test
+    public void testIsQuoted() throws IOException {
+        String sample = "\"A\",B";
+        QuickReader.read(r->{
+            assertThat(r.readLine()).isTrue();
+            assertThat(r.readField()).isTrue();
+            assertThat(r.isQuoted()).isTrue();
+            assertThat(r.readField()).isTrue();
+            assertThat(r.isQuoted()).isFalse();
+            assertThat(r.readField()).isFalse();
+            assertThat(r.readLine()).isFalse();
+        }, sample, RFC4180, Csv.ReaderOptions.DEFAULT);
     }
 
     @Test

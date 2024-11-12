@@ -566,6 +566,13 @@ public final class Csv {
          * @return <code>true</code> if the current line is a comment, <code>false</code> otherwise
          */
         boolean isComment();
+
+        /**
+         * Check if the current field is a quoted or not.
+         *
+         * @return <code>true</code> if the current field is quoted, <code>false</code> otherwise
+         */
+        boolean isQuoted();
     }
 
     /**
@@ -799,6 +806,11 @@ public final class Csv {
         @Override
         public boolean isComment() {
             return fieldType == FIELD_TYPE_COMMENTED;
+        }
+
+        @Override
+        public boolean isQuoted() {
+            return fieldType == FIELD_TYPE_QUOTED;
         }
 
         /**
@@ -1171,6 +1183,14 @@ public final class Csv {
          * @throws IOException if an I/O error occurs
          */
         void writeField(CharSequence field) throws IOException;
+
+        /**
+         * Writes a new quoted field. Null is handled as empty.
+         *
+         * @param field a nullable field
+         * @throws IOException if an I/O error occurs
+         */
+        void writeQuotedField(CharSequence field) throws IOException;
     }
 
     /**
@@ -1313,6 +1333,40 @@ public final class Csv {
             }
         }
 
+        @Override
+        public void writeQuotedField(CharSequence field) throws IOException {
+            boolean notEmpty = field != null && field.length() != 0;
+            switch (state) {
+                case STATE_0_NO_FIELD: {
+                    state = STATE_2_MULTI_FIELD;
+                    if (notEmpty) {
+                        if (field.charAt(0) == comment) {
+                            formatField(field, QUOTING_FULL, true);
+                        } else {
+                            formatField(field, parseForcedQuoting(field), true);
+                        }
+                    } else
+                        formatSingleEmptyField();
+                    break;
+                }
+                case STATE_1_SINGLE_EMPTY_FIELD: {
+                    state = STATE_2_MULTI_FIELD;
+                    if (notEmpty) {
+                        formatField(field, parseForcedQuoting(field), false);
+                    } else
+                        formatEmptyQuotedField();
+                    break;
+                }
+                case STATE_2_MULTI_FIELD: {
+                    if (notEmpty) {
+                        formatField(field, parseForcedQuoting(field), false);
+                    } else
+                        formatEmptyQuotedField();
+                    break;
+                }
+            }
+        }
+
         /**
          * Writes an end of line.
          *
@@ -1411,6 +1465,12 @@ public final class Csv {
             appendChar(delimiter);
         }
 
+        private void formatEmptyQuotedField() throws IOException {
+            appendChar(delimiter);
+            appendChar(quote);
+            appendChar(quote);
+        }
+
         private void formatField(final CharSequence field, final int quoting, final boolean firstField) throws IOException {
             if (!firstField) {
                 appendChar(delimiter);
@@ -1490,6 +1550,18 @@ public final class Csv {
                 }
                 return QUOTING_NONE;
             }
+        }
+
+        private int parseForcedQuoting(final CharSequence field) {
+            final char quote = this.quote;
+            final int length = field.length();
+
+            for (int p = 0; p < length; p++) {
+                if (field.charAt(p) == quote) {
+                    return QUOTING_FULL;
+                }
+            }
+            return QUOTING_PARTIAL;
         }
 
         private void flushBuffer() throws IOException {

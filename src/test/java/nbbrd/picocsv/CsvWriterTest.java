@@ -26,13 +26,13 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.List;
 
 import static _test.QuickWriter.write;
 import static _test.QuickWriter.writeValue;
 import static _test.Sample.INVALID_FORMAT;
 import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 import static nbbrd.picocsv.Csv.Format.RFC4180;
-import static nbbrd.picocsv.Csv.Format.UNIX_SEPARATOR;
 import static org.assertj.core.api.Assertions.*;
 
 public class CsvWriterTest {
@@ -79,254 +79,202 @@ public class CsvWriterTest {
 
     @Test
     public void testWriteComment() throws IOException {
-        CharSequence chars = new StringBuilder().append("hello");
+        assertThat(writing(COMMENTED_NULL))
+                .returns("#␍␊", Scenario::toWindows)
+                .returns("#␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment(null);
-        })).isEqualTo("#\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment(null);
-        })).isEqualTo("#\n");
+        assertThat(writing(COMMENTED_EMPTY))
+                .returns("#␍␊", Scenario::toWindows)
+                .returns("#␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("");
-        })).isEqualTo("#\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment("");
-        })).isEqualTo("#\n");
+        assertThat(writing(COMMENTED_COMMENT))
+                .returns("##␍␊", Scenario::toWindows)
+                .returns("##␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("#");
-        })).isEqualTo("##\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment("#");
-        })).isEqualTo("##\n");
+        assertThat(writing(COMMENTED_CHARS))
+                .returns("#abc␍␊", Scenario::toWindows)
+                .returns("#abc␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("abc");
-        })).isEqualTo("#abc\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment("abc");
-        })).isEqualTo("#abc\n");
+        assertThat(writing(COMMENTED_QUOTE))
+                .returns("#'␍␊", Scenario::toWindows)
+                .returns("#'␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("a\r\nbc");
-        })).isEqualTo("#a\r\n#bc\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment("a\r\nbc");
-        })).isEqualTo("#a\r\n#bc\n");
+        assertThat(writing(w -> w.writeComment("a␍␊bc")))
+                .returns("#a␍␊#bc␍␊", Scenario::toWindows)
+                .returns("#a␍␊#bc␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("a\rbc");
-        })).isEqualTo("#a\r\n#bc\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment("a\rbc");
-        })).isEqualTo("#a\rbc\n");
+        assertThat(writing(w -> w.writeComment("a␍bc")))
+                .returns("#a␍␊#bc␍␊", Scenario::toWindows)
+                .returns("#a␍bc␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("a\nbc");
-        })).isEqualTo("#a\r\n#bc\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment("a\nbc");
-        })).isEqualTo("#a\n#bc\n");
+        assertThat(writing(w -> w.writeComment("a␊bc")))
+                .returns("#a␍␊#bc␍␊", Scenario::toWindows)
+                .returns("#a␊#bc␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("a\r\n");
-        })).isEqualTo("#a\r\n#\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment("a\r\n");
-        })).isEqualTo("#a\r\n#\n");
+        assertThat(writing(w -> w.writeComment("a␍␊")))
+                .returns("#a␍␊#␍␊", Scenario::toWindows)
+                .returns("#a␍␊#␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("a\r");
-        })).isEqualTo("#a\r\n#\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment("a\r");
-        })).isEqualTo("#a\r\n");
+        assertThat(writing(w -> w.writeComment("a␍")))
+                .returns("#a␍␊#␍␊", Scenario::toWindows)
+                .returns("#a␍␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("a\n");
-        })).isEqualTo("#a\r\n#\r\n");
-        assertThat(toUnix(w -> {
-            w.writeComment("a\n");
-        })).isEqualTo("#a\n#\n");
+        assertThat(writing(w -> w.writeComment("a␊")))
+                .returns("#a␍␊#␍␊", Scenario::toWindows)
+                .returns("#a␊#␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(chars);
-            w.writeComment("abc");
-        })).isEqualTo("hello\r\n#abc\r\n");
-        assertThat(toUnix(w -> {
-            w.writeField(chars);
-            w.writeComment("abc");
-        })).isEqualTo("hello\n#abc\n");
+        assertThat(writing(CHARS, COMMENTED_CHARS))
+                .returns("hello␍␊#abc␍␊", Scenario::toWindows)
+                .returns("hello␊#abc␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(chars);
-            w.writeEndOfLine();
-            w.writeComment("abc");
-        })).isEqualTo("hello\r\n#abc\r\n");
-        assertThat(toUnix(w -> {
-            w.writeField(chars);
-            w.writeEndOfLine();
-            w.writeComment("abc");
-        })).isEqualTo("hello\n#abc\n");
+        assertThat(writing(CHARS, EOL, COMMENTED_CHARS))
+                .returns("hello␍␊#abc␍␊", Scenario::toWindows)
+                .returns("hello␊#abc␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeComment("abc");
-            w.writeField(chars);
-        })).isEqualTo("#abc\r\nhello");
-        assertThat(toUnix(w -> {
-            w.writeComment("abc");
-            w.writeField(chars);
-        })).isEqualTo("#abc\nhello");
+        assertThat(writing(COMMENTED_CHARS, CHARS))
+                .returns("#abc␍␊hello", Scenario::toWindows)
+                .returns("#abc␊hello", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(null);
-            w.writeComment("abc");
-        })).isEqualTo("\"\"\r\n#abc\r\n");
-        assertThat(toUnix(w -> {
-            w.writeField(null);
-            w.writeComment("abc");
-        })).isEqualTo("\"\"\n#abc\n");
+        assertThat(writing(NULL, COMMENTED_CHARS))
+                .returns("''␍␊#abc␍␊", Scenario::toWindows)
+                .returns("''␊#abc␊", Scenario::toUnix);
     }
 
     @Test
-    public void testWriteField() throws IOException {
-        CharSequence chars = new StringBuilder().append("hello");
+    public void testWriteField() {
+        assertThat(writing())
+                .returns("", Scenario::toWindows)
+                .returns("", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-        })).isEqualTo("");
-        assertThat(toUnix(w -> {
-        })).isEqualTo("");
+        assertThat(writing(EOL))
+                .returns("␍␊", Scenario::toWindows)
+                .returns("␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeEndOfLine();
-        })).isEqualTo("\r\n");
-        assertThat(toUnix(w -> {
-            w.writeEndOfLine();
-        })).isEqualTo("\n");
+        assertThat(writing(NULL))
+                .returns("''", Scenario::toWindows)
+                .returns("''", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(null);
-        })).isEqualTo("\"\"");
-        assertThat(toUnix(w -> {
-            w.writeField(null);
-        })).isEqualTo("\"\"");
+        assertThat(writing(COMMENT))
+                .returns("'#'", Scenario::toWindows)
+                .returns("'#'", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField("#");
-        })).isEqualTo("\"#\"");
-        assertThat(toUnix(w -> {
-            w.writeField("#");
-        })).isEqualTo("\"#\"");
+        assertThat(writing(QUOTE))
+                .returns("''''", Scenario::toWindows)
+                .returns("''''", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField("");
-            w.writeField("#");
-        })).isEqualTo(",#");
-        assertThat(toUnix(w -> {
-            w.writeField("");
-            w.writeField("#");
-        })).isEqualTo(",#");
+        assertThat(writing(NULL, COMMENT))
+                .returns(",#", Scenario::toWindows)
+                .returns(",#", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(null);
-            w.writeEndOfLine();
-        })).isEqualTo("\"\"\r\n");
-        assertThat(toUnix(w -> {
-            w.writeField(null);
-            w.writeEndOfLine();
-        })).isEqualTo("\"\"\n");
+        assertThat(writing(NULL, EOL))
+                .returns("''␍␊", Scenario::toWindows)
+                .returns("''␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeEndOfLine();
-            w.writeField(null);
-        })).isEqualTo("\r\n\"\"");
-        assertThat(toUnix(w -> {
-            w.writeEndOfLine();
-            w.writeField(null);
-        })).isEqualTo("\n\"\"");
+        assertThat(writing(EOL, NULL))
+                .returns("␍␊''", Scenario::toWindows)
+                .returns("␊''", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(chars);
-            w.writeField(null);
-        })).isEqualTo("hello,");
-        assertThat(toUnix(w -> {
-            w.writeField(chars);
-            w.writeField(null);
-        })).isEqualTo("hello,");
+        assertThat(writing(CHARS, NULL))
+                .returns("hello,", Scenario::toWindows)
+                .returns("hello,", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(chars);
-            w.writeField(null);
-            w.writeEndOfLine();
-        })).isEqualTo("hello,\r\n");
-        assertThat(toUnix(w -> {
-            w.writeField(chars);
-            w.writeField(null);
-            w.writeEndOfLine();
-        })).isEqualTo("hello,\n");
+        assertThat(writing(CHARS, NULL, EOL))
+                .returns("hello,␍␊", Scenario::toWindows)
+                .returns("hello,␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeEndOfLine();
-            w.writeField(chars);
-            w.writeField(null);
-        })).isEqualTo("\r\nhello,");
-        assertThat(toUnix(w -> {
-            w.writeEndOfLine();
-            w.writeField(chars);
-            w.writeField(null);
-        })).isEqualTo("\nhello,");
+        assertThat(writing(EOL, CHARS, NULL))
+                .returns("␍␊hello,", Scenario::toWindows)
+                .returns("␊hello,", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(null);
-            w.writeField(chars);
-        })).isEqualTo(",hello");
-        assertThat(toUnix(w -> {
-            w.writeField(null);
-            w.writeField(chars);
-        })).isEqualTo(",hello");
+        assertThat(writing(NULL, CHARS))
+                .returns(",hello", Scenario::toWindows)
+                .returns(",hello", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(null);
-            w.writeField(chars);
-            w.writeEndOfLine();
-        })).isEqualTo(",hello\r\n");
-        assertThat(toUnix(w -> {
-            w.writeField(null);
-            w.writeField(chars);
-            w.writeEndOfLine();
-        })).isEqualTo(",hello\n");
+        assertThat(writing(NULL, CHARS, EOL))
+                .returns(",hello␍␊", Scenario::toWindows)
+                .returns(",hello␊", Scenario::toUnix);
 
-        assertThat(toWindows(w -> {
-            w.writeField(null);
-            w.writeField(null);
-            w.writeEndOfLine();
-        })).isEqualTo(",\r\n");
-        assertThat(toUnix(w -> {
-            w.writeField(null);
-            w.writeField(null);
-            w.writeEndOfLine();
-        })).isEqualTo(",\n");
+        assertThat(writing(NULL, NULL, EOL))
+                .returns(",␍␊", Scenario::toWindows)
+                .returns(",␊", Scenario::toUnix);
+    }
+
+    @Test
+    public void testWriteQuotedField() {
+        assertThat(writing(QUOTED_NULL))
+                .returns("''", Scenario::toWindows)
+                .returns("''", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_COMMENT))
+                .returns("'#'", Scenario::toWindows)
+                .returns("'#'", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_QUOTE))
+                .returns("''''", Scenario::toWindows)
+                .returns("''''", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_NULL, QUOTED_COMMENT))
+                .returns("'','#'", Scenario::toWindows)
+                .returns("'','#'", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_NULL, EOL))
+                .returns("''␍␊", Scenario::toWindows)
+                .returns("''␊", Scenario::toUnix);
+
+        assertThat(writing(EOL, QUOTED_NULL))
+                .returns("␍␊''", Scenario::toWindows)
+                .returns("␊''", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_CHARS, QUOTED_NULL))
+                .returns("'hello',''", Scenario::toWindows)
+                .returns("'hello',''", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_CHARS, QUOTED_NULL, EOL))
+                .returns("'hello',''␍␊", Scenario::toWindows)
+                .returns("'hello',''␊", Scenario::toUnix);
+
+        assertThat(writing(EOL, QUOTED_CHARS, QUOTED_NULL))
+                .returns("␍␊'hello',''", Scenario::toWindows)
+                .returns("␊'hello',''", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_NULL, QUOTED_CHARS))
+                .returns("'','hello'", Scenario::toWindows)
+                .returns("'','hello'", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_NULL, QUOTED_CHARS, EOL))
+                .returns("'','hello'␍␊", Scenario::toWindows)
+                .returns("'','hello'␊", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_NULL, QUOTED_NULL, EOL))
+                .returns("'',''␍␊", Scenario::toWindows)
+                .returns("'',''␊", Scenario::toUnix);
+
+        assertThat(writing(NULL, QUOTED_NULL, EOL))
+                .returns(",''␍␊", Scenario::toWindows)
+                .returns(",''␊", Scenario::toUnix);
+
+        assertThat(writing(NULL, QUOTED_CHARS, EOL))
+                .returns(",'hello'␍␊", Scenario::toWindows)
+                .returns(",'hello'␊", Scenario::toUnix);
     }
 
     @Test
     public void testOutputBuffer() throws IOException {
         assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE - 1),
-                "\"",
+                "'",
                 repeat('C', 10)
         ), Csv.WriterOptions.DEFAULT);
 
         assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE),
-                "\"",
+                "'",
                 repeat('C', 10)
         ), Csv.WriterOptions.DEFAULT);
 
         assertValid(getOverflowSample(
                 repeat('A', DEFAULT_CHAR_BUFFER_SIZE + 1),
-                "\"",
+                "'",
                 repeat('C', 10)
         ), Csv.WriterOptions.DEFAULT);
     }
@@ -350,18 +298,62 @@ public class CsvWriterTest {
                 .builder()
                 .name("overflow")
                 .format(Csv.Format.RFC4180)
-                .content(String.join(",", fields).replace("\"", "\"\"\"\"") + "\r\n")
+                .content(String.join(",", fields).replace("\"", "''''") + "\r\n")
                 .rowFields(fields)
                 .build();
     }
 
-    private static String toWindows(QuickWriter.VoidFormatter formatter) throws IOException {
-        return write(formatter, Csv.Format.RFC4180, Csv.WriterOptions.DEFAULT);
+    @lombok.Value
+    @lombok.Builder
+    private static class Scenario {
+
+        public static final Csv.Format WINDOWS = Csv.Format.RFC4180.toBuilder().quote('\'').separator("␍␊").build();
+        public static final Csv.Format UNIX = Csv.Format.RFC4180.toBuilder().quote('\'').separator("␊").build();
+
+        @lombok.Singular
+        List<QuickWriter.VoidFormatter> formatters;
+
+        void all(Csv.Writer w) throws IOException {
+            for (QuickWriter.VoidFormatter o : formatters) {
+                o.accept(w);
+            }
+        }
+
+        @lombok.SneakyThrows
+        String toWindows() {
+            return write(this::all, WINDOWS, Csv.WriterOptions.DEFAULT);
+        }
+
+        @lombok.SneakyThrows
+        String toUnix() {
+            return write(this::all, UNIX, Csv.WriterOptions.DEFAULT);
+        }
     }
 
-    private static String toUnix(QuickWriter.VoidFormatter formatter) throws IOException {
-        return write(formatter, Csv.Format.RFC4180.toBuilder().separator(UNIX_SEPARATOR).build(), Csv.WriterOptions.DEFAULT);
+    private static Scenario writing(QuickWriter.VoidFormatter... formatters) {
+        return Scenario.builder().formatters(Arrays.asList(formatters)).build();
     }
+
+    private static final CharSequence HELLO = new StringBuilder().append("hello");
+    private static final CharSequence ABC = new StringBuilder().append("abc");
+
+    private static final QuickWriter.VoidFormatter CHARS = writer -> writer.writeField(HELLO);
+    private static final QuickWriter.VoidFormatter NULL = writer -> writer.writeField(null);
+    private static final QuickWriter.VoidFormatter COMMENT = writer -> writer.writeField("#");
+    private static final QuickWriter.VoidFormatter QUOTE = writer -> writer.writeField("'");
+
+    private static final QuickWriter.VoidFormatter QUOTED_CHARS = writer -> writer.writeQuotedField(HELLO);
+    private static final QuickWriter.VoidFormatter QUOTED_NULL = writer -> writer.writeQuotedField(null);
+    private static final QuickWriter.VoidFormatter QUOTED_COMMENT = writer -> writer.writeQuotedField("#");
+    private static final QuickWriter.VoidFormatter QUOTED_QUOTE = writer -> writer.writeQuotedField("'");
+
+    private static final QuickWriter.VoidFormatter COMMENTED_CHARS = writer -> writer.writeComment(ABC);
+    private static final QuickWriter.VoidFormatter COMMENTED_NULL = writer -> writer.writeComment(null);
+    private static final QuickWriter.VoidFormatter COMMENTED_EMPTY = writer -> writer.writeComment("");
+    private static final QuickWriter.VoidFormatter COMMENTED_COMMENT = writer -> writer.writeComment("#");
+    private static final QuickWriter.VoidFormatter COMMENTED_QUOTE = writer -> writer.writeComment("'");
+
+    private static final QuickWriter.VoidFormatter EOL = Csv.Writer::writeEndOfLine;
 
     private static String repeat(char c, int length) {
         char[] result = new char[length];

@@ -127,6 +127,11 @@ public class Cookbook {
         }
 
         @Override
+        public boolean isQuoted() {
+            return false;
+        }
+
+        @Override
         public int length() {
             return fields[cursor].length();
         }
