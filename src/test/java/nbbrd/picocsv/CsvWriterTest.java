@@ -32,6 +32,7 @@ import static _test.QuickWriter.writeValue;
 import static _test.Sample.INVALID_FORMAT;
 import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 import static nbbrd.picocsv.Csv.Format.RFC4180;
+import static nbbrd.picocsv.Csv.Format.UNIX_SEPARATOR;
 import static org.assertj.core.api.Assertions.*;
 
 public class CsvWriterTest {
@@ -80,124 +81,233 @@ public class CsvWriterTest {
     public void testWriteComment() throws IOException {
         CharSequence chars = new StringBuilder().append("hello");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment(null);
         })).isEqualTo("#\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment(null);
+        })).isEqualTo("#\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("");
         })).isEqualTo("#\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment("");
+        })).isEqualTo("#\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("#");
         })).isEqualTo("##\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment("#");
+        })).isEqualTo("##\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("abc");
         })).isEqualTo("#abc\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment("abc");
+        })).isEqualTo("#abc\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("a\r\nbc");
         })).isEqualTo("#a\r\n#bc\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment("a\r\nbc");
+        })).isEqualTo("#a\r\n#bc\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("a\rbc");
         })).isEqualTo("#a\r\n#bc\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment("a\rbc");
+        })).isEqualTo("#a\rbc\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("a\nbc");
         })).isEqualTo("#a\r\n#bc\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment("a\nbc");
+        })).isEqualTo("#a\n#bc\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("a\r\n");
         })).isEqualTo("#a\r\n#\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment("a\r\n");
+        })).isEqualTo("#a\r\n#\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("a\r");
         })).isEqualTo("#a\r\n#\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment("a\r");
+        })).isEqualTo("#a\r\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("a\n");
         })).isEqualTo("#a\r\n#\r\n");
+        assertThat(toUnix(w -> {
+            w.writeComment("a\n");
+        })).isEqualTo("#a\n#\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeField(chars);
             w.writeComment("abc");
         })).isEqualTo("hello\r\n#abc\r\n");
+        assertThat(toUnix(w -> {
+            w.writeField(chars);
+            w.writeComment("abc");
+        })).isEqualTo("hello\n#abc\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeField(chars);
             w.writeEndOfLine();
             w.writeComment("abc");
         })).isEqualTo("hello\r\n#abc\r\n");
+        assertThat(toUnix(w -> {
+            w.writeField(chars);
+            w.writeEndOfLine();
+            w.writeComment("abc");
+        })).isEqualTo("hello\n#abc\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeComment("abc");
             w.writeField(chars);
         })).isEqualTo("#abc\r\nhello");
+        assertThat(toUnix(w -> {
+            w.writeComment("abc");
+            w.writeField(chars);
+        })).isEqualTo("#abc\nhello");
+
+        assertThat(toWindows(w -> {
+            w.writeField(null);
+            w.writeComment("abc");
+        })).isEqualTo("\"\"\r\n#abc\r\n");
+        assertThat(toUnix(w -> {
+            w.writeField(null);
+            w.writeComment("abc");
+        })).isEqualTo("\"\"\n#abc\n");
     }
 
     @Test
     public void testWriteField() throws IOException {
         CharSequence chars = new StringBuilder().append("hello");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
+        })).isEqualTo("");
+        assertThat(toUnix(w -> {
         })).isEqualTo("");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeEndOfLine();
         })).isEqualTo("\r\n");
+        assertThat(toUnix(w -> {
+            w.writeEndOfLine();
+        })).isEqualTo("\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
+            w.writeField(null);
+        })).isEqualTo("\"\"");
+        assertThat(toUnix(w -> {
             w.writeField(null);
         })).isEqualTo("\"\"");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
+            w.writeField("#");
+        })).isEqualTo("\"#\"");
+        assertThat(toUnix(w -> {
             w.writeField("#");
         })).isEqualTo("\"#\"");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
+            w.writeField("");
+            w.writeField("#");
+        })).isEqualTo(",#");
+        assertThat(toUnix(w -> {
             w.writeField("");
             w.writeField("#");
         })).isEqualTo(",#");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeField(null);
             w.writeEndOfLine();
         })).isEqualTo("\"\"\r\n");
+        assertThat(toUnix(w -> {
+            w.writeField(null);
+            w.writeEndOfLine();
+        })).isEqualTo("\"\"\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeEndOfLine();
             w.writeField(null);
         })).isEqualTo("\r\n\"\"");
+        assertThat(toUnix(w -> {
+            w.writeEndOfLine();
+            w.writeField(null);
+        })).isEqualTo("\n\"\"");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
+            w.writeField(chars);
+            w.writeField(null);
+        })).isEqualTo("hello,");
+        assertThat(toUnix(w -> {
             w.writeField(chars);
             w.writeField(null);
         })).isEqualTo("hello,");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeField(chars);
             w.writeField(null);
             w.writeEndOfLine();
         })).isEqualTo("hello,\r\n");
+        assertThat(toUnix(w -> {
+            w.writeField(chars);
+            w.writeField(null);
+            w.writeEndOfLine();
+        })).isEqualTo("hello,\n");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeEndOfLine();
             w.writeField(chars);
             w.writeField(null);
         })).isEqualTo("\r\nhello,");
+        assertThat(toUnix(w -> {
+            w.writeEndOfLine();
+            w.writeField(chars);
+            w.writeField(null);
+        })).isEqualTo("\nhello,");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
+            w.writeField(null);
+            w.writeField(chars);
+        })).isEqualTo(",hello");
+        assertThat(toUnix(w -> {
             w.writeField(null);
             w.writeField(chars);
         })).isEqualTo(",hello");
 
-        assertThat(writeToString(w -> {
+        assertThat(toWindows(w -> {
             w.writeField(null);
             w.writeField(chars);
             w.writeEndOfLine();
         })).isEqualTo(",hello\r\n");
+        assertThat(toUnix(w -> {
+            w.writeField(null);
+            w.writeField(chars);
+            w.writeEndOfLine();
+        })).isEqualTo(",hello\n");
+
+        assertThat(toWindows(w -> {
+            w.writeField(null);
+            w.writeField(null);
+            w.writeEndOfLine();
+        })).isEqualTo(",\r\n");
+        assertThat(toUnix(w -> {
+            w.writeField(null);
+            w.writeField(null);
+            w.writeEndOfLine();
+        })).isEqualTo(",\n");
     }
 
     @Test
@@ -245,8 +355,12 @@ public class CsvWriterTest {
                 .build();
     }
 
-    private static String writeToString(QuickWriter.VoidFormatter formatter) throws IOException {
+    private static String toWindows(QuickWriter.VoidFormatter formatter) throws IOException {
         return write(formatter, Csv.Format.RFC4180, Csv.WriterOptions.DEFAULT);
+    }
+
+    private static String toUnix(QuickWriter.VoidFormatter formatter) throws IOException {
+        return write(formatter, Csv.Format.RFC4180.toBuilder().separator(UNIX_SEPARATOR).build(), Csv.WriterOptions.DEFAULT);
     }
 
     private static String repeat(char c, int length) {
