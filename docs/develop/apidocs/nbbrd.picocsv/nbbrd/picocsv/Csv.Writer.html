@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":9,"i3":9,"i4":10,"i5":10,"i6":10};
+var data = {"i0":10,"i1":10,"i2":9,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -235,6 +235,13 @@ implements <a href="Csv.LineWriter.html" title="interface in nbbrd.picocsv">Csv.
 <div class="block">Writes a new field.</div>
 </td>
 </tr>
+<tr id="i7" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeQuotedField(java.lang.CharSequence)">writeQuotedField</a></span>&#8203;(<a href="https://docs.oracle.com/javase/9/docs/api/java/lang/CharSequence.html?is-external=true" title="class or interface in java.lang" class="externalLink">CharSequence</a>&nbsp;field)</code></th>
+<td class="colLast">
+<div class="block">Writes a new quoted field.</div>
+</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.java.lang.Object">
@@ -346,6 +353,26 @@ implements <a href="Csv.LineWriter.html" title="interface in nbbrd.picocsv">Csv.
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code><a href="Csv.LineWriter.html#writeField(java.lang.CharSequence)">writeField</a></code>&nbsp;in interface&nbsp;<code><a href="Csv.LineWriter.html" title="interface in nbbrd.picocsv">Csv.LineWriter</a></code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>field</code> - a nullable field</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/9/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io" class="externalLink">IOException</a></code> - if an I/O error occurs</dd>
+</dl>
+</li>
+</ul>
+<a id="writeQuotedField(java.lang.CharSequence)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>writeQuotedField</h4>
+<pre class="methodSignature">public&nbsp;void&nbsp;writeQuotedField&#8203;(<a href="https://docs.oracle.com/javase/9/docs/api/java/lang/CharSequence.html?is-external=true" title="class or interface in java.lang" class="externalLink">CharSequence</a>&nbsp;field)
+                      throws <a href="https://docs.oracle.com/javase/9/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io" class="externalLink">IOException</a></pre>
+<div class="block"><span class="descfrmTypeLabel">Description copied from interface:&nbsp;<code><a href="Csv.LineWriter.html#writeQuotedField(java.lang.CharSequence)">Csv.LineWriter</a></code></span></div>
+<div class="block">Writes a new quoted field. Null is handled as empty.</div>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="Csv.LineWriter.html#writeQuotedField(java.lang.CharSequence)">writeQuotedField</a></code>&nbsp;in interface&nbsp;<code><a href="Csv.LineWriter.html" title="interface in nbbrd.picocsv">Csv.LineWriter</a></code></dd>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>field</code> - a nullable field</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>

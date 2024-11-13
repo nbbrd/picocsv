@@ -27,7 +27,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":6,"i1":6};
+var data = {"i0":6,"i1":6,"i2":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -170,6 +170,13 @@ extends <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/CharSequenc
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isQuoted()">isQuoted</a></span>()</code></th>
+<td class="colLast">
+<div class="block">Check if the current field is a quoted or not.</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#readField()">readField</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Reads the next field.</div>
@@ -219,7 +226,7 @@ extends <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/CharSequenc
 <a id="isComment()">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>isComment</h4>
 <pre class="methodSignature">boolean&nbsp;isComment()</pre>
@@ -227,6 +234,20 @@ extends <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/CharSequenc
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd><code>true</code> if the current line is a comment, <code>false</code> otherwise</dd>
+</dl>
+</li>
+</ul>
+<a id="isQuoted()">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>isQuoted</h4>
+<pre class="methodSignature">boolean&nbsp;isQuoted()</pre>
+<div class="block">Check if the current field is a quoted or not.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd><code>true</code> if the current field is quoted, <code>false</code> otherwise</dd>
 </dl>
 </li>
 </ul>
