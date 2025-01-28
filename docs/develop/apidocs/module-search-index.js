@@ -1,1 +1,1 @@
-moduleSearchIndex = [{"l":"nbbrd.picocsv"}]
+moduleSearchIndex = [{"l":"nbbrd.picocsv"}];updateSearchResults();
