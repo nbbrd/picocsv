@@ -39,8 +39,9 @@ public class FastCsvEntryConverter {
                 .replace('␊', '\n');
     }
 
-    private static String fromContent(String text) {
+    private static String fromContent(CharSequence text) {
         return text
+                .toString()
                 .replace(' ', '␣')
                 .replace('\r', '␍')
                 .replace('\n', '␊');
@@ -85,7 +86,7 @@ public class FastCsvEntryConverter {
     private static String fromRow(Row.Fields row) {
         return row.getFields()
                 .stream()
-                .map(field -> field.isEmpty() ? "◯" : fromContent(field))
+                .map(field -> field.length() == 0 ? "◯" : fromContent(field))
                 .collect(Collectors.joining("↷"));
     }
 }

@@ -1,9 +1,11 @@
-# picocsv - lightweight CSV library for Java
+# picocsv - unusual CSV library for Java
 
 [![Download](https://img.shields.io/github/release/nbbrd/picocsv.svg)](https://github.com/nbbrd/picocsv/releases/latest)
+[![Changes](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fnbbrd%2Fpicocsv%2Fbadges%2Funreleased-changes.json)](https://github.com/nbbrd/picocsv/blob/develop/CHANGELOG.md)
 
-This Java library handles CSV content.  
-While directly usable, it is designed to be the core foundation of other libraries.
+Picocsv is an unusual CSV library designed to be embedded in other libraries.  
+While it can be used directly, it's main purpose is to be the core foundation of those other libraries.  
+For a more user-friendly CSV library, you should have a look at the fast and well-documented [FastCSV library](https://github.com/osiegmar/FastCSV/).
 
 Key points:
 
@@ -25,7 +27,7 @@ Features:
 - supports custom line separator
 - supports custom comment character
 
-⚠️ _Note that the `Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.
+⚠️ _Note that the `Csv.Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.
 The default value is currently `true` but will be reversed in the next major release._
 
 ## Examples
@@ -78,6 +80,42 @@ Csv.Format tsv = Csv.Format.builder().delimiter('\t').build();
 picocsv only supports `java.io.Reader`/`java.io.Writer` as input/output for performance reasons.
 However, it is still possible to use `Readable`/`Appendable` by wrapping them in adapters.
 See [`Cookbook#asCharReader(Readable)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java) and [`Cookbook#asCharWriter(Appendable)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java).
+
+### Disabling comments
+
+Comments can be disabled by setting the `Csv.Format#comment` option to the null character `\0`.
+```java
+Csv.Format noComment = Csv.Format.builder().comment('\0').build();
+```
+⚠️ _Note that this might lead to problems since binary data is allowed in RFC-4180-bis.
+It will be fixed in a future release._
+
+### Skipping comments
+
+Comments can be skipped by using the `Csv.Reader#isComment()` method.
+```java
+while (csv.readLine()) {
+    if (!csv.isComment()) {
+        while (csv.readField()) { ... }
+    }
+}
+```
+
+### Skipping empty lines
+
+Empty lines are valid lines represented by a single empty field in RFC-4180.  
+However, it is still possible to skip them by using the `Csv.Format#acceptMissingField` option.
+```java
+Csv.Format format = Csv.Format.builder().acceptMissingField(true).build();
+try (Csv.Reader csv = ...) {
+    while (csv.readLine()) {
+        if (!csv.readField()) {
+            continue; // line without field => empty line
+        }
+        do { ... } while (csv.readField());
+    }
+}
+```
 
 ## Setup
 

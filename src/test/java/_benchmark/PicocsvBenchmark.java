@@ -19,14 +19,13 @@ package _benchmark;
 import _benchmark.de.siegmar.csvbenchmark.CsvConstants;
 import _benchmark.de.siegmar.csvbenchmark.ICsvReader;
 import _benchmark.de.siegmar.csvbenchmark.util.InfiniteDataReader;
-import de.siegmar.fastcsv.reader.CloseableIterator;
-import de.siegmar.fastcsv.reader.CsvReader;
-import de.siegmar.fastcsv.reader.CsvRecord;
+import nbbrd.picocsv.Csv;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -36,7 +35,7 @@ import java.util.List;
 @Fork(value = 1, warmups = 1)
 @Warmup(iterations = 3)
 @BenchmarkMode(Mode.Throughput)
-public class FastCsvBenchmark {
+public class PicocsvBenchmark {
 
     @State(Scope.Benchmark)
     public static class ReadState {
@@ -44,7 +43,7 @@ public class FastCsvBenchmark {
         private ICsvReader reader;
 
         @Setup
-        public void setup() {
+        public void setup() throws IOException {
             reader = reader();
         }
 
@@ -59,24 +58,33 @@ public class FastCsvBenchmark {
         return state.reader.readRecord();
     }
 
-    public static ICsvReader reader() {
+    public static ICsvReader reader() throws IOException {
         return new ICsvReader() {
-            private final CloseableIterator<CsvRecord> iterator = CsvReader.builder()
-                    .fieldSeparator(CsvConstants.SEPARATOR)
-                    .quoteCharacter(CsvConstants.DELIMITER)
-                    .skipEmptyLines(false)
-                    .ofCsvRecord(new InfiniteDataReader(CsvConstants.DATA))
-                    .iterator();
+            private final Csv.Reader csvReader = Csv.Reader.of(FORMAT, Csv.ReaderOptions.DEFAULT,
+                    new InfiniteDataReader(CsvConstants.DATA), Csv.DEFAULT_CHAR_BUFFER_SIZE);
 
             @Override
-            public List<String> readRecord() {
-                return iterator.next().getFields();
+            public List<String> readRecord() throws IOException {
+                final List<String> result = new ArrayList<>();
+                if (csvReader.readLine()) {
+                    while (csvReader.readField()) {
+                        result.add(csvReader.toString());
+                    }
+                }
+                return result;
             }
 
             @Override
             public void close() throws IOException {
-                iterator.close();
+                csvReader.close();
             }
         };
     }
+
+    private static final Csv.Format FORMAT = Csv.Format.DEFAULT
+            .toBuilder()
+            .delimiter(CsvConstants.SEPARATOR)
+            .separator(Csv.Format.UNIX_SEPARATOR)
+            .quote(CsvConstants.DELIMITER)
+            .build();
 }

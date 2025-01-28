@@ -23,10 +23,10 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * Lightweight CSV library for Java.
+ * Unusual CSV library for Java.
  * <p>
- * This Java library handles CSV content.<br>
- * While directly usable, it is designed to be the core foundation of other libraries.
+ * Picocsv is an unusual CSV library designed to be embedded in other libraries. <br>
+ * While it can be used directly, it's main purpose is to be the core foundation of those other libraries.
  * <p>
  * Key points:
  * <ul>
@@ -239,6 +239,37 @@ public final class Csv {
                     + ", comment=" + prettyPrint(comment)
                     + ", acceptMissingField=" + acceptMissingField
                     + ')';
+        }
+
+        private static String prettyPrint(String text) {
+            StringBuilder result = new StringBuilder();
+            for (int i = 0; i < text.length(); i++) {
+                result.append(prettyPrint(text.charAt(i)));
+            }
+            return result.toString();
+        }
+
+        private static String prettyPrint(char c) {
+            switch (c) {
+                case '\t':
+                    return "\\t";
+                case '\b':
+                    return "\\b";
+                case '\n':
+                    return "\\n";
+                case '\r':
+                    return "\\r";
+                case '\f':
+                    return "\\f";
+//            case '\'':
+//                return "\\'";
+                case '\"':
+                    return "\\\"";
+                case '\\':
+                    return "\\\\";
+                default:
+                    return String.valueOf(c);
+            }
         }
 
         /**
@@ -535,6 +566,13 @@ public final class Csv {
          * @return <code>true</code> if the current line is a comment, <code>false</code> otherwise
          */
         boolean isComment();
+
+        /**
+         * Check if the current field is a quoted or not.
+         *
+         * @return <code>true</code> if the current field is quoted, <code>false</code> otherwise
+         */
+        boolean isQuoted();
     }
 
     /**
@@ -634,7 +672,6 @@ public final class Csv {
         private byte fieldType = FIELD_TYPE_NORMAL;
         private byte state = STATE_0_READY;
 
-
         private Reader(java.io.Reader charReader, char[] buffer, int quoteCode, int delimiterCode, int commentCode, byte emptyLineState, char[] fieldChars, byte eolType, int eolCode0, int eolCode1) {
             this.charReader = charReader;
             this.buffer = buffer;
@@ -664,6 +701,8 @@ public final class Csv {
         private static final byte EOL_TYPE_DUAL_STRICT = 21;
         private static final byte EOL_TYPE_DUAL_LENIENT = 22;
 
+        private static final int EOF_CODE = -1;
+
         /**
          * Reads the next line.
          *
@@ -677,23 +716,29 @@ public final class Csv {
             // WARNING: default value in JDK21 -XX:MinJumpTableSize=10
             switch (state) {
                 case STATE_0_READY:
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_1_FIRST:
                     skipRemainingFields();
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_2_NOT_LAST:
                     skipRemainingFields();
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_3_LAST:
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_4_SINGLE:
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_5_MISSING:
+                    relocateBuffer();
                     parseNextField(true);
                     return state != STATE_6_DONE;
                 case STATE_6_DONE:
@@ -712,7 +757,7 @@ public final class Csv {
                 case 18:
                     return false;
                 default:
-                    throw newUnreachable();
+                    throw new RuntimeException("Unreachable");
             }
         }
 
@@ -754,13 +799,18 @@ public final class Csv {
                 case 18:
                     return false;
                 default:
-                    throw newUnreachable();
+                    throw new RuntimeException("Unreachable");
             }
         }
 
         @Override
         public boolean isComment() {
             return fieldType == FIELD_TYPE_COMMENTED;
+        }
+
+        @Override
+        public boolean isQuoted() {
+            return fieldType == FIELD_TYPE_QUOTED;
         }
 
         /**
@@ -779,9 +829,21 @@ public final class Csv {
             } while (state == STATE_2_NOT_LAST);
         }
 
+        private void relocateBuffer() throws IOException {
+            if (bufferIndex > buffer.length / 2) {
+                int remainingChars = buffer.length - bufferIndex;
+                System.arraycopy(buffer, bufferIndex, buffer, 0, remainingChars);
+                int newChars = charReader.read(buffer, remainingChars, bufferIndex);
+                bufferIndex = 0;
+                bufferLength = remainingChars + newChars;
+            }
+        }
+
         // WARNING: main loop; lots of duplication to maximize performances
         // WARNING: comparing ints more performant than comparing chars
         // WARNING: local var access slightly quicker that field access
+        // WARNING: the main trick is to never get out of this method when reading a field
+        // WARNING: and therefore never have to fill the buffer
         private void parseNextField(final boolean firstField) throws IOException {
             int fieldLength = this.fieldLength;
             int i = this.bufferIndex;
@@ -1121,6 +1183,14 @@ public final class Csv {
          * @throws IOException if an I/O error occurs
          */
         void writeField(CharSequence field) throws IOException;
+
+        /**
+         * Writes a new quoted field. Null is handled as empty.
+         *
+         * @param field a nullable field
+         * @throws IOException if an I/O error occurs
+         */
+        void writeQuotedField(CharSequence field) throws IOException;
     }
 
     /**
@@ -1179,86 +1249,119 @@ public final class Csv {
             requireArgument(format.isValid(), "Invalid format: %s", format);
 
             return new Writer(
-                    new Output(charWriter, new char[charBufferSize]),
+                    charWriter, new char[charBufferSize],
                     format.getQuote(), format.getDelimiter(), format.getComment(),
-                    EndOfLineEncoder.of(format)
+                    format.getSeparator().charAt(0), format.getSeparator().length() == 1 ? NO_SECOND_EOL : format.getSeparator().charAt(1)
             );
         }
 
-        private final Output output;
+        private final java.io.Writer charWriter;
+        private final char[] buffer;
         private final char quote;
         private final char delimiter;
         private final char comment;
-        private final EndOfLineEncoder eolEncoder;
+        private final char eol0;
+        private final char eol1;
 
-        private int state = STATE_NO_FIELD;
+        private int bufferLength = 0;
+        private int state = STATE_0_NO_FIELD;
 
-        private Writer(Output output, char quote, char delimiter, char comment, EndOfLineEncoder eolEncoder) {
-            this.output = output;
+        private Writer(java.io.Writer charWriter, char[] buffer, char quote, char delimiter, char comment, char eol0, char eol1) {
+            this.charWriter = charWriter;
+            this.buffer = buffer;
             this.quote = quote;
             this.delimiter = delimiter;
             this.comment = comment;
-            this.eolEncoder = eolEncoder;
+            this.eol0 = eol0;
+            this.eol1 = eol1;
         }
 
         @Override
         public void writeComment(CharSequence comment) throws IOException {
-            if (state != STATE_NO_FIELD) {
-                writeEndOfLine();
+            switch (state) {
+                case STATE_0_NO_FIELD:
+                    break;
+                case STATE_1_SINGLE_EMPTY_FIELD:
+                    state = STATE_0_NO_FIELD;
+                    formatSingleEmptyField();
+                    formatEndOfLine();
+                    break;
+                case STATE_2_MULTI_FIELD:
+                    state = STATE_0_NO_FIELD;
+                    formatEndOfLine();
+                    flushBuffer();
+                    break;
             }
-            output.write(this.comment);
-            if (comment != null && comment.length() > 0) {
-                for (int i = 0; i < comment.length(); i++) {
-                    char c = comment.charAt(i);
-                    if (eolEncoder.isNewLine(c)) {
-                        writeEndOfLine();
-                        output.write(this.comment);
-                        if (isSkipSecondEOL(comment, i)) {
-                            i++;
-                        }
-                    } else {
-                        output.write(c);
-                    }
-                }
-            }
-            writeEndOfLine();
-        }
 
-        private boolean isSkipSecondEOL(CharSequence text, int i) {
-            return eolEncoder instanceof EndOfLineEncoder.DualEncoder
-                    && i + 1 < text.length()
-                    && eolEncoder.isNewLine(text.charAt(i + 1));
+            if (comment != null && comment.length() > 0) {
+                formatComment(comment);
+            } else {
+                formatEmptyComment();
+            }
         }
 
         @Override
         public void writeField(CharSequence field) throws IOException {
+            boolean notEmpty = field != null && field.length() != 0;
             switch (state) {
-                case STATE_NO_FIELD: {
-                    if (isNotEmpty(field)) {
-                        state = STATE_MULTI_FIELD;
+                case STATE_0_NO_FIELD: {
+                    state = notEmpty ? STATE_2_MULTI_FIELD : STATE_1_SINGLE_EMPTY_FIELD;
+                    if (notEmpty) {
                         if (field.charAt(0) == comment) {
-                            writeNonEmptyField(field, QUOTING_FULL);
+                            formatField(field, QUOTING_FULL, true);
                         } else {
-                            writeNonEmptyField(field);
+                            formatField(field, parseQuoting(field), true);
                         }
-                    } else {
-                        state = STATE_SINGLE_EMPTY_FIELD;
                     }
                     break;
                 }
-                case STATE_SINGLE_EMPTY_FIELD: {
-                    state = STATE_MULTI_FIELD;
-                    output.write(delimiter);
-                    if (isNotEmpty(field)) {
-                        writeNonEmptyField(field);
-                    }
+                case STATE_1_SINGLE_EMPTY_FIELD: {
+                    state = STATE_2_MULTI_FIELD;
+                    if (notEmpty) {
+                        formatField(field, parseQuoting(field), false);
+                    } else
+                        formatEmptyField();
                     break;
                 }
-                case STATE_MULTI_FIELD: {
-                    output.write(delimiter);
-                    if (isNotEmpty(field)) {
-                        writeNonEmptyField(field);
-                    }
+                case STATE_2_MULTI_FIELD: {
+                    if (notEmpty) {
+                        formatField(field, parseQuoting(field), false);
+                    } else
+                        formatEmptyField();
+                    break;
+                }
+            }
+        }
+
+        @Override
+        public void writeQuotedField(CharSequence field) throws IOException {
+            boolean notEmpty = field != null && field.length() != 0;
+            switch (state) {
+                case STATE_0_NO_FIELD: {
+                    state = STATE_2_MULTI_FIELD;
+                    if (notEmpty) {
+                        if (field.charAt(0) == comment) {
+                            formatField(field, QUOTING_FULL, true);
+                        } else {
+                            formatField(field, parseForcedQuoting(field), true);
+                        }
+                    } else
+                        formatSingleEmptyField();
+                    break;
+                }
+                case STATE_1_SINGLE_EMPTY_FIELD: {
+                    state = STATE_2_MULTI_FIELD;
+                    if (notEmpty) {
+                        formatField(field, parseForcedQuoting(field), false);
+                    } else
+                        formatEmptyQuotedField();
+                    break;
+                }
+                case STATE_2_MULTI_FIELD: {
+                    if (notEmpty) {
+                        formatField(field, parseForcedQuoting(field), false);
+                    } else
+                        formatEmptyQuotedField();
                     break;
                 }
             }
@@ -1270,18 +1373,22 @@ public final class Csv {
          * @throws IOException if an I/O error occurs
          */
         public void writeEndOfLine() throws IOException {
-            flush();
-            eolEncoder.write(output);
+            if (state == STATE_1_SINGLE_EMPTY_FIELD) {
+                formatSingleEmptyField();
+            }
+            formatEndOfLine();
+            state = STATE_0_NO_FIELD;
+            //if (bufferLength > buffer.length / 2) {
+            flushBuffer();
+            //
         }
 
         @Override
         public void flush() throws IOException {
-            if (state == STATE_SINGLE_EMPTY_FIELD) {
-                output.write(quote);
-                output.write(quote);
+            if (bufferLength != 0) {
+                flushBuffer();
             }
-            state = STATE_NO_FIELD;
-            output.flush();
+            charWriter.flush();
         }
 
         /**
@@ -1292,223 +1399,218 @@ public final class Csv {
          */
         @Override
         public void close() throws IOException {
+            if (state == STATE_1_SINGLE_EMPTY_FIELD) {
+                formatSingleEmptyField();
+            }
+            state = STATE_0_NO_FIELD;
             flush();
-            output.close();
+            charWriter.close();
         }
 
-        private boolean isNotEmpty(CharSequence field) {
-            return field != null && field.length() != 0;
+        private void formatEmptyComment() throws IOException {
+            appendChar(this.comment);
+            appendChar(this.eol0);
+            if (this.eol1 != NO_SECOND_EOL) {
+                appendChar(this.eol1);
+            }
         }
 
-        private void writeNonEmptyField(CharSequence field) throws IOException {
-            writeNonEmptyField(field, getQuoting(field));
+        private void formatComment(final CharSequence comment) throws IOException {
+            final char cmnt = this.comment;
+            final char eol0 = this.eol0;
+            final char eol1 = this.eol1;
+            final int length = comment.length();
+
+            if (eol1 != NO_SECOND_EOL) {
+                appendChar(cmnt);
+                char c;
+                for (int p = 0; p < length; p++) {
+                    c = comment.charAt(p);
+                    if (c == eol0 || c == eol1) {
+                        appendChar(eol0);
+                        appendChar(eol1);
+                        appendChar(cmnt);
+                        // skip second EOL
+                        if (p + 1 < length && comment.charAt(p + 1) == eol1) {
+                            p++;
+                        }
+                    } else {
+                        appendChar(c);
+                    }
+                }
+                appendChar(eol0);
+                appendChar(eol1);
+            } else {
+                appendChar(cmnt);
+                char c;
+                for (int p = 0; p < length; p++) {
+                    c = comment.charAt(p);
+                    if (c == eol0) {
+                        appendChar(eol0);
+                        appendChar(cmnt);
+                    } else {
+                        appendChar(c);
+                    }
+                }
+                appendChar(eol0);
+            }
         }
 
-        private void writeNonEmptyField(CharSequence field, int quoting) throws IOException {
+        private void formatSingleEmptyField() throws IOException {
+            appendChar(quote);
+            appendChar(quote);
+        }
+
+        private void formatEmptyField() throws IOException {
+            appendChar(delimiter);
+        }
+
+        private void formatEmptyQuotedField() throws IOException {
+            appendChar(delimiter);
+            appendChar(quote);
+            appendChar(quote);
+        }
+
+        private void formatField(final CharSequence field, final int quoting, final boolean firstField) throws IOException {
+            if (!firstField) {
+                appendChar(delimiter);
+            }
+            final char quote = this.quote;
             switch (quoting) {
                 case QUOTING_NONE:
-                    output.write(field);
+                    appendChars(field);
                     break;
                 case QUOTING_PARTIAL:
-                    output.write(quote);
-                    output.write(field);
-                    output.write(quote);
+                    appendChar(quote);
+                    appendChars(field);
+                    appendChar(quote);
                     break;
                 case QUOTING_FULL:
-                    output.write(quote);
-                    for (int i = 0; i < field.length(); i++) {
-                        char c = field.charAt(i);
+                    appendChar(quote);
+                    final int length = field.length();
+                    char c;
+                    for (int p = 0; p < length; p++) {
+                        c = field.charAt(p);
                         if (c == quote) {
-                            output.write(c);
+                            appendChar(quote);
                         }
-                        output.write(c);
+                        appendChar(c);
                     }
-                    output.write(quote);
+                    appendChar(quote);
                     break;
             }
         }
 
-        private int getQuoting(CharSequence field) {
-            int result = QUOTING_NONE;
-            for (int i = 0; i < field.length(); i++) {
-                char c = field.charAt(i);
-                if (c == quote) {
+        private void formatEndOfLine() throws IOException {
+            appendChar(eol0);
+            if (eol1 != NO_SECOND_EOL) {
+                appendChar(eol1);
+            }
+        }
+
+        private int parseQuoting(final CharSequence field) {
+            final char delimiter = this.delimiter;
+            final char quote = this.quote;
+            final char eol0 = this.eol0;
+            final char eol1 = this.eol1;
+            final int length = field.length();
+
+            if (eol1 != NO_SECOND_EOL) {
+                char c;
+                for (int p = 0; p < length; p++) {
+                    c = field.charAt(p);
+                    if (c == quote) {
+                        return QUOTING_FULL;
+                    }
+                    if (c == delimiter || c == eol0 || c == eol1) {
+                        for (p++; p < length; p++) {
+                            if (field.charAt(p) == quote) {
+                                return QUOTING_FULL;
+                            }
+                        }
+                        return QUOTING_PARTIAL;
+                    }
+                }
+                return QUOTING_NONE;
+            } else {
+                char c;
+                for (int p = 0; p < length; p++) {
+                    c = field.charAt(p);
+                    if (c == quote) {
+                        return QUOTING_FULL;
+                    }
+                    if (c == delimiter || c == eol0) {
+                        for (p++; p < length; p++) {
+                            if (field.charAt(p) == quote) {
+                                return QUOTING_FULL;
+                            }
+                        }
+                        return QUOTING_PARTIAL;
+                    }
+                }
+                return QUOTING_NONE;
+            }
+        }
+
+        private int parseForcedQuoting(final CharSequence field) {
+            final char quote = this.quote;
+            final int length = field.length();
+
+            for (int p = 0; p < length; p++) {
+                if (field.charAt(p) == quote) {
                     return QUOTING_FULL;
                 }
-                if (c == delimiter || eolEncoder.isNewLine(c)) {
-                    result = QUOTING_PARTIAL;
+            }
+            return QUOTING_PARTIAL;
+        }
+
+        private void flushBuffer() throws IOException {
+            charWriter.write(buffer, 0, bufferLength);
+            bufferLength = 0;
+        }
+
+        private int write(final int length) throws IOException {
+            charWriter.write(buffer, 0, length);
+            return 1;
+        }
+
+        private void appendChar(final char c) throws IOException {
+            buffer[bufferLength == buffer.length ? (bufferLength = write(bufferLength)) - 1 : bufferLength++] = c;
+        }
+
+        private void appendChars(final CharSequence chars) throws IOException {
+            final int charsLength = chars.length();
+            if (bufferLength + charsLength >= buffer.length) {
+                flushBuffer();
+                if (charsLength >= buffer.length) {
+                    charWriter.append(chars);
+                    return;
                 }
             }
-            return result;
+            if (chars instanceof String) {
+                ((String) chars).getChars(0, charsLength, buffer, bufferLength);
+                bufferLength += charsLength;
+            } else {
+                for (int p = 0; p < charsLength; p++) {
+                    buffer[bufferLength++] = chars.charAt(p);
+                }
+            }
         }
 
         private static final int QUOTING_NONE = 0;
         private static final int QUOTING_PARTIAL = 1;
         private static final int QUOTING_FULL = 2;
 
-        private static final int STATE_NO_FIELD = 0;
-        private static final int STATE_SINGLE_EMPTY_FIELD = 1;
-        private static final int STATE_MULTI_FIELD = 2;
+        private static final int STATE_0_NO_FIELD = 0;
+        private static final int STATE_1_SINGLE_EMPTY_FIELD = 1;
+        private static final int STATE_2_MULTI_FIELD = 2;
 
-        private static final class Output implements Closeable, Flushable {
-
-            private final java.io.Writer charWriter;
-            private final char[] buffer;
-
-            private int length = 0;
-
-            private Output(java.io.Writer charWriter, char[] charBuffer) {
-                this.charWriter = charWriter;
-                this.buffer = charBuffer;
-            }
-
-            public void write(char c) throws IOException {
-                if (length == buffer.length) {
-                    flushBuffer();
-                }
-                buffer[length++] = c;
-            }
-
-            public void write(CharSequence chars) throws IOException {
-                int charsLength = chars.length();
-                if (length + charsLength >= buffer.length) {
-                    flushBuffer();
-                    if (charsLength >= buffer.length) {
-                        charWriter.append(chars);
-                        return;
-                    }
-                }
-                if (chars instanceof String) {
-                    ((String) chars).getChars(0, charsLength, buffer, length);
-                    length += charsLength;
-                } else {
-                    for (int i = 0; i < charsLength; i++) {
-                        buffer[length++] = chars.charAt(i);
-                    }
-                }
-            }
-
-            @Override
-            public void close() throws IOException {
-                flushBuffer();
-                charWriter.close();
-            }
-
-            private void flushBuffer() throws IOException {
-                charWriter.write(buffer, 0, length);
-                length = 0;
-            }
-
-            @Override
-            public void flush() throws IOException {
-                if (length != 0) {
-                    flushBuffer();
-                }
-                charWriter.flush();
-            }
-        }
-
-        private static abstract class EndOfLineEncoder {
-
-            abstract public void write(Output output) throws IOException;
-
-            abstract public boolean isNewLine(char c);
-
-            public static EndOfLineEncoder of(Format format) {
-                String eol = format.getSeparator();
-                switch (eol.length()) {
-                    case 1:
-                        return new SingleEncoder(eol.charAt(0));
-                    case 2:
-                        return new DualEncoder(eol.charAt(0), eol.charAt(1));
-                    default:
-                        throw newUnreachable();
-                }
-            }
-
-            private static final class SingleEncoder extends EndOfLineEncoder {
-
-                private final char single;
-
-                private SingleEncoder(char single) {
-                    this.single = single;
-                }
-
-                @Override
-                public void write(Output output) throws IOException {
-                    output.write(single);
-                }
-
-                @Override
-                public boolean isNewLine(char c) {
-                    return c == single;
-                }
-            }
-
-            private static final class DualEncoder extends EndOfLineEncoder {
-
-                private final char first;
-                private final char second;
-
-                private DualEncoder(char first, char second) {
-                    this.first = first;
-                    this.second = second;
-                }
-
-                @Override
-                public void write(Output output) throws IOException {
-                    output.write(first);
-                    output.write(second);
-                }
-
-                @Override
-                public boolean isNewLine(char c) {
-                    return c == first || c == second;
-                }
-            }
-        }
-    }
-
-    private static final int EOF_CODE = -1;
-
-    private static RuntimeException newUnreachable() {
-        return new RuntimeException("Unreachable");
+        private static final char NO_SECOND_EOL = '\0';
     }
 
     private static void requireArgument(boolean condition, String format, Object arg) throws IllegalArgumentException {
         if (!condition) {
             throw new IllegalArgumentException(String.format(Locale.ROOT, format, arg));
-        }
-    }
-
-    private static String prettyPrint(String text) {
-        StringBuilder result = new StringBuilder();
-        for (int i = 0; i < text.length(); i++) {
-            result.append(prettyPrint(text.charAt(i)));
-        }
-        return result.toString();
-    }
-
-    private static String prettyPrint(char c) {
-        switch (c) {
-            case '\t':
-                return "\\t";
-            case '\b':
-                return "\\b";
-            case '\n':
-                return "\\n";
-            case '\r':
-                return "\\r";
-            case '\f':
-                return "\\f";
-//            case '\'':
-//                return "\\'";
-            case '\"':
-                return "\\\"";
-            case '\\':
-                return "\\\\";
-            default:
-                return String.valueOf(c);
         }
     }
 }

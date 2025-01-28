@@ -81,7 +81,7 @@ public class Sample {
             return row(new Row.Comment(comment));
         }
 
-        public Builder rowFields(String... fields) {
+        public Builder rowFields(CharSequence... fields) {
             return row(new Row.Fields(Arrays.asList(fields)));
         }
     }
