@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix buffer relocation length [#302](https://github.com/nbbrd/picocsv/issues/302)
+
 ## [2.5.0] - 2025-01-28
 
 ### Added
