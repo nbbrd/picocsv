@@ -599,9 +599,11 @@ public class CsvReaderTest {
 
     @Test
     public void testBufferRelocationBufferLength() throws IOException {
-        Csv.Format tsv = Csv.Format.DEFAULT.toBuilder().delimiter('\t').build();
         String content = Resources.contentOf(CsvReaderTest.class, "/Top5Stmt.tsv", UTF_8);
-        assertThat(QuickReader.readValue(RowParser.READ_ALL, content, tsv, Csv.ReaderOptions.DEFAULT))
+        Csv.Format format = Csv.Format.builder().delimiter('\t').build();
+        Csv.ReaderOptions options = Csv.ReaderOptions.builder().lenientSeparator(true).build();
+
+        assertThat(QuickReader.readValue(RowParser.READ_ALL, content, format, options))
                 .hasSize(332)
                 .map(Row.Fields.class::cast)
                 .map(row -> row.getFields().size())
