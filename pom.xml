@@ -5,7 +5,7 @@
 
     <groupId>com.github.nbbrd.picocsv</groupId>
     <artifactId>picocsv</artifactId>
-    <version>2.5.0</version>
+    <version>2.5.1</version>
     <packaging>jar</packaging>
 
     <name>picocsv</name>
@@ -38,7 +38,7 @@
     <properties>
         <!-- Java 8+ config -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.build.outputTimestamp>2025-01-28T13:16:39Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2025-02-03T11:16:02Z</project.build.outputTimestamp>
         <maven.compiler.target>1.8</maven.compiler.target>
         <maven.compiler.source>1.8</maven.compiler.source>
 

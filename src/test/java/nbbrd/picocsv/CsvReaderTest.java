@@ -19,6 +19,7 @@ package nbbrd.picocsv;
 import _demo.Cookbook;
 import _test.QuickReader;
 import _test.QuickReader.VoidParser;
+import _test.Resources;
 import _test.Row;
 import _test.Sample;
 import _test.fastcsv.FastCsvEntry;
@@ -42,6 +43,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static _test.Sample.INVALID_FORMAT;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.joining;
 import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
 import static nbbrd.picocsv.Csv.Format.*;
@@ -454,7 +456,7 @@ public class CsvReaderTest {
     @Test
     public void testIsQuoted() throws IOException {
         String sample = "\"A\",B";
-        QuickReader.read(r->{
+        QuickReader.read(r -> {
             assertThat(r.readLine()).isTrue();
             assertThat(r.readField()).isTrue();
             assertThat(r.isQuoted()).isTrue();
@@ -593,6 +595,19 @@ public class CsvReaderTest {
 
         assertThat(readRows(sample, Csv.ReaderOptions.builder().lenientSeparator(true).build(), rowsParser))
                 .containsExactlyElementsOf(sample.getRows());
+    }
+
+    @Test
+    public void testBufferRelocationBufferLength() throws IOException {
+        String content = Resources.contentOf(CsvReaderTest.class, "/Top5Stmt.tsv", UTF_8);
+        Csv.Format format = Csv.Format.builder().delimiter('\t').build();
+        Csv.ReaderOptions options = Csv.ReaderOptions.builder().lenientSeparator(true).build();
+
+        assertThat(QuickReader.readValue(RowParser.READ_ALL, content, format, options))
+                .hasSize(332)
+                .map(Row.Fields.class::cast)
+                .map(row -> row.getFields().size())
+                .allMatch(fieldsCount -> fieldsCount == 4);
     }
 
     private final Condition<Sample> validWithStrict = validWith(Csv.ReaderOptions.builder().lenientSeparator(false).build());

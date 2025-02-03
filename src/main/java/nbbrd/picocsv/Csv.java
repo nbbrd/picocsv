@@ -830,8 +830,8 @@ public final class Csv {
         }
 
         private void relocateBuffer() throws IOException {
-            if (bufferIndex > buffer.length / 2) {
-                int remainingChars = buffer.length - bufferIndex;
+            if (bufferLength != EOF_CODE && bufferIndex > buffer.length / 2) {
+                int remainingChars = bufferLength - bufferIndex;
                 System.arraycopy(buffer, bufferIndex, buffer, 0, remainingChars);
                 int newChars = charReader.read(buffer, remainingChars, bufferIndex);
                 bufferIndex = 0;
