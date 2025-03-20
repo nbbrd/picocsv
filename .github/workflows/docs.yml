@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Check jbang-action
-        uses: jbangdev/jbang-action@v0.124.0
+        uses: jbangdev/jbang-action@v0.125.1
         with:
           trust: https://github.com/nbbrd/jbang-catalog/
           script: heylogs@nbbrd
@@ -68,7 +68,7 @@ jobs:
             $-jbang-
 
       - name: Create index.html
-        uses: jbangdev/jbang-action@v0.124.0
+        uses: jbangdev/jbang-action@v0.125.1
         with:
           trust: https://gist.github.com/charphi/
           script: https://gist.github.com/charphi/f44a24eb35dbd61b9f1d7759f0e561bd
