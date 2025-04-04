@@ -16,6 +16,7 @@ Key points:
   or [as a single-file source](https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java)
 - has a module-info that makes it compatible with [JPMS](https://www.baeldung.com/java-9-modularity)
 - compatible with GraalVM Native Image (genuine Java, no reflection, no bytecode manipulation)
+- can be easily shaded
 - Java 8 minimum requirement
 
 Features:
