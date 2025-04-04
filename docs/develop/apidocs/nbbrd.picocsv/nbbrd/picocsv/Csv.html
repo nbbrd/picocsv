@@ -82,22 +82,27 @@ loadScripts(document, 'script');</script>
  <p>
  Key points:
  <ul>
- <li> lightweight library with no dependency
- <li> fast and efficient (no heap memory allocation)
- <li> designed to be embedded into other libraries as <a href="https://search.maven.org/artifact/com.github.nbbrd.picocsv/picocsv">an external dependency</a> or <a href="https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java">as a single-file source</a>
- <li> has a module-info that makes it compatible with <a href="https://www.baeldung.com/java-9-modularity">JPMS</a>
- <li> Java 8 minimum requirement
+ <li>lightweight library with no dependency (less than 25KB)</li>
+ <li>very fast (cf. <a href="https://github.com/osiegmar/JavaCsvBenchmarkSuite">benchmark</a>) and efficient (no heap memory allocation)</li>
+ <li>designed to be embedded into other libraries
+ as <a href="https://search.maven.org/artifact/com.github.nbbrd.picocsv/picocsv">an external dependency</a>
+ or <a href="https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java">as a single-file source</a></li>
+ <li>has a module-info that makes it compatible with <a href="https://www.baeldung.com/java-9-modularity">JPMS</a></li>
+ <li>compatible with GraalVM Native Image (genuine Java, no reflection, no bytecode manipulation)</li>
+ <li>can be easily shaded</li>
+ <li>Java 8 minimum requirement</li>
  </ul>
  <p>
  Features:
  <ul>
- <li> reads/writes CSV from/to character streams
- <li> provides a minimalist low-level API
- <li> does not interpret content
- <li> does not correct invalid files
- <li> follows the <a href="https://tools.ietf.org/html/rfc4180">RFC4180</a> specification
- <li> supports custom line separator
- <li> supports custom comment character
+ <li>reads/writes CSV from/to character streams</li>
+ <li>provides a minimalist null-free low-level API</li>
+ <li>does not interpret content</li>
+ <li>does not correct invalid files</li>
+ <li>follows the <a href="https://tools.ietf.org/html/rfc4180">RFC4180</a> specification</li>
+ <li>supports custom line separator, field delimiter, quoting character and comment character</li>
+ <li>supports custom quoting strategy</li>
+ <li>supports unicode characters</li>
  </ul>
  <p>
  ⚠️ <i>Note that the <code>Format#acceptMissingField</code> option must be set to <code>false</code> to closely follow the RFC4180 specification.
