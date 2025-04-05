@@ -303,7 +303,7 @@
                 </property>
             </activation>
             <properties>
-                <lombok.version>1.18.36</lombok.version>
+                <lombok.version>1.18.38</lombok.version>
                 <jmh.version>1.37</jmh.version>
             </properties>
             <dependencyManagement>
