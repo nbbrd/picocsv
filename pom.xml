@@ -700,6 +700,9 @@
                                 <goals>
                                     <goal>extract</goal>
                                 </goals>
+                                <configuration>
+                                    <outputFile>${project.build.directory}/CHANGELOG.md</outputFile>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>
