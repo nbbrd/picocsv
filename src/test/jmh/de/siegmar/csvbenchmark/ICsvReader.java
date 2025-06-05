@@ -1,4 +1,4 @@
-package _benchmark.de.siegmar.csvbenchmark;
+package de.siegmar.csvbenchmark;
 
 import java.io.Closeable;
 import java.util.Collection;
