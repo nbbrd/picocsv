@@ -63,7 +63,9 @@ public class CsvWriterTest {
     @ParameterizedTest
     @MethodSource("_test.Sample#getAllSamples")
     public void testAllSamples(Sample sample) throws IOException {
-        assertValid(sample, Csv.WriterOptions.DEFAULT);
+        assertThat(writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), Csv.WriterOptions.DEFAULT))
+                .describedAs(sample.asDescription("Writing"))
+                .isEqualTo(sample.getContent() + getMissingEOL(sample));
     }
 
     @Test
@@ -78,7 +80,7 @@ public class CsvWriterTest {
     }
 
     @Test
-    public void testWriteComment() throws IOException {
+    public void testWriteComment() {
         assertThat(writing(COMMENTED_NULL))
                 .returns("#␍␊", Scenario::toWindows)
                 .returns("#␊", Scenario::toUnix);
@@ -259,24 +261,18 @@ public class CsvWriterTest {
     }
 
     @Test
-    public void testOutputBuffer() throws IOException {
-        assertValid(getOverflowSample(
-                repeat('A', DEFAULT_CHAR_BUFFER_SIZE - 1),
-                "'",
-                repeat('C', 10)
-        ), Csv.WriterOptions.DEFAULT);
+    public void testFieldOverflow() {
+        Sample sample = Sample.SIMPLE;
 
-        assertValid(getOverflowSample(
-                repeat('A', DEFAULT_CHAR_BUFFER_SIZE),
-                "'",
-                repeat('C', 10)
-        ), Csv.WriterOptions.DEFAULT);
+        Csv.WriterOptions valid = Csv.WriterOptions.DEFAULT.toBuilder().maxCharsPerField(2).build();
+        assertThatCode(() -> writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), valid))
+                .describedAs(sample.asDescription("Writing"))
+                .doesNotThrowAnyException();
 
-        assertValid(getOverflowSample(
-                repeat('A', DEFAULT_CHAR_BUFFER_SIZE + 1),
-                "'",
-                repeat('C', 10)
-        ), Csv.WriterOptions.DEFAULT);
+        Csv.WriterOptions invalid = Csv.WriterOptions.DEFAULT.toBuilder().maxCharsPerField(1).build();
+        assertThatIOException().isThrownBy(() -> writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), invalid))
+                .describedAs(sample.asDescription("Writing"))
+                .withMessageContaining("Field overflow");
     }
 
     @Test
@@ -291,16 +287,6 @@ public class CsvWriterTest {
         csvWriter.flush();
 
         assertThat(buf.toString()).isEqualTo("foo,bar,baz\r\n");
-    }
-
-    private static Sample getOverflowSample(String... fields) {
-        return Sample
-                .builder()
-                .name("overflow")
-                .format(Csv.Format.RFC4180)
-                .content(String.join(",", fields).replace("\"", "''''") + "\r\n")
-                .rowFields(fields)
-                .build();
     }
 
     @lombok.Value
@@ -354,18 +340,6 @@ public class CsvWriterTest {
     private static final QuickWriter.VoidFormatter COMMENTED_QUOTE = writer -> writer.writeComment("'");
 
     private static final QuickWriter.VoidFormatter EOL = Csv.Writer::writeEndOfLine;
-
-    private static String repeat(char c, int length) {
-        char[] result = new char[length];
-        Arrays.fill(result, c);
-        return String.valueOf(result);
-    }
-
-    private static void assertValid(Sample sample, Csv.WriterOptions options) throws IOException {
-        assertThat(writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), options))
-                .describedAs(sample.asDescription("Writing"))
-                .isEqualTo(sample.getContent() + getMissingEOL(sample));
-    }
 
     private static String getMissingEOL(Sample sample) {
         return sample.isWithoutEOL() ? sample.getFormat().getSeparator() : "";
