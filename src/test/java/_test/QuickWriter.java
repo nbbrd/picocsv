@@ -49,6 +49,10 @@ public class QuickWriter {
         return writeValue(null, (value, stream) -> formatter.accept(stream), format, writerOptions);
     }
 
+    public static String write(VoidFormatter formatter, Csv.Format format, Csv.WriterOptions writerOptions, int charBufferSize) throws IOException {
+        return writeValue(null, (value, stream) -> formatter.accept(stream), format, writerOptions, charBufferSize);
+    }
+
     @FunctionalInterface
     public interface Formatter<T> {
 

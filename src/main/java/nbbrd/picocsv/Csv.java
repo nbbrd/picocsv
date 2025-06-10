@@ -1285,7 +1285,7 @@ public final class Csv {
             Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
             Objects.requireNonNull(charWriter, "charWriter");
-            requireArgument(charBufferSize >= MINIMUM_BUFFER_SIZE, "Invalid charBufferSize: %s", charBufferSize);
+            requireArgument(charBufferSize > 0, "Invalid charBufferSize: %s", charBufferSize);
             requireArgument(format.isValid(), "Invalid format: %s", format);
 
             return new Writer(
@@ -1356,6 +1356,25 @@ public final class Csv {
                         formatEmptyComment();
                     }
                     break;
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                case 16:
+                case 17:
+                case 18:
+                    break;
+                default:
+                    throw new RuntimeException("Unreachable");
             }
         }
 
@@ -1396,6 +1415,25 @@ public final class Csv {
                     }
                     break;
                 }
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                case 16:
+                case 17:
+                case 18:
+                    break;
+                default:
+                    throw new RuntimeException("Unreachable");
             }
         }
 
@@ -1433,6 +1471,25 @@ public final class Csv {
                     }
                     break;
                 }
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                case 16:
+                case 17:
+                case 18:
+                    break;
+                default:
+                    throw new RuntimeException("Unreachable");
             }
         }
 
@@ -1477,15 +1534,12 @@ public final class Csv {
         }
 
         private void prepareField(CharSequence field) throws IOException {
-            final char[] fieldChars = this.fieldChars;
             final int fieldLength = field.length();
-
-            if (fieldLength > fieldChars.length) {
+            try {
+                field.toString().getChars(0, fieldLength, this.fieldChars, 0);
+            } catch (StringIndexOutOfBoundsException ex) {
                 throw new IOException("Field overflow");
             }
-
-            field.toString().getChars(0, fieldLength, fieldChars, 0);
-
             this.fieldLength = fieldLength;
         }
 
@@ -1719,7 +1773,6 @@ public final class Csv {
         private static final int STATE_2_MULTI_FIELD = 2;
 
         private static final char NO_SECOND_EOL = '\0';
-        private static final int MINIMUM_BUFFER_SIZE = 7;
     }
 
     private static void requireArgument(boolean condition, String format, Object arg) throws IllegalArgumentException {
