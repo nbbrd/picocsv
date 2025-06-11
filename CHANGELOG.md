@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `WriterOptions#maxCharsPerField` option
+
+### Changed
+
+- Improve writing speed
+
 ## [2.5.1] - 2025-02-03
 
 ### Fixed
