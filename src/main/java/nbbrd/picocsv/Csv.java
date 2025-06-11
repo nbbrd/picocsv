@@ -1100,34 +1100,55 @@ public final class Csv {
      */
     public static final class WriterOptions {
 
+        private static final int DEFAULT_MAX_CHARS_PER_FIELD = 4096;
+
         /**
          * Default writer options.
          */
-        public static final WriterOptions DEFAULT = new WriterOptions();
+        public static final WriterOptions DEFAULT = new WriterOptions(DEFAULT_MAX_CHARS_PER_FIELD);
 
-        private WriterOptions() {
+        private final int maxCharsPerField;
+
+        private WriterOptions(int maxCharsPerField) {
+            this.maxCharsPerField = maxCharsPerField;
         }
 
-        @SuppressWarnings("UnnecessaryLocalVariable")
+        /**
+         * Determines the maximum number of characters to write in each field
+         * to avoid {@link java.lang.OutOfMemoryError} in case a file does not
+         * have a valid format. This sets a limit which avoids unwanted JVM crashes.
+         * <p>
+         * The default value is <code>{@value WriterOptions#DEFAULT_MAX_CHARS_PER_FIELD}</code>.
+         *
+         * @return the maximum number of characters for a field
+         */
+        public int getMaxCharsPerField() {
+            return maxCharsPerField;
+        }
+
         @Override
         public int hashCode() {
             int hash = 7;
+            hash = 37 * hash + this.maxCharsPerField;
             return hash;
         }
 
-        @SuppressWarnings("unused")
+        @SuppressWarnings("RedundantIfStatement")
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
             if (obj == null) return false;
             if (getClass() != obj.getClass()) return false;
             final WriterOptions other = (WriterOptions) obj;
+            if (this.maxCharsPerField != other.maxCharsPerField) return false;
             return true;
         }
 
         @Override
         public String toString() {
-            return "WriterOptions(" + ')';
+            return "WriterOptions("
+                    + "maxCharsPerField=" + maxCharsPerField
+                    + ')';
         }
 
         /**
@@ -1136,7 +1157,8 @@ public final class Csv {
          * @return a non-null builder
          */
         public Builder toBuilder() {
-            return new Builder();
+            return new Builder()
+                    .maxCharsPerField(maxCharsPerField);
         }
 
         /**
@@ -1153,7 +1175,20 @@ public final class Csv {
          */
         public static final class Builder {
 
+            private int maxCharsPerField;
+
             private Builder() {
+            }
+
+            /**
+             * Sets the {@link WriterOptions#getMaxCharsPerField() maxCharsPerField} parameter of {@link WriterOptions}.
+             *
+             * @param maxCharsPerField the maximum number of characters for a field
+             * @return this builder
+             */
+            public Builder maxCharsPerField(int maxCharsPerField) {
+                this.maxCharsPerField = maxCharsPerField;
+                return this;
             }
 
             /**
@@ -1162,7 +1197,7 @@ public final class Csv {
              * @return a non-null new instance
              */
             public WriterOptions build() {
-                return new WriterOptions();
+                return new WriterOptions(maxCharsPerField);
             }
         }
     }
@@ -1254,7 +1289,7 @@ public final class Csv {
             requireArgument(format.isValid(), "Invalid format: %s", format);
 
             return new Writer(
-                    charWriter, new char[charBufferSize],
+                    charWriter, new char[charBufferSize], new char[options.getMaxCharsPerField()],
                     format.getQuote(), format.getDelimiter(), format.getComment(),
                     format.getSeparator().charAt(0), format.getSeparator().length() == 1 ? NO_SECOND_EOL : format.getSeparator().charAt(1)
             );
@@ -1262,6 +1297,7 @@ public final class Csv {
 
         private final java.io.Writer charWriter;
         private final char[] buffer;
+        private final char[] fieldChars;
         private final char quote;
         private final char delimiter;
         private final char comment;
@@ -1269,11 +1305,13 @@ public final class Csv {
         private final char eol1;
 
         private int bufferLength = 0;
+        private int fieldLength = 0;
         private int state = STATE_0_NO_FIELD;
 
-        private Writer(java.io.Writer charWriter, char[] buffer, char quote, char delimiter, char comment, char eol0, char eol1) {
+        private Writer(java.io.Writer charWriter, char[] buffer, char[] fieldChars, char quote, char delimiter, char comment, char eol0, char eol1) {
             this.charWriter = charWriter;
             this.buffer = buffer;
+            this.fieldChars = fieldChars;
             this.quote = quote;
             this.delimiter = delimiter;
             this.comment = comment;
@@ -1283,39 +1321,77 @@ public final class Csv {
 
         @Override
         public void writeComment(CharSequence comment) throws IOException {
+            final boolean notEmpty = comment != null && comment.length() != 0;
+
             switch (state) {
                 case STATE_0_NO_FIELD:
+                    if (notEmpty) {
+                        prepareField(comment);
+                        formatComment();
+                    } else {
+                        formatEmptyComment();
+                    }
                     break;
                 case STATE_1_SINGLE_EMPTY_FIELD:
                     state = STATE_0_NO_FIELD;
-                    formatSingleEmptyField();
-                    formatEndOfLine();
+                    if (notEmpty) {
+                        formatSingleEmptyField();
+                        formatEndOfLine();
+                        prepareField(comment);
+                        formatComment();
+                    } else {
+                        formatSingleEmptyField();
+                        formatEndOfLine();
+                        formatEmptyComment();
+                    }
                     break;
                 case STATE_2_MULTI_FIELD:
                     state = STATE_0_NO_FIELD;
-                    formatEndOfLine();
-                    flushBuffer();
+                    if (notEmpty) {
+                        formatEndOfLine();
+                        prepareField(comment);
+                        formatComment();
+                    } else {
+                        formatEndOfLine();
+                        formatEmptyComment();
+                    }
                     break;
-            }
-
-            if (comment != null && comment.length() > 0) {
-                formatComment(comment);
-            } else {
-                formatEmptyComment();
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                case 16:
+                case 17:
+                case 18:
+                    break;
+                default:
+                    throw new RuntimeException("Unreachable");
             }
         }
 
         @Override
         public void writeField(CharSequence field) throws IOException {
-            boolean notEmpty = field != null && field.length() != 0;
+            final boolean notEmpty = field != null && field.length() != 0;
+
             switch (state) {
                 case STATE_0_NO_FIELD: {
                     state = notEmpty ? STATE_2_MULTI_FIELD : STATE_1_SINGLE_EMPTY_FIELD;
                     if (notEmpty) {
                         if (field.charAt(0) == comment) {
-                            formatField(field, QUOTING_FULL, true);
+                            prepareField(field);
+                            formatQuotedField(true);
                         } else {
-                            formatField(field, parseQuoting(field), true);
+                            prepareField(field);
+                            formatField(true);
                         }
                     }
                     break;
@@ -1323,52 +1399,97 @@ public final class Csv {
                 case STATE_1_SINGLE_EMPTY_FIELD: {
                     state = STATE_2_MULTI_FIELD;
                     if (notEmpty) {
-                        formatField(field, parseQuoting(field), false);
-                    } else
+                        prepareField(field);
+                        formatField(false);
+                    } else {
                         formatEmptyField();
+                    }
                     break;
                 }
                 case STATE_2_MULTI_FIELD: {
                     if (notEmpty) {
-                        formatField(field, parseQuoting(field), false);
-                    } else
+                        prepareField(field);
+                        formatField(false);
+                    } else {
                         formatEmptyField();
+                    }
                     break;
                 }
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                case 16:
+                case 17:
+                case 18:
+                    break;
+                default:
+                    throw new RuntimeException("Unreachable");
             }
         }
 
         @Override
         public void writeQuotedField(CharSequence field) throws IOException {
-            boolean notEmpty = field != null && field.length() != 0;
+            final boolean notEmpty = field != null && field.length() != 0;
+
             switch (state) {
                 case STATE_0_NO_FIELD: {
                     state = STATE_2_MULTI_FIELD;
                     if (notEmpty) {
-                        if (field.charAt(0) == comment) {
-                            formatField(field, QUOTING_FULL, true);
-                        } else {
-                            formatField(field, parseForcedQuoting(field), true);
-                        }
-                    } else
+                        prepareField(field);
+                        formatQuotedField(true);
+                    } else {
                         formatSingleEmptyField();
+                    }
                     break;
                 }
                 case STATE_1_SINGLE_EMPTY_FIELD: {
                     state = STATE_2_MULTI_FIELD;
                     if (notEmpty) {
-                        formatField(field, parseForcedQuoting(field), false);
-                    } else
+                        prepareField(field);
+                        formatQuotedField(false);
+                    } else {
                         formatEmptyQuotedField();
+                    }
                     break;
                 }
                 case STATE_2_MULTI_FIELD: {
                     if (notEmpty) {
-                        formatField(field, parseForcedQuoting(field), false);
-                    } else
+                        prepareField(field);
+                        formatQuotedField(false);
+                    } else {
                         formatEmptyQuotedField();
+                    }
                     break;
                 }
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                case 16:
+                case 17:
+                case 18:
+                    break;
+                default:
+                    throw new RuntimeException("Unreachable");
             }
         }
 
@@ -1380,18 +1501,18 @@ public final class Csv {
         public void writeEndOfLine() throws IOException {
             if (state == STATE_1_SINGLE_EMPTY_FIELD) {
                 formatSingleEmptyField();
+                formatEndOfLine();
+            } else {
+                formatEndOfLine();
             }
-            formatEndOfLine();
             state = STATE_0_NO_FIELD;
-            //if (bufferLength > buffer.length / 2) {
-            flushBuffer();
-            //
         }
 
         @Override
         public void flush() throws IOException {
-            if (bufferLength != 0) {
-                flushBuffer();
+            if (bufferLength > 0) {
+                charWriter.write(buffer, 0, bufferLength);
+                bufferLength = 0;
             }
             charWriter.flush();
         }
@@ -1412,199 +1533,240 @@ public final class Csv {
             charWriter.close();
         }
 
+        private void prepareField(CharSequence field) throws IOException {
+            final int fieldLength = field.length();
+            try {
+                field.toString().getChars(0, fieldLength, this.fieldChars, 0);
+            } catch (StringIndexOutOfBoundsException ex) {
+                throw new IOException("Field overflow");
+            }
+            this.fieldLength = fieldLength;
+        }
+
         private void formatEmptyComment() throws IOException {
-            appendChar(this.comment);
-            appendChar(this.eol0);
-            if (this.eol1 != NO_SECOND_EOL) {
-                appendChar(this.eol1);
+            int l = this.bufferLength;
+            try {
+                final char[] b = this.buffer;
+                b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ comment;
+                b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ eol0;
+                if (eol1 != NO_SECOND_EOL) {
+                    b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ eol1;
+                }
+            } finally {
+                this.bufferLength = l;
             }
         }
 
-        private void formatComment(final CharSequence comment) throws IOException {
-            final char cmnt = this.comment;
-            final char eol0 = this.eol0;
-            final char eol1 = this.eol1;
-            final int length = comment.length();
+        private void formatComment() throws IOException {
+            int l = this.bufferLength;
 
-            if (eol1 != NO_SECOND_EOL) {
-                appendChar(cmnt);
-                char c;
-                for (int p = 0; p < length; p++) {
-                    c = comment.charAt(p);
-                    if (c == eol0 || c == eol1) {
-                        appendChar(eol0);
-                        appendChar(eol1);
-                        appendChar(cmnt);
-                        // skip second EOL
-                        if (p + 1 < length && comment.charAt(p + 1) == eol1) {
-                            p++;
+            try {
+                final char comment = this.comment;
+                final char[] b = this.buffer;
+                final char[] chars = this.fieldChars;
+                final int limit = this.fieldLength;
+                final char eol0 = this.eol0;
+                final char eol1 = this.eol1;
+                final java.io.Writer t = this.charWriter;
+
+                char character;
+                if (eol1 != NO_SECOND_EOL) {
+                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ comment;
+                    for (int i = 0; i < limit; i++) {
+                        character = chars[i];
+                        if (character == eol0 || character == eol1) {
+                            b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ eol0;
+                            b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ eol1;
+                            b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ comment;
+                            // skip second EOL
+                            if (i + 1 < limit && chars[i + 1] == eol1) {
+                                i++;
+                            }
+                        } else {
+                            b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ character;
                         }
-                    } else {
-                        appendChar(c);
                     }
-                }
-                appendChar(eol0);
-                appendChar(eol1);
-            } else {
-                appendChar(cmnt);
-                char c;
-                for (int p = 0; p < length; p++) {
-                    c = comment.charAt(p);
-                    if (c == eol0) {
-                        appendChar(eol0);
-                        appendChar(cmnt);
-                    } else {
-                        appendChar(c);
+                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ eol0;
+                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ eol1;
+                } else {
+                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ comment;
+                    for (int p = 0; p < limit; p++) {
+                        character = chars[p];
+                        if (character == eol0) {
+                            b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ eol0;
+                            b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ comment;
+                        } else {
+                            b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ character;
+                        }
                     }
+                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ eol0;
                 }
-                appendChar(eol0);
+            } finally {
+                this.bufferLength = l;
             }
         }
 
         private void formatSingleEmptyField() throws IOException {
-            appendChar(quote);
-            appendChar(quote);
+            int l = this.bufferLength;
+            try {
+                final char[] b = this.buffer;
+                b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ quote;
+                b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ quote;
+            } finally {
+                this.bufferLength = l;
+            }
         }
 
         private void formatEmptyField() throws IOException {
-            appendChar(delimiter);
+            int l = this.bufferLength;
+            try {
+                final char[] b = this.buffer;
+                b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ delimiter;
+            } finally {
+                this.bufferLength = l;
+            }
         }
 
         private void formatEmptyQuotedField() throws IOException {
-            appendChar(delimiter);
-            appendChar(quote);
-            appendChar(quote);
+            int l = this.bufferLength;
+            try {
+                final char[] b = this.buffer;
+                b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ delimiter;
+                b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ quote;
+                b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ quote;
+            } finally {
+                this.bufferLength = l;
+            }
         }
 
-        private void formatField(final CharSequence field, final int quoting, final boolean firstField) throws IOException {
-            if (!firstField) {
-                appendChar(delimiter);
+        private void formatQuotedField(final boolean firstField) throws IOException {
+            int l = this.bufferLength;
+
+            try {
+                final char quote = this.quote;
+                final char delimiter = this.delimiter;
+                final char[] b = this.buffer;
+                final char[] chars = this.fieldChars;
+                final int limit = this.fieldLength;
+                final java.io.Writer t = this.charWriter;
+
+                if (!firstField)
+                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ delimiter;
+
+                b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+
+                for (int i = 0; i < limit; i++)
+                    if ((b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ chars[i]) == quote)
+                        b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+
+                b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+
+            } finally {
+                this.bufferLength = l;
             }
-            final char quote = this.quote;
-            switch (quoting) {
-                case QUOTING_NONE:
-                    appendChars(field);
-                    break;
-                case QUOTING_PARTIAL:
-                    appendChar(quote);
-                    appendChars(field);
-                    appendChar(quote);
-                    break;
-                case QUOTING_FULL:
-                    appendChar(quote);
-                    final int length = field.length();
-                    char c;
-                    for (int p = 0; p < length; p++) {
-                        c = field.charAt(p);
-                        if (c == quote) {
-                            appendChar(quote);
+        }
+
+        private void formatField(final boolean firstField) throws IOException {
+            int l = this.bufferLength;
+
+            try {
+                final char quote = this.quote;
+                final char delimiter = this.delimiter;
+                final char[] b = this.buffer;
+                final char[] chars = this.fieldChars;
+                final int limit = this.fieldLength;
+                final char eol0 = this.eol0;
+                final char eol1 = this.eol1;
+                final java.io.Writer t = this.charWriter;
+
+                if (!firstField)
+                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ delimiter;
+
+                char character;
+                for (int i = 0; i < limit; i++) {
+                    character = chars[i];
+                    if (character == quote) {
+                        b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+
+                        {
+                            /*copy*/
+                            if (l + i <= b.length) {
+                                System.arraycopy(chars, 0, b, l, i);
+                                l += i;
+                            } else {
+                                for (int p = 0; p < i; p++)
+                                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ chars[p];
+                            }
                         }
-                        appendChar(c);
+
+                        b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+                        b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ character;
+
+                        while (++i < limit)
+                            if ((b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ chars[i]) == quote)
+                                b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+
+                        b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+                        return;
                     }
-                    appendChar(quote);
-                    break;
+                    if (character == delimiter || character == eol0 || character == eol1) {
+                        b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+
+                        {
+                            /*copy*/
+                            if (l + i <= b.length) {
+                                System.arraycopy(chars, 0, b, l, i);
+                                l += i;
+                            } else {
+                                for (int p = 0; p < i; p++)
+                                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ chars[p];
+                            }
+                        }
+
+                        b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ character;
+
+                        while (++i < limit)
+                            if ((b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ chars[i]) == quote)
+                                b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+
+                        b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
+                        return;
+                    }
+                }
+
+                {
+                    /*copy*/
+                    if (l + limit <= b.length) {
+                        System.arraycopy(chars, 0, b, l, limit);
+                        l += limit;
+                    } else {
+                        for (int p = 0; p < limit; p++)
+                            b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ chars[p];
+                    }
+                }
+
+            } finally {
+                this.bufferLength = l;
             }
         }
 
         private void formatEndOfLine() throws IOException {
-            appendChar(eol0);
-            if (eol1 != NO_SECOND_EOL) {
-                appendChar(eol1);
+            int l = this.bufferLength;
+            try {
+                final char[] b = this.buffer;
+                b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ eol0;
+                if (eol1 != NO_SECOND_EOL) {
+                    b[l == b.length ? (l = write(charWriter, b)) - 1 : l++] = /*push*/ eol1;
+                }
+            } finally {
+                this.bufferLength = l;
             }
         }
 
-        private int parseQuoting(final CharSequence field) {
-            final char delimiter = this.delimiter;
-            final char quote = this.quote;
-            final char eol0 = this.eol0;
-            final char eol1 = this.eol1;
-            final int length = field.length();
-
-            if (eol1 != NO_SECOND_EOL) {
-                char c;
-                for (int p = 0; p < length; p++) {
-                    c = field.charAt(p);
-                    if (c == quote) {
-                        return QUOTING_FULL;
-                    }
-                    if (c == delimiter || c == eol0 || c == eol1) {
-                        for (p++; p < length; p++) {
-                            if (field.charAt(p) == quote) {
-                                return QUOTING_FULL;
-                            }
-                        }
-                        return QUOTING_PARTIAL;
-                    }
-                }
-                return QUOTING_NONE;
-            } else {
-                char c;
-                for (int p = 0; p < length; p++) {
-                    c = field.charAt(p);
-                    if (c == quote) {
-                        return QUOTING_FULL;
-                    }
-                    if (c == delimiter || c == eol0) {
-                        for (p++; p < length; p++) {
-                            if (field.charAt(p) == quote) {
-                                return QUOTING_FULL;
-                            }
-                        }
-                        return QUOTING_PARTIAL;
-                    }
-                }
-                return QUOTING_NONE;
-            }
-        }
-
-        private int parseForcedQuoting(final CharSequence field) {
-            final char quote = this.quote;
-            final int length = field.length();
-
-            for (int p = 0; p < length; p++) {
-                if (field.charAt(p) == quote) {
-                    return QUOTING_FULL;
-                }
-            }
-            return QUOTING_PARTIAL;
-        }
-
-        private void flushBuffer() throws IOException {
-            charWriter.write(buffer, 0, bufferLength);
-            bufferLength = 0;
-        }
-
-        private int write(final int length) throws IOException {
-            charWriter.write(buffer, 0, length);
+        private static int write(final java.io.Writer charWriter, final char[] buffer) throws IOException {
+            charWriter.write(buffer);
             return 1;
         }
-
-        private void appendChar(final char c) throws IOException {
-            buffer[bufferLength == buffer.length ? (bufferLength = write(bufferLength)) - 1 : bufferLength++] = c;
-        }
-
-        private void appendChars(final CharSequence chars) throws IOException {
-            final int charsLength = chars.length();
-            if (bufferLength + charsLength >= buffer.length) {
-                flushBuffer();
-                if (charsLength >= buffer.length) {
-                    charWriter.append(chars);
-                    return;
-                }
-            }
-            if (chars instanceof String) {
-                ((String) chars).getChars(0, charsLength, buffer, bufferLength);
-                bufferLength += charsLength;
-            } else {
-                for (int p = 0; p < charsLength; p++) {
-                    buffer[bufferLength++] = chars.charAt(p);
-                }
-            }
-        }
-
-        private static final int QUOTING_NONE = 0;
-        private static final int QUOTING_PARTIAL = 1;
-        private static final int QUOTING_FULL = 2;
 
         private static final int STATE_0_NO_FIELD = 0;
         private static final int STATE_1_SINGLE_EMPTY_FIELD = 1;

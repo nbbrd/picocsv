@@ -36,8 +36,21 @@ public class QuickWriter {
         }
     }
 
+    public static <T> String writeValue(T value, Formatter<T> formatter, Csv.Format format, Csv.WriterOptions writerOptions, int charBufferSize) throws IOException {
+        try (java.io.Writer charWriter = new StringWriter()) {
+            try (Csv.Writer writer = Csv.Writer.of(format, writerOptions, charWriter, charBufferSize)) {
+                formatter.accept(value, writer);
+            }
+            return charWriter.toString();
+        }
+    }
+
     public static String write(VoidFormatter formatter, Csv.Format format, Csv.WriterOptions writerOptions) throws IOException {
         return writeValue(null, (value, stream) -> formatter.accept(stream), format, writerOptions);
+    }
+
+    public static String write(VoidFormatter formatter, Csv.Format format, Csv.WriterOptions writerOptions, int charBufferSize) throws IOException {
+        return writeValue(null, (value, stream) -> formatter.accept(stream), format, writerOptions, charBufferSize);
     }
 
     @FunctionalInterface

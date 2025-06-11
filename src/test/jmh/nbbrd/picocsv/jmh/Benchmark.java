@@ -16,8 +16,6 @@
  */
 package nbbrd.picocsv.jmh;
 
-import de.siegmar.csvbenchmark.fastcsv.FastCsvBenchmark;
-import de.siegmar.csvbenchmark.picocsv.PicocsvBenchmark;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
@@ -29,11 +27,13 @@ public class Benchmark {
 
     public static void main(String[] args) throws Exception {
         Options options = new OptionsBuilder()
-                .include(PicocsvBenchmark.class.getSimpleName())
-                .include(FastCsvBenchmark.class.getSimpleName())
-                .forks(1)
-                .warmupForks(1)
-                .warmupIterations(3)
+//                .include("PicocsvBenchmark.read")
+                .include("PicocsvBenchmark.write")
+//                .include("FastCsvBenchmark.read")
+//                .include("FastCsvBenchmark.write")
+//                .forks(1)
+//                .warmupForks(1)
+//                .warmupIterations(3)
                 .build();
         new Runner(options).run();
     }

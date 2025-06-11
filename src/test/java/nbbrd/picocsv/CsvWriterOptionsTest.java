@@ -26,11 +26,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class CsvWriterOptionsTest {
 
     @Test
+    public void testFactories() {
+        assertThat(Csv.WriterOptions.builder().maxCharsPerField(123).build().getMaxCharsPerField())
+                .isEqualTo(123);
+
+        assertThat(Csv.WriterOptions.builder().maxCharsPerField(123).build().getMaxCharsPerField())
+                .isEqualTo(123);
+    }
+
+    @Test
     public void testEqualsAndHashcode() {
         assertThat(auto)
                 .isEqualTo(auto)
                 .hasSameHashCodeAs(auto)
                 .isEqualTo(auto.toBuilder().build())
+                .isNotEqualTo(auto.toBuilder().maxCharsPerField(123).build())
                 .isNotEqualTo(null)
                 .isNotEqualTo("");
 
@@ -46,7 +56,7 @@ public class CsvWriterOptionsTest {
                 .isEqualTo(auto.toBuilder().build().toString())
                 .isNotEqualTo(null)
                 .isNotEqualTo("")
-                .isEqualTo("WriterOptions()");
+                .isEqualTo("WriterOptions(maxCharsPerField=4096)");
     }
 
     @Test
