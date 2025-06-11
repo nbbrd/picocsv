@@ -756,5 +756,36 @@
                 </plugins>
             </build>
         </profile>
+
+        <profile>
+            <id>check-compatibility</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.nbbrd.nbbrd-maven-tools</groupId>
+                        <artifactId>compatibility-maven-plugin</artifactId>
+                        <version>1.0.3</version>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check-downstream</goal>
+                                </goals>
+                                <configuration>
+                                    <source>${project.baseUri}</source>
+                                    <targets>
+                                        <target>https://github.com/nbbrd/java-io-util</target>
+                                        <target>https://github.com/nbbrd/java-sql-util</target>
+                                        <target>https://github.com/nbbrd/java-console-properties</target>
+                                        <target>https://github.com/nbbrd/sasquatch</target>
+                                    </targets>
+                                    <targetLimits>1,1,1,1</targetLimits>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 </project>
