@@ -1,4 +1,4 @@
-package _benchmark.de.siegmar.csvbenchmark.util;
+package de.siegmar.csvbenchmark.util;
 
 import java.io.Reader;
 

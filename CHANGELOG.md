@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2025-06-11
+
+### Added
+
+- Add `WriterOptions#maxCharsPerField` option
+
+### Changed
+
+- Improve writing speed
+
 ## [2.5.1] - 2025-02-03
 
 ### Fixed
@@ -170,7 +180,8 @@ picocsv follows [semantic versioning](https://semver.org/).
 
 - Initial release
 
-[Unreleased]: https://github.com/nbbrd/picocsv/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/nbbrd/picocsv/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/nbbrd/picocsv/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/nbbrd/picocsv/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/nbbrd/picocsv/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/nbbrd/picocsv/compare/v2.3.0...v2.4.0

@@ -9,23 +9,26 @@ For a more user-friendly CSV library, you should have a look at the fast and wel
 
 Key points:
 
-- lightweight library with no dependency
-- fast and efficient (no heap memory allocation)
+- lightweight library with no dependency (less than 25KB)
+- very fast (cf. [benchmark](https://github.com/osiegmar/JavaCsvBenchmarkSuite)) and efficient (no heap memory allocation)
 - designed to be embedded into other libraries
   as [an external dependency](https://search.maven.org/artifact/com.github.nbbrd.picocsv/picocsv)
   or [as a single-file source](https://github.com/nbbrd/picocsv/blob/develop/src/main/java/nbbrd/picocsv/Csv.java)
 - has a module-info that makes it compatible with [JPMS](https://www.baeldung.com/java-9-modularity)
+- compatible with GraalVM Native Image (genuine Java, no reflection, no bytecode manipulation)
+- can be easily shaded
 - Java 8 minimum requirement
 
 Features:
 
 - reads/writes CSV from/to character streams
-- provides a minimalist low-level API
+- provides a minimalist null-free low-level API
 - does not interpret content
 - does not correct invalid files
 - follows the [RFC4180](https://tools.ietf.org/html/rfc4180) specification
-- supports custom line separator
-- supports custom comment character
+- supports custom line separator, field delimiter, quoting character and comment character
+- supports custom quoting strategy
+- supports unicode characters
 
 ⚠️ _Note that the `Csv.Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.
 The default value is currently `true` but will be reversed in the next major release._
@@ -73,6 +76,7 @@ try (java.io.Writer chars = ...;
 
 ```java
 Csv.Format tsv = Csv.Format.builder().delimiter('\t').build();
+Csv.Format embedded = Csv.Format.builder().delimiter('=').separator(",").build();
 ```
 
 ### Readable/Appendable

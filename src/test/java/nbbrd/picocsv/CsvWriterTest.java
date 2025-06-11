@@ -22,6 +22,7 @@ import _test.Sample;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -63,7 +64,9 @@ public class CsvWriterTest {
     @ParameterizedTest
     @MethodSource("_test.Sample#getAllSamples")
     public void testAllSamples(Sample sample) throws IOException {
-        assertValid(sample, Csv.WriterOptions.DEFAULT);
+        assertThat(writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), Csv.WriterOptions.DEFAULT))
+                .describedAs(sample.asDescription("Writing"))
+                .isEqualTo(sample.getContent() + getMissingEOL(sample));
     }
 
     @Test
@@ -77,206 +80,287 @@ public class CsvWriterTest {
         ).isEqualTo("A1,,C1");
     }
 
-    @Test
-    public void testWriteComment() throws IOException {
-        assertThat(writing(COMMENTED_NULL))
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, DEFAULT_CHAR_BUFFER_SIZE})
+    public void testWriteComment(int size) {
+        assertThat(writing(COMMENTED_NULL).withBuffer(size))
                 .returns("#␍␊", Scenario::toWindows)
                 .returns("#␊", Scenario::toUnix);
 
-        assertThat(writing(COMMENTED_EMPTY))
+        assertThat(writing(COMMENTED_EMPTY).withBuffer(size))
                 .returns("#␍␊", Scenario::toWindows)
                 .returns("#␊", Scenario::toUnix);
 
-        assertThat(writing(COMMENTED_COMMENT))
+        assertThat(writing(COMMENTED_COMMENT).withBuffer(size))
                 .returns("##␍␊", Scenario::toWindows)
                 .returns("##␊", Scenario::toUnix);
 
-        assertThat(writing(COMMENTED_CHARS))
+        assertThat(writing(COMMENTED_CHARS).withBuffer(size))
                 .returns("#abc␍␊", Scenario::toWindows)
                 .returns("#abc␊", Scenario::toUnix);
 
-        assertThat(writing(COMMENTED_QUOTE))
+        assertThat(writing(COMMENTED_QUOTE).withBuffer(size))
                 .returns("#'␍␊", Scenario::toWindows)
                 .returns("#'␊", Scenario::toUnix);
 
-        assertThat(writing(w -> w.writeComment("a␍␊bc")))
+        assertThat(writing(w -> w.writeComment("a␍␊bc")).withBuffer(size))
                 .returns("#a␍␊#bc␍␊", Scenario::toWindows)
                 .returns("#a␍␊#bc␊", Scenario::toUnix);
 
-        assertThat(writing(w -> w.writeComment("a␍bc")))
+        assertThat(writing(w -> w.writeComment("a␍bc")).withBuffer(size))
                 .returns("#a␍␊#bc␍␊", Scenario::toWindows)
                 .returns("#a␍bc␊", Scenario::toUnix);
 
-        assertThat(writing(w -> w.writeComment("a␊bc")))
+        assertThat(writing(w -> w.writeComment("a␊bc")).withBuffer(size))
                 .returns("#a␍␊#bc␍␊", Scenario::toWindows)
                 .returns("#a␊#bc␊", Scenario::toUnix);
 
-        assertThat(writing(w -> w.writeComment("a␍␊")))
+        assertThat(writing(w -> w.writeComment("a␍␊")).withBuffer(size))
                 .returns("#a␍␊#␍␊", Scenario::toWindows)
                 .returns("#a␍␊#␊", Scenario::toUnix);
 
-        assertThat(writing(w -> w.writeComment("a␍")))
+        assertThat(writing(w -> w.writeComment("a␍")).withBuffer(size))
                 .returns("#a␍␊#␍␊", Scenario::toWindows)
                 .returns("#a␍␊", Scenario::toUnix);
 
-        assertThat(writing(w -> w.writeComment("a␊")))
+        assertThat(writing(w -> w.writeComment("a␊")).withBuffer(size))
                 .returns("#a␍␊#␍␊", Scenario::toWindows)
                 .returns("#a␊#␊", Scenario::toUnix);
 
-        assertThat(writing(CHARS, COMMENTED_CHARS))
+        assertThat(writing(CHARS, EOL, COMMENTED_CHARS).withBuffer(size))
                 .returns("hello␍␊#abc␍␊", Scenario::toWindows)
                 .returns("hello␊#abc␊", Scenario::toUnix);
 
-        assertThat(writing(CHARS, EOL, COMMENTED_CHARS))
-                .returns("hello␍␊#abc␍␊", Scenario::toWindows)
-                .returns("hello␊#abc␊", Scenario::toUnix);
-
-        assertThat(writing(COMMENTED_CHARS, CHARS))
+        assertThat(writing(COMMENTED_CHARS, CHARS).withBuffer(size))
                 .returns("#abc␍␊hello", Scenario::toWindows)
                 .returns("#abc␊hello", Scenario::toUnix);
 
-        assertThat(writing(NULL, COMMENTED_CHARS))
+        assertThat(writing(CHARS, COMMENTED_NULL).withBuffer(size))
+                .returns("hello␍␊#␍␊", Scenario::toWindows)
+                .returns("hello␊#␊", Scenario::toUnix);
+
+        assertThat(writing(CHARS, COMMENTED_EMPTY).withBuffer(size))
+                .returns("hello␍␊#␍␊", Scenario::toWindows)
+                .returns("hello␊#␊", Scenario::toUnix);
+
+        assertThat(writing(CHARS, COMMENTED_COMMENT).withBuffer(size))
+                .returns("hello␍␊##␍␊", Scenario::toWindows)
+                .returns("hello␊##␊", Scenario::toUnix);
+
+        assertThat(writing(CHARS, COMMENTED_CHARS).withBuffer(size))
+                .returns("hello␍␊#abc␍␊", Scenario::toWindows)
+                .returns("hello␊#abc␊", Scenario::toUnix);
+
+        assertThat(writing(CHARS, COMMENTED_QUOTE).withBuffer(size))
+                .returns("hello␍␊#'␍␊", Scenario::toWindows)
+                .returns("hello␊#'␊", Scenario::toUnix);
+
+        assertThat(writing(NULL, COMMENTED_NULL).withBuffer(size))
+                .returns("''␍␊#␍␊", Scenario::toWindows)
+                .returns("''␊#␊", Scenario::toUnix);
+
+        assertThat(writing(NULL, COMMENTED_EMPTY).withBuffer(size))
+                .returns("''␍␊#␍␊", Scenario::toWindows)
+                .returns("''␊#␊", Scenario::toUnix);
+
+        assertThat(writing(NULL, COMMENTED_COMMENT).withBuffer(size))
+                .returns("''␍␊##␍␊", Scenario::toWindows)
+                .returns("''␊##␊", Scenario::toUnix);
+
+        assertThat(writing(NULL, COMMENTED_CHARS).withBuffer(size))
                 .returns("''␍␊#abc␍␊", Scenario::toWindows)
                 .returns("''␊#abc␊", Scenario::toUnix);
+
+        assertThat(writing(NULL, COMMENTED_QUOTE).withBuffer(size))
+                .returns("''␍␊#'␍␊", Scenario::toWindows)
+                .returns("''␊#'␊", Scenario::toUnix);
     }
 
-    @Test
-    public void testWriteField() {
-        assertThat(writing())
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, DEFAULT_CHAR_BUFFER_SIZE})
+    public void testWriteField(int size) {
+        assertThat(writing().withBuffer(size))
                 .returns("", Scenario::toWindows)
                 .returns("", Scenario::toUnix);
 
-        assertThat(writing(EOL))
+        assertThat(writing(EOL).withBuffer(size))
                 .returns("␍␊", Scenario::toWindows)
                 .returns("␊", Scenario::toUnix);
 
-        assertThat(writing(NULL))
-                .returns("''", Scenario::toWindows)
-                .returns("''", Scenario::toUnix);
-
-        assertThat(writing(COMMENT))
-                .returns("'#'", Scenario::toWindows)
-                .returns("'#'", Scenario::toUnix);
-
-        assertThat(writing(QUOTE))
-                .returns("''''", Scenario::toWindows)
-                .returns("''''", Scenario::toUnix);
-
-        assertThat(writing(NULL, COMMENT))
-                .returns(",#", Scenario::toWindows)
-                .returns(",#", Scenario::toUnix);
-
-        assertThat(writing(NULL, EOL))
-                .returns("''␍␊", Scenario::toWindows)
-                .returns("''␊", Scenario::toUnix);
-
-        assertThat(writing(EOL, NULL))
+        assertThat(writing(EOL, NULL).withBuffer(size))
                 .returns("␍␊''", Scenario::toWindows)
                 .returns("␊''", Scenario::toUnix);
 
-        assertThat(writing(CHARS, NULL))
+        assertThat(writing(CHARS).withBuffer(size))
+                .returns("hello", Scenario::toWindows)
+                .returns("hello", Scenario::toUnix);
+
+        assertThat(writing(CHARS, CHARS).withBuffer(size))
+                .returns("hello,hello", Scenario::toWindows)
+                .returns("hello,hello", Scenario::toUnix);
+
+        assertThat(writing(CHARS, NULL).withBuffer(size))
                 .returns("hello,", Scenario::toWindows)
                 .returns("hello,", Scenario::toUnix);
 
-        assertThat(writing(CHARS, NULL, EOL))
-                .returns("hello,␍␊", Scenario::toWindows)
-                .returns("hello,␊", Scenario::toUnix);
+        assertThat(writing(CHARS, EMPTY).withBuffer(size))
+                .returns("hello,", Scenario::toWindows)
+                .returns("hello,", Scenario::toUnix);
 
-        assertThat(writing(EOL, CHARS, NULL))
-                .returns("␍␊hello,", Scenario::toWindows)
-                .returns("␊hello,", Scenario::toUnix);
+        assertThat(writing(CHARS, COMMENT).withBuffer(size))
+                .returns("hello,#", Scenario::toWindows)
+                .returns("hello,#", Scenario::toUnix);
 
-        assertThat(writing(NULL, CHARS))
+        assertThat(writing(CHARS, QUOTE).withBuffer(size))
+                .returns("hello,'x1''y2''z3'", Scenario::toWindows)
+                .returns("hello,'x1''y2''z3'", Scenario::toUnix);
+
+        assertThat(writing(NULL).withBuffer(size))
+                .returns("''", Scenario::toWindows)
+                .returns("''", Scenario::toUnix);
+
+        assertThat(writing(NULL, CHARS).withBuffer(size))
                 .returns(",hello", Scenario::toWindows)
                 .returns(",hello", Scenario::toUnix);
 
-        assertThat(writing(NULL, CHARS, EOL))
+        assertThat(writing(NULL, NULL).withBuffer(size))
+                .returns(",", Scenario::toWindows)
+                .returns(",", Scenario::toUnix);
+
+        assertThat(writing(NULL, EMPTY).withBuffer(size))
+                .returns(",", Scenario::toWindows)
+                .returns(",", Scenario::toUnix);
+
+        assertThat(writing(NULL, COMMENT).withBuffer(size))
+                .returns(",#", Scenario::toWindows)
+                .returns(",#", Scenario::toUnix);
+
+        assertThat(writing(NULL, QUOTE).withBuffer(size))
+                .returns(",'x1''y2''z3'", Scenario::toWindows)
+                .returns(",'x1''y2''z3'", Scenario::toUnix);
+
+        assertThat(writing(NULL, DELIMITER).withBuffer(size))
+                .returns(",'x1,y2''z3'", Scenario::toWindows)
+                .returns(",'x1,y2''z3'", Scenario::toUnix);
+
+        assertThat(writing(NULL, EOL1).withBuffer(size))
+                .returns(",'x1␍y2''z3'", Scenario::toWindows)
+                .returns(",'x1␍y2''z3'", Scenario::toUnix);
+
+        assertThat(writing(NULL, EOL2).withBuffer(size))
+                .returns(",'x1␊y2''z3'", Scenario::toWindows)
+                .returns(",'x1␊y2''z3'", Scenario::toUnix);
+
+        assertThat(writing(NULL, EOL).withBuffer(size))
+                .returns("''␍␊", Scenario::toWindows)
+                .returns("''␊", Scenario::toUnix);
+
+        assertThat(writing(EMPTY).withBuffer(size))
+                .returns("''", Scenario::toWindows)
+                .returns("''", Scenario::toUnix);
+
+        assertThat(writing(COMMENT).withBuffer(size))
+                .returns("'#'", Scenario::toWindows)
+                .returns("'#'", Scenario::toUnix);
+
+        assertThat(writing(CHARS, NULL, EOL).withBuffer(size))
+                .returns("hello,␍␊", Scenario::toWindows)
+                .returns("hello,␊", Scenario::toUnix);
+
+        assertThat(writing(EOL, CHARS, NULL).withBuffer(size))
+                .returns("␍␊hello,", Scenario::toWindows)
+                .returns("␊hello,", Scenario::toUnix);
+
+        assertThat(writing(NULL, CHARS, EOL).withBuffer(size))
                 .returns(",hello␍␊", Scenario::toWindows)
                 .returns(",hello␊", Scenario::toUnix);
 
-        assertThat(writing(NULL, NULL, EOL))
+        assertThat(writing(NULL, NULL, EOL).withBuffer(size))
                 .returns(",␍␊", Scenario::toWindows)
                 .returns(",␊", Scenario::toUnix);
     }
 
-    @Test
-    public void testWriteQuotedField() {
-        assertThat(writing(QUOTED_NULL))
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, DEFAULT_CHAR_BUFFER_SIZE})
+    public void testWriteQuotedField(int size) {
+        assertThat(writing(QUOTED_CHARS).withBuffer(size))
+                .returns("'hello'", Scenario::toWindows)
+                .returns("'hello'", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_NULL).withBuffer(size))
                 .returns("''", Scenario::toWindows)
                 .returns("''", Scenario::toUnix);
 
-        assertThat(writing(QUOTED_COMMENT))
+        assertThat(writing(QUOTED_EMPTY).withBuffer(size))
+                .returns("''", Scenario::toWindows)
+                .returns("''", Scenario::toUnix);
+
+        assertThat(writing(QUOTED_COMMENT).withBuffer(size))
                 .returns("'#'", Scenario::toWindows)
                 .returns("'#'", Scenario::toUnix);
 
-        assertThat(writing(QUOTED_QUOTE))
-                .returns("''''", Scenario::toWindows)
-                .returns("''''", Scenario::toUnix);
+        assertThat(writing(QUOTED_QUOTE).withBuffer(size))
+                .returns("'x1''y2''z3'", Scenario::toWindows)
+                .returns("'x1''y2''z3'", Scenario::toUnix);
 
-        assertThat(writing(QUOTED_NULL, QUOTED_COMMENT))
+        assertThat(writing(QUOTED_NULL, QUOTED_COMMENT).withBuffer(size))
                 .returns("'','#'", Scenario::toWindows)
                 .returns("'','#'", Scenario::toUnix);
 
-        assertThat(writing(QUOTED_NULL, EOL))
+        assertThat(writing(QUOTED_NULL, EOL).withBuffer(size))
                 .returns("''␍␊", Scenario::toWindows)
                 .returns("''␊", Scenario::toUnix);
 
-        assertThat(writing(EOL, QUOTED_NULL))
+        assertThat(writing(EOL, QUOTED_NULL).withBuffer(size))
                 .returns("␍␊''", Scenario::toWindows)
                 .returns("␊''", Scenario::toUnix);
 
-        assertThat(writing(QUOTED_CHARS, QUOTED_NULL))
+        assertThat(writing(QUOTED_CHARS, QUOTED_NULL).withBuffer(size))
                 .returns("'hello',''", Scenario::toWindows)
                 .returns("'hello',''", Scenario::toUnix);
 
-        assertThat(writing(QUOTED_CHARS, QUOTED_NULL, EOL))
+        assertThat(writing(QUOTED_CHARS, QUOTED_NULL, EOL).withBuffer(size))
                 .returns("'hello',''␍␊", Scenario::toWindows)
                 .returns("'hello',''␊", Scenario::toUnix);
 
-        assertThat(writing(EOL, QUOTED_CHARS, QUOTED_NULL))
+        assertThat(writing(EOL, QUOTED_CHARS, QUOTED_NULL).withBuffer(size))
                 .returns("␍␊'hello',''", Scenario::toWindows)
                 .returns("␊'hello',''", Scenario::toUnix);
 
-        assertThat(writing(QUOTED_NULL, QUOTED_CHARS))
+        assertThat(writing(QUOTED_NULL, QUOTED_CHARS).withBuffer(size))
                 .returns("'','hello'", Scenario::toWindows)
                 .returns("'','hello'", Scenario::toUnix);
 
-        assertThat(writing(QUOTED_NULL, QUOTED_CHARS, EOL))
+        assertThat(writing(QUOTED_NULL, QUOTED_CHARS, EOL).withBuffer(size))
                 .returns("'','hello'␍␊", Scenario::toWindows)
                 .returns("'','hello'␊", Scenario::toUnix);
 
-        assertThat(writing(QUOTED_NULL, QUOTED_NULL, EOL))
+        assertThat(writing(QUOTED_NULL, QUOTED_NULL, EOL).withBuffer(size))
                 .returns("'',''␍␊", Scenario::toWindows)
                 .returns("'',''␊", Scenario::toUnix);
 
-        assertThat(writing(NULL, QUOTED_NULL, EOL))
+        assertThat(writing(NULL, QUOTED_NULL, EOL).withBuffer(size))
                 .returns(",''␍␊", Scenario::toWindows)
                 .returns(",''␊", Scenario::toUnix);
 
-        assertThat(writing(NULL, QUOTED_CHARS, EOL))
+        assertThat(writing(NULL, QUOTED_CHARS, EOL).withBuffer(size))
                 .returns(",'hello'␍␊", Scenario::toWindows)
                 .returns(",'hello'␊", Scenario::toUnix);
     }
 
     @Test
-    public void testOutputBuffer() throws IOException {
-        assertValid(getOverflowSample(
-                repeat('A', DEFAULT_CHAR_BUFFER_SIZE - 1),
-                "'",
-                repeat('C', 10)
-        ), Csv.WriterOptions.DEFAULT);
+    public void testFieldOverflow() {
+        Sample sample = Sample.SIMPLE;
 
-        assertValid(getOverflowSample(
-                repeat('A', DEFAULT_CHAR_BUFFER_SIZE),
-                "'",
-                repeat('C', 10)
-        ), Csv.WriterOptions.DEFAULT);
+        Csv.WriterOptions valid = Csv.WriterOptions.DEFAULT.toBuilder().maxCharsPerField(2).build();
+        assertThatCode(() -> writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), valid))
+                .describedAs(sample.asDescription("Writing"))
+                .doesNotThrowAnyException();
 
-        assertValid(getOverflowSample(
-                repeat('A', DEFAULT_CHAR_BUFFER_SIZE + 1),
-                "'",
-                repeat('C', 10)
-        ), Csv.WriterOptions.DEFAULT);
+        Csv.WriterOptions invalid = Csv.WriterOptions.DEFAULT.toBuilder().maxCharsPerField(1).build();
+        assertThatIOException().isThrownBy(() -> writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), invalid))
+                .describedAs(sample.asDescription("Writing"))
+                .withMessageContaining("Field overflow");
     }
 
     @Test
@@ -293,18 +377,8 @@ public class CsvWriterTest {
         assertThat(buf.toString()).isEqualTo("foo,bar,baz\r\n");
     }
 
-    private static Sample getOverflowSample(String... fields) {
-        return Sample
-                .builder()
-                .name("overflow")
-                .format(Csv.Format.RFC4180)
-                .content(String.join(",", fields).replace("\"", "''''") + "\r\n")
-                .rowFields(fields)
-                .build();
-    }
-
     @lombok.Value
-    @lombok.Builder
+    @lombok.Builder(toBuilder = true)
     private static class Scenario {
 
         public static final Csv.Format WINDOWS = Csv.Format.RFC4180.toBuilder().quote('\'').separator("␍␊").build();
@@ -312,6 +386,10 @@ public class CsvWriterTest {
 
         @lombok.Singular
         List<QuickWriter.VoidFormatter> formatters;
+
+        @lombok.With
+        @lombok.Builder.Default
+        int buffer = DEFAULT_CHAR_BUFFER_SIZE;
 
         void all(Csv.Writer w) throws IOException {
             for (QuickWriter.VoidFormatter o : formatters) {
@@ -321,12 +399,12 @@ public class CsvWriterTest {
 
         @lombok.SneakyThrows
         String toWindows() {
-            return write(this::all, WINDOWS, Csv.WriterOptions.DEFAULT);
+            return write(this::all, WINDOWS, Csv.WriterOptions.DEFAULT, buffer);
         }
 
         @lombok.SneakyThrows
         String toUnix() {
-            return write(this::all, UNIX, Csv.WriterOptions.DEFAULT);
+            return write(this::all, UNIX, Csv.WriterOptions.DEFAULT, buffer);
         }
     }
 
@@ -339,13 +417,18 @@ public class CsvWriterTest {
 
     private static final QuickWriter.VoidFormatter CHARS = writer -> writer.writeField(HELLO);
     private static final QuickWriter.VoidFormatter NULL = writer -> writer.writeField(null);
+    private static final QuickWriter.VoidFormatter EMPTY = writer -> writer.writeField("");
     private static final QuickWriter.VoidFormatter COMMENT = writer -> writer.writeField("#");
-    private static final QuickWriter.VoidFormatter QUOTE = writer -> writer.writeField("'");
+    private static final QuickWriter.VoidFormatter QUOTE = writer -> writer.writeField("x1'y2'z3");
+    private static final QuickWriter.VoidFormatter DELIMITER = writer -> writer.writeField("x1,y2'z3");
+    private static final QuickWriter.VoidFormatter EOL1 = writer -> writer.writeField("x1␍y2'z3");
+    private static final QuickWriter.VoidFormatter EOL2 = writer -> writer.writeField("x1␊y2'z3");
 
     private static final QuickWriter.VoidFormatter QUOTED_CHARS = writer -> writer.writeQuotedField(HELLO);
     private static final QuickWriter.VoidFormatter QUOTED_NULL = writer -> writer.writeQuotedField(null);
+    private static final QuickWriter.VoidFormatter QUOTED_EMPTY = writer -> writer.writeQuotedField("");
     private static final QuickWriter.VoidFormatter QUOTED_COMMENT = writer -> writer.writeQuotedField("#");
-    private static final QuickWriter.VoidFormatter QUOTED_QUOTE = writer -> writer.writeQuotedField("'");
+    private static final QuickWriter.VoidFormatter QUOTED_QUOTE = writer -> writer.writeQuotedField("x1'y2'z3");
 
     private static final QuickWriter.VoidFormatter COMMENTED_CHARS = writer -> writer.writeComment(ABC);
     private static final QuickWriter.VoidFormatter COMMENTED_NULL = writer -> writer.writeComment(null);
@@ -354,18 +437,6 @@ public class CsvWriterTest {
     private static final QuickWriter.VoidFormatter COMMENTED_QUOTE = writer -> writer.writeComment("'");
 
     private static final QuickWriter.VoidFormatter EOL = Csv.Writer::writeEndOfLine;
-
-    private static String repeat(char c, int length) {
-        char[] result = new char[length];
-        Arrays.fill(result, c);
-        return String.valueOf(result);
-    }
-
-    private static void assertValid(Sample sample, Csv.WriterOptions options) throws IOException {
-        assertThat(writeValue(sample.getRows(), Row::writeAll, sample.getFormat(), options))
-                .describedAs(sample.asDescription("Writing"))
-                .isEqualTo(sample.getContent() + getMissingEOL(sample));
-    }
 
     private static String getMissingEOL(Sample sample) {
         return sample.isWithoutEOL() ? sample.getFormat().getSeparator() : "";
