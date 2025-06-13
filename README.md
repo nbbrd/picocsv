@@ -3,7 +3,7 @@
 [![Download](https://img.shields.io/github/release/nbbrd/picocsv.svg)](https://github.com/nbbrd/picocsv/releases/latest)
 [![Changes](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fnbbrd%2Fpicocsv%2Fbadges%2Funreleased-changes.json)](https://github.com/nbbrd/picocsv/blob/develop/CHANGELOG.md)
 
-Picocsv is an unusual CSV library designed to be embedded in other libraries.  
+**Picocsv is an unusual CSV library designed to be embedded in other libraries.**  
 While it can be used directly, it's main purpose is to be the core foundation of those other libraries.  
 For a more user-friendly CSV library, you should have a look at the fast and well-documented [FastCSV library](https://github.com/osiegmar/FastCSV/).
 
@@ -30,8 +30,9 @@ Features:
 - supports custom quoting strategy
 - supports unicode characters
 
-⚠️ _Note that the `Csv.Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.
-The default value is currently `true` but will be reversed in the next major release._
+> [!IMPORTANT]
+> Note that the `Csv.Format#acceptMissingField` option must be set to `false` to closely follow the RFC4180 specification.
+> The default value is currently `true` but will be reversed in the next major release.
 
 ## Examples
 
@@ -91,8 +92,10 @@ Comments can be disabled by setting the `Csv.Format#comment` option to the null 
 ```java
 Csv.Format noComment = Csv.Format.builder().comment('\0').build();
 ```
-⚠️ _Note that this might lead to problems since binary data is allowed in RFC-4180-bis.
-It will be fixed in a future release._
+
+> [!NOTE]
+> Note that this might lead to problems since binary data is allowed in RFC-4180-bis.
+> It will be fixed in a future release.
 
 ### Skipping comments
 
