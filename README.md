@@ -38,6 +38,27 @@ For a more user-friendly CSV library, you should have a look at the fast and wel
 
 ### Read/Write
 
+picocsv provides a low-level API to read and write CSV files from/to character streams.  
+This API follows the [try-with-resources statement](https://www.baeldung.com/java-try-with-resources)
+and closes the underlying character stream after use.
+
+#### Reading character streams
+
+The reading is done by the `Csv.Reader` class and has the following characteristics:
+
+- it is instantiated by the `Csv.Reader.of(Csv.Format, Csv.ReaderOptions, java.io.Reader)` factory method
+- its options are defined by the `Csv.ReaderOptions` class
+
+Typical reader instantiation and usage:
+
+```java
+try (java.io.Reader chars = ...) {
+  try (Csv.Reader reader = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, chars)) {
+    ...
+  }
+}
+```
+
 Basic reading 1️⃣ of all fields 2️⃣ skipping comments 3️⃣:
 
 ```java
@@ -57,12 +78,35 @@ Configuring reading options:
 Csv.ReaderOptions strict = Csv.ReaderOptions.builder().lenientSeparator(false).build();
 ```
 
+#### Writing character streams
+
+The writing is done by the `Csv.Writer` class and has the following characteristics:
+
+- it is instantiated by the `Csv.Writer.of(Csv.Format, Csv.WriterOptions, java.io.Writer)` factory method
+- its options are defined by the `Csv.WriterOptions` class
+
+Typical writer instantiation and usage:
+
+```java
+try (java.io.Writer chars = ...) {
+  try (Csv.Writer writer = Csv.Writer.of(Csv.Format.DEFAULT, Csv.WriterOptions.DEFAULT, chars)) {
+    ...
+  }
+}
+```
+
 Basic writing 1️⃣ of some fields 2️⃣ and comments 3️⃣:
 
 ```java
 writer.writeComment("Some comment"); // 3️⃣
 writer.writeField("Some field");     // 2️⃣
 writer.writeEndOfLine();             // 1️⃣
+```
+
+Configuring writing options:
+
+```java
+Csv.WriterOptions customOptions = Csv.WriterOptions.builder().maxCharsPerField(1024).build();
 ```
 
 ### Null-free API
