@@ -140,11 +140,13 @@ Csv.Format embedded = Csv.Format.builder().delimiter('=').separator(",").build()
 
 picocsv only supports `java.io.Reader`/`java.io.Writer` as input/output for performance reasons.
 However, it is still possible to use `Readable`/`Appendable` by wrapping them in adapters.
+
 See [`Cookbook#asCharReader(Readable)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java) and [`Cookbook#asCharWriter(Appendable)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java).
 
 ### Disabling comments
 
 Comments can be disabled by setting the `Csv.Format#comment` option to the null character `\0`.
+
 ```java
 Csv.Format noComment = Csv.Format.builder().comment('\0').build();
 ```
@@ -156,7 +158,7 @@ Csv.Format noComment = Csv.Format.builder().comment('\0').build();
 ### Skipping comments
 
 Comments can be skipped by using the `Csv.Reader#isComment()` method.
-See [`Cookbook#skipComments(Csv.Reader)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java).
+
 ```java
 while (reader.readLine()) {
     if (!reader.isComment()) {
@@ -164,6 +166,8 @@ while (reader.readLine()) {
     }
 }
 ```
+
+See [`Cookbook#skipComments(Csv.Reader)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java).
 
 ### Skipping empty lines
 
@@ -181,6 +185,26 @@ try (Csv.Reader reader = ...) {
     }
 }
 ```
+
+### Skipping fields
+
+Fields can be skipped by reading them without using their value. 
+The underlying implementation does not allocate heap memory to parse fields 
+and provides access to those fields through a `CharSequence` interface.
+Therefore, the string value creation is delayed until it is actually needed, reducing memory usage and garbage collection.
+
+```java
+try (Csv.Reader reader = ...) {
+    while (reader.readLine()) {
+        reader.readField(); // 💡 read field but do not use it => skip it
+        while (!reader.readField()) {
+          String field = reader.toString(); // use the field value
+        }
+    }
+}
+```
+
+See [`Cookbook#skipFields(Csv.Reader, int)`](https://github.com/nbbrd/picocsv/blob/develop/src/test/java/_demo/Cookbook.java).
 
 ## Setup
 
