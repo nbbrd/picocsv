@@ -766,6 +766,7 @@
                                         <target>https://github.com/nbbrd/sasquatch</target>
                                     </targets>
                                     <targetLimits>1,1,1,1</targetLimits>
+                                    <logErrors>true</logErrors>
                                 </configuration>
                             </execution>
                         </executions>
