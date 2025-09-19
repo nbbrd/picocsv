@@ -228,7 +228,7 @@
                 </executions>
                 <configuration>
                     <versioning>semver</versioning>
-                    <tagPrefix>v</tagPrefix>
+                    <tagging>prefix:v</tagging>
                 </configuration>
             </plugin>
             <plugin>
