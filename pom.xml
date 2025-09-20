@@ -323,7 +323,7 @@
                 </property>
             </activation>
             <properties>
-                <lombok.version>1.18.40</lombok.version>
+                <lombok.version>1.18.42</lombok.version>
                 <jmh.version>1.37</jmh.version>
             </properties>
             <dependencyManagement>
