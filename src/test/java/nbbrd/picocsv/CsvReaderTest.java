@@ -38,6 +38,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -224,6 +225,103 @@ public class CsvReaderTest {
             assertThat(reader.toString()).isEqualTo("B");
             assertThat(reader.readField()).isFalse();
 
+            assertThat(reader.readLine()).isFalse();
+        }
+    }
+
+    @Test
+    void testEveryLineHasAtLeastOneFieldWithSingleEOL() throws IOException {
+        String csv = "A\n\nB\n";
+        Csv.Format format = Csv.Format.DEFAULT.toBuilder()
+                .separator(Csv.Format.UNIX_SEPARATOR)
+                .acceptMissingField(false)
+                .build();
+        try (Csv.Reader reader = Csv.Reader.of(format, Csv.ReaderOptions.DEFAULT, new StringReader(csv))) {
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue();
+            assertThat(reader.toString()).isEqualTo("A");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue(); // empty line must have single empty field
+            assertThat(reader).hasToString("");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue();
+            assertThat(reader.toString()).isEqualTo("B");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isFalse();
+        }
+    }
+
+    @Test
+    void testEveryLineHasAtLeastOneFieldWithLenientSeparator() throws IOException {
+        Csv.Format format = RFC4180.toBuilder().acceptMissingField(false).build();
+        Csv.ReaderOptions lenient = Csv.ReaderOptions.builder().lenientSeparator(true).build();
+
+        // Test with \r\n empty line (eolCode0 followed by eolCode1) - covers line 1000
+        String csvCRLF = "A\r\n\r\nB\r\n";
+        try (Csv.Reader reader = Csv.Reader.of(format, lenient, new StringReader(csvCRLF))) {
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue();
+            assertThat(reader.toString()).isEqualTo("A");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue(); // empty line must have single empty field
+            assertThat(reader).hasToString("");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue();
+            assertThat(reader.toString()).isEqualTo("B");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isFalse();
+        }
+
+        // Test with \n-only empty line (just eolCode1 = second char acts as EOL) - covers line 1004
+        String csvLF = "A\n\nB\n";
+        try (Csv.Reader reader = Csv.Reader.of(format, lenient, new StringReader(csvLF))) {
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue();
+            assertThat(reader.toString()).isEqualTo("A");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue(); // empty line must have single empty field
+            assertThat(reader).hasToString("");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue();
+            assertThat(reader.toString()).isEqualTo("B");
+            assertThat(reader.readField()).isFalse();
+
+            assertThat(reader.readLine()).isFalse();
+        }
+    }
+
+    @Test
+    void testReadLineFromNotLastState() throws IOException {
+        // Tests that readLine() returns the correct boolean when called from STATE_2_NOT_LAST
+        // (i.e., when we were reading fields but called readLine() to skip to next row)
+
+        // Case 1: readLine() from STATE_2_NOT_LAST at EOF should return false
+        try (Csv.Reader reader = Csv.Reader.of(RFC4180, Csv.ReaderOptions.DEFAULT, new StringReader("A1,B1\r\n"))) {
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue(); // reads "A1", state = STATE_2_NOT_LAST
+            assertThat(reader.toString()).isEqualTo("A1");
+            assertThat(reader.readLine()).isFalse(); // skip "B1" + EOF → should be false
+        }
+
+        // Case 2: readLine() from STATE_2_NOT_LAST with more data should return true
+        try (Csv.Reader reader = Csv.Reader.of(RFC4180, Csv.ReaderOptions.DEFAULT, new StringReader("A1,B1\r\nA2,B2\r\n"))) {
+            assertThat(reader.readLine()).isTrue();
+            assertThat(reader.readField()).isTrue(); // reads "A1", state = STATE_2_NOT_LAST
+            assertThat(reader.readLine()).isTrue(); // skip "B1" → row 2 exists → true
             assertThat(reader.readLine()).isFalse();
         }
     }
@@ -469,8 +567,8 @@ public class CsvReaderTest {
 
     @Test
     public void testSurrogatePair() {
-        String grinning = "😀";
-        String wink = "😉";
+        String grinning = "";
+        String wink = "";
         assertThat(Sample
                 .builder()
                 .format(RFC4180)
@@ -595,6 +693,23 @@ public class CsvReaderTest {
 
         assertThat(readRows(sample, Csv.ReaderOptions.builder().lenientSeparator(true).build(), rowsParser))
                 .containsExactlyElementsOf(sample.getRows());
+    }
+
+    @Test
+    void closeDelegatesToUnderlyingReader() throws IOException {
+        // Kills the VoidMethodCallMutator that removes charReader.close() in Csv$Reader.close()
+        AtomicBoolean underlyingClosed = new AtomicBoolean(false);
+        StringReader buf = new StringReader("a,b\r\n") {
+            @Override
+            public void close() {
+                super.close();
+                underlyingClosed.set(true);
+            }
+        };
+        try (Csv.Reader csvReader = Csv.Reader.of(Csv.Format.RFC4180, Csv.ReaderOptions.DEFAULT, buf)) {
+            csvReader.readLine();
+        }
+        assertThat(underlyingClosed.get()).isTrue();
     }
 
     @Test

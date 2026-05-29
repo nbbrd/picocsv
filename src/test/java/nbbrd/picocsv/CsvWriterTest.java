@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static _test.QuickWriter.write;
 import static _test.QuickWriter.writeValue;
@@ -375,6 +376,57 @@ public class CsvWriterTest {
         csvWriter.flush();
 
         assertThat(buf.toString()).isEqualTo("foo,bar,baz\r\n");
+    }
+
+    @Test
+    void flushDelegatesToUnderlyingWriter() throws IOException {
+        AtomicBoolean underlyingFlushed = new AtomicBoolean(false);
+        StringWriter buf = new StringWriter() {
+            @Override
+            public void flush() {
+                super.flush();
+                underlyingFlushed.set(true);
+            }
+        };
+
+        Csv.Writer csvWriter = Csv.Writer.of(Csv.Format.RFC4180, Csv.WriterOptions.DEFAULT, buf);
+        csvWriter.writeField("test");
+        csvWriter.writeEndOfLine();
+        csvWriter.flush();
+
+        assertThat(underlyingFlushed.get()).isTrue();
+    }
+
+    @Test
+    void testWriteCommentStartingWithEol0() throws IOException {
+        // Kills the MathMutator 'Replaced integer addition with subtraction' at formatComment L1582
+        // that changes 'i + 1' to 'i - 1': when i=0 and chars[0] == eol0, 'chars[i-1] = chars[-1]'
+        // would throw ArrayIndexOutOfBoundsException with the mutant.
+        // Using RFC4180 (separator="\r\n") so eol0='\r'; the comment starts with '\r'.
+        StringWriter sw = new StringWriter();
+        try (Csv.Writer w = Csv.Writer.of(Csv.Format.RFC4180, Csv.WriterOptions.DEFAULT, sw)) {
+            w.writeComment("\r\ntext");
+        }
+        assertThat(sw.toString()).isEqualTo("#\r\n#text\r\n");
+    }
+
+    @Test
+    void closeDelegatesToUnderlyingWriter() throws IOException {
+        AtomicBoolean underlyingClosed = new AtomicBoolean(false);
+        StringWriter buf = new StringWriter() {
+            @Override
+            public void close() throws IOException {
+                super.close();
+                underlyingClosed.set(true);
+            }
+        };
+
+        try (Csv.Writer csvWriter = Csv.Writer.of(Csv.Format.RFC4180, Csv.WriterOptions.DEFAULT, buf)) {
+            csvWriter.writeField("test");
+            csvWriter.writeEndOfLine();
+        }
+
+        assertThat(underlyingClosed.get()).isTrue();
     }
 
     @lombok.Value

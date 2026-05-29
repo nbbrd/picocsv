@@ -56,6 +56,14 @@ public class CsvReaderOptionsTest {
         assertThat(strict.equals(strict)).isTrue();
         assertThat(strict.equals(null)).isFalse();
         assertThat(strict.equals(strict.toBuilder().build())).isTrue();
+
+        // Exact hashCode value pins all MathMutator mutations in hashCode()
+        // Computed from: hash=7 → *37+Boolean.hashCode(false=1237)=1496 → *37+4096=59448
+        assertThat(strict.hashCode())
+                .isEqualTo(59448)
+                .isNotZero()
+                .isNotEqualTo(lenient.hashCode())
+                .isNotEqualTo(strict10.hashCode());
     }
 
     @Test
