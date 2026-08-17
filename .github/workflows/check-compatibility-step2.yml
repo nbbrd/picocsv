@@ -1,4 +1,4 @@
-name: Check compatibility step 2
+name: 📋 Check compatibility step 2
 
 on:
   workflow_run:
