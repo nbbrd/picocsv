@@ -40,8 +40,8 @@ public class TableWriter<T> {
     @lombok.With
     boolean ignoreHeader;
 
-    public static <X> @NonNull TableWriterBuilder<X> builder(@NonNull Class<X> type) {
-        return new TableWriterBuilder<X>();
+    public static <X> @NonNull TableWriter.Builder<X> builder(@NonNull Class<X> type) {
+        return new TableWriter.Builder<X>();
     }
 
     public static <X> @NonNull TableWriter<X> ofBean(@NonNull Class<X> type) {
