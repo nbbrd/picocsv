@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Migrate OSSRH to Central Portal
 
+### Fixed
+
+- Fix invalid compute of buffer length in relocate buffer method [#511](https://github.com/nbbrd/picocsv/issues/511)
+
 ## [2.6.0] - 2025-06-11
 
 ### Added

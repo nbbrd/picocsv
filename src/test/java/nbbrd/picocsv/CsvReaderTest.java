@@ -16,6 +16,13 @@
  */
 package nbbrd.picocsv;
 
+import static _test.Sample.INVALID_FORMAT;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.joining;
+import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
+import static nbbrd.picocsv.Csv.Format.*;
+import static org.assertj.core.api.Assertions.*;
+
 import _demo.Cookbook;
 import _test.QuickReader;
 import _test.QuickReader.VoidParser;
@@ -25,14 +32,6 @@ import _test.Sample;
 import _test.fastcsv.FastCsvEntry;
 import _test.fastcsv.FastCsvEntryConverter;
 import _test.fastcsv.FastCsvEntryRowsParser;
-import lombok.NonNull;
-import org.assertj.core.api.Condition;
-import org.assertj.core.condition.VerboseCondition;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
-
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -42,13 +41,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import static _test.Sample.INVALID_FORMAT;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.stream.Collectors.joining;
-import static nbbrd.picocsv.Csv.DEFAULT_CHAR_BUFFER_SIZE;
-import static nbbrd.picocsv.Csv.Format.*;
-import static org.assertj.core.api.Assertions.*;
+import lombok.NonNull;
+import org.assertj.core.api.Condition;
+import org.assertj.core.condition.VerboseCondition;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * @author Philippe Charles
@@ -58,44 +57,49 @@ public class CsvReaderTest {
     @Test
     public void testReaderFactory() {
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, null, DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() ->
+                        Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, null, DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("charReader");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Reader.of(null, Csv.ReaderOptions.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() ->
+                        Csv.Reader.of(null, Csv.ReaderOptions.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("format");
 
         assertThatNullPointerException()
-                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, null, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(
+                        () -> Csv.Reader.of(Csv.Format.DEFAULT, null, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("options");
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Reader.of(INVALID_FORMAT, Csv.ReaderOptions.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() -> Csv.Reader.of(
+                        INVALID_FORMAT, Csv.ReaderOptions.DEFAULT, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("Invalid format: " + INVALID_FORMAT);
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, new StringReader(""), 0))
                 .withMessageContaining("Invalid charBufferSize: 0");
 
-        Csv.ReaderOptions invalidOptions = Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(0).build();
+        Csv.ReaderOptions invalidOptions =
+                Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(0).build();
 
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> Csv.Reader.of(Csv.Format.DEFAULT, invalidOptions, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
+                .isThrownBy(() -> Csv.Reader.of(
+                        Csv.Format.DEFAULT, invalidOptions, new StringReader(""), DEFAULT_CHAR_BUFFER_SIZE))
                 .withMessageContaining("Invalid options: " + invalidOptions);
     }
 
     @ParameterizedTest
     @MethodSource("_test.Sample#getAllSamples")
     public void testAllSamples(Sample sample) {
-        assertThat(sample)
-                .is(validWithStrict)
-                .is(validWithLenient);
+        assertThat(sample).is(validWithStrict).is(validWithLenient);
     }
 
     @ParameterizedTest
     @MethodSource("_test.Sample#getAllSamples")
     public void testFullSupportOfQuoting(Sample sample) throws IOException {
-        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()))) {
+        try (Csv.Reader reader =
+                Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()))) {
             StringWriter actual = new StringWriter();
             try (Csv.Writer writer = Csv.Writer.of(sample.getFormat(), Csv.WriterOptions.DEFAULT, actual)) {
                 if (reader.readLine()) {
@@ -145,10 +149,12 @@ public class CsvReaderTest {
             default:
                 assertThat(readRows(sample, Csv.ReaderOptions.DEFAULT, RowParser.SKIP_FIRST))
                         .describedAs(sample.asDescription("Reading"))
-                        .containsExactlyElementsOf(sample.getRows().subList(1, sample.getRows().size()));
+                        .containsExactlyElementsOf(
+                                sample.getRows().subList(1, sample.getRows().size()));
                 assertThat(readRows(sample, Csv.ReaderOptions.DEFAULT, RowParser.SKIP_NOT_LAST))
                         .describedAs(sample.asDescription("Reading"))
-                        .containsExactlyElementsOf(sample.getRows().subList(2, sample.getRows().size()));
+                        .containsExactlyElementsOf(
+                                sample.getRows().subList(2, sample.getRows().size()));
                 break;
         }
     }
@@ -160,19 +166,43 @@ public class CsvReaderTest {
 
         assertThatIllegalStateException()
                 .describedAs(sample.asDescription("Reading"))
-                .isThrownBy(() -> QuickReader.read(readFieldBeforeLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT));
+                .isThrownBy(() -> QuickReader.read(
+                        readFieldBeforeLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT));
+    }
+
+    @Test
+    public void testLastCharAfterBufferRelocation() throws IOException {
+        // https://github.com/nbbrd/picocsv/issues/511
+        for (int n = 1300; n < 1400; n++) {
+            String prefix = IntStream.range(0, n).mapToObj(i -> "A\r\n").collect(joining());
+            assertThat(readLastLine(prefix + "x,100")).containsExactly("x", "100");
+            assertThat(readLastLine(prefix + "x")).containsExactly("x");
+            assertThat(readLastLine(prefix + "x,100\r\n")).containsExactly("x", "100");
+        }
+    }
+
+    private static List<String> readLastLine(String csv) throws IOException {
+        List<String> last = null;
+        try (Csv.Reader reader = Csv.Reader.of(Csv.Format.DEFAULT, Csv.ReaderOptions.DEFAULT, new StringReader(csv))) {
+            while (reader.readLine()) {
+                last = new java.util.ArrayList<>();
+                while (reader.readField()) {
+                    last.add(reader.toString());
+                }
+            }
+        }
+        return last;
     }
 
     @Test
     public void testNonQuotedNonNewLineChar() {
-        assertThat(Sample
-                .builder()
-                .name("Invalid but still ok")
-                .format(Csv.Format.RFC4180)
-                .content("\r\r\n")
-                .rowFields("\r")
-                .build()
-        ).is(validWithStrict);
+        assertThat(Sample.builder()
+                        .name("Invalid but still ok")
+                        .format(Csv.Format.RFC4180)
+                        .content("\r\r\n")
+                        .rowFields("\r")
+                        .build())
+                .is(validWithStrict);
     }
 
     @Test
@@ -180,20 +210,20 @@ public class CsvReaderTest {
         String field1 = IntStream.range(0, 70).mapToObj(i -> "A").collect(joining());
         String field2 = IntStream.range(0, 10).mapToObj(i -> "B").collect(joining());
 
-        assertThat(Sample
-                .builder()
-                .name("overflow")
-                .format(Csv.Format.RFC4180)
-                .content(field1 + "," + field2)
-                .rowFields(field1, field2)
-                .build()
-        ).is(validWithStrict);
+        assertThat(Sample.builder()
+                        .name("overflow")
+                        .format(Csv.Format.RFC4180)
+                        .content(field1 + "," + field2)
+                        .rowFields(field1, field2)
+                        .build())
+                .is(validWithStrict);
     }
 
     @Test
     public void testEmptyLine() throws IOException {
         Sample sample = Sample.EMPTY_LINES;
-        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()))) {
+        try (Csv.Reader reader =
+                Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()))) {
             assertThat(reader.readLine()).isTrue();
             assertThat(reader.readField()).isFalse();
             assertThat(reader.readLine()).isTrue();
@@ -204,9 +234,7 @@ public class CsvReaderTest {
 
     @Test
     void testEveryLineHasAtLeastOneField() throws IOException {
-        String csv = "A\r\n"
-                + "\r\n"
-                + "B\r\n";
+        String csv = "A\r\n" + "\r\n" + "B\r\n";
 
         Csv.Format validRFC4180 = RFC4180.toBuilder().acceptMissingField(false).build();
         try (Csv.Reader reader = Csv.Reader.of(validRFC4180, Csv.ReaderOptions.DEFAULT, new StringReader(csv))) {
@@ -259,7 +287,8 @@ public class CsvReaderTest {
     @Test
     void testEveryLineHasAtLeastOneFieldWithLenientSeparator() throws IOException {
         Csv.Format format = RFC4180.toBuilder().acceptMissingField(false).build();
-        Csv.ReaderOptions lenient = Csv.ReaderOptions.builder().lenientSeparator(true).build();
+        Csv.ReaderOptions lenient =
+                Csv.ReaderOptions.builder().lenientSeparator(true).build();
 
         // Test with \r\n empty line (eolCode0 followed by eolCode1) - covers line 1000
         String csvCRLF = "A\r\n\r\nB\r\n";
@@ -318,7 +347,8 @@ public class CsvReaderTest {
         }
 
         // Case 2: readLine() from STATE_2_NOT_LAST with more data should return true
-        try (Csv.Reader reader = Csv.Reader.of(RFC4180, Csv.ReaderOptions.DEFAULT, new StringReader("A1,B1\r\nA2,B2\r\n"))) {
+        try (Csv.Reader reader =
+                Csv.Reader.of(RFC4180, Csv.ReaderOptions.DEFAULT, new StringReader("A1,B1\r\nA2,B2\r\n"))) {
             assertThat(reader.readLine()).isTrue();
             assertThat(reader.readField()).isTrue(); // reads "A1", state = STATE_2_NOT_LAST
             assertThat(reader.readLine()).isTrue(); // skip "B1" → row 2 exists → true
@@ -328,33 +358,32 @@ public class CsvReaderTest {
 
     @Test
     public void testEmptyFirstField() {
-        assertThat(Sample
-                .builder()
-                .name("Empty first field")
-                .format(Csv.Format.RFC4180)
-                .content(",B1\r\nA2,B2\r\n")
-                .rowFields("", "B1")
-                .rowFields("A2", "B2")
-                .build()
-        ).is(validWithStrict);
+        assertThat(Sample.builder()
+                        .name("Empty first field")
+                        .format(Csv.Format.RFC4180)
+                        .content(",B1\r\nA2,B2\r\n")
+                        .rowFields("", "B1")
+                        .rowFields("A2", "B2")
+                        .build())
+                .is(validWithStrict);
     }
 
     @Test
     public void testEmptyLastField() {
-        assertThat(Sample
-                .builder()
-                .name("Empty last field")
-                .format(Csv.Format.RFC4180)
-                .content("A1,")
-                .rowFields("A1", "")
-                .build()
-        ).is(validWithStrict);
+        assertThat(Sample.builder()
+                        .name("Empty last field")
+                        .format(Csv.Format.RFC4180)
+                        .content("A1,")
+                        .rowFields("A1", "")
+                        .build())
+                .is(validWithStrict);
     }
 
     @Test
     public void testCharSequence() throws IOException {
         Sample sample = Sample.SIMPLE;
-        try (Csv.Reader reader = Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()))) {
+        try (Csv.Reader reader =
+                Csv.Reader.of(sample.getFormat(), Csv.ReaderOptions.DEFAULT, new StringReader(sample.getContent()))) {
             CharSequence chars = reader;
             reader.readLine();
             reader.readField();
@@ -363,20 +392,15 @@ public class CsvReaderTest {
 
             assertThat(chars.charAt(0)).isEqualTo('A');
             assertThat(chars.charAt(1)).isEqualTo('1');
-            assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                    .isThrownBy(() -> chars.charAt(-1));
-            assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                    .isThrownBy(() -> chars.charAt(2));
+            assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> chars.charAt(-1));
+            assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> chars.charAt(2));
 
             assertThat(chars.subSequence(0, 2)).isEqualTo("A1");
             assertThat(chars.subSequence(1, 2)).isEqualTo("1");
             assertThat(chars.subSequence(2, 2)).isEmpty();
-            assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                    .isThrownBy(() -> chars.subSequence(-1, 2));
-            assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                    .isThrownBy(() -> chars.subSequence(0, 3));
-            assertThatExceptionOfType(IndexOutOfBoundsException.class)
-                    .isThrownBy(() -> chars.subSequence(1, 0));
+            assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> chars.subSequence(-1, 2));
+            assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> chars.subSequence(0, 3));
+            assertThatExceptionOfType(IndexOutOfBoundsException.class).isThrownBy(() -> chars.subSequence(1, 0));
         }
     }
 
@@ -384,20 +408,27 @@ public class CsvReaderTest {
     public void testFieldOverflow() {
         Sample sample = Sample.SIMPLE;
 
-        Csv.ReaderOptions valid = Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(2).build();
+        Csv.ReaderOptions valid =
+                Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(2).build();
         assertThatCode(() -> readRows(sample, valid, RowParser.READ_ALL))
                 .describedAs(sample.asDescription("Reading"))
                 .doesNotThrowAnyException();
 
-        Csv.ReaderOptions invalid = Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(1).build();
-        assertThatIOException().isThrownBy(() -> readRows(sample, invalid, RowParser.READ_ALL))
+        Csv.ReaderOptions invalid =
+                Csv.ReaderOptions.DEFAULT.toBuilder().maxCharsPerField(1).build();
+        assertThatIOException()
+                .isThrownBy(() -> readRows(sample, invalid, RowParser.READ_ALL))
                 .describedAs(sample.asDescription("Reading"))
                 .withMessageContaining("Field overflow");
     }
 
     @Test
     public void testLenientParsing() {
-        Sample.Builder base = Sample.builder().name("lenient").format(Csv.Format.DEFAULT).rowFields("R1").rowFields("R2");
+        Sample.Builder base = Sample.builder()
+                .name("lenient")
+                .format(Csv.Format.DEFAULT)
+                .rowFields("R1")
+                .rowFields("R2");
 
         assertThat(base.content("R1" + WINDOWS_SEPARATOR + "R2").build())
                 .is(validWithStrict)
@@ -414,117 +445,143 @@ public class CsvReaderTest {
 
     @Test
     public void testKeyValuePairs() {
-        assertThat(Sample
-                .builder()
-                .format(Csv.Format.builder().delimiter('=').separator(",").build())
-                .content("k1=v1,k2=v2").rowFields("k1", "v1").rowFields("k2", "v2")
-                .build()
-        ).is(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(Csv.Format.builder()
+                                .delimiter('=')
+                                .separator(",")
+                                .build())
+                        .content("k1=v1,k2=v2")
+                        .rowFields("k1", "v1")
+                        .rowFields("k2", "v2")
+                        .build())
+                .is(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(Csv.Format.builder().delimiter('=').separator(", ").build())
-                .content("k1=v1, k2=v2").rowFields("k1", "v1").rowFields("k2", "v2")
-                .build()
-        ).is(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(Csv.Format.builder()
+                                .delimiter('=')
+                                .separator(", ")
+                                .build())
+                        .content("k1=v1, k2=v2")
+                        .rowFields("k1", "v1")
+                        .rowFields("k2", "v2")
+                        .build())
+                .is(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(Csv.Format.builder().delimiter('=').separator(", ").build())
-                .content("k1=v1,k2=v2").rowFields("k1", "v1").rowFields("k2", "v2")
-                .build()
-        ).isNot(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(Csv.Format.builder()
+                                .delimiter('=')
+                                .separator(", ")
+                                .build())
+                        .content("k1=v1,k2=v2")
+                        .rowFields("k1", "v1")
+                        .rowFields("k2", "v2")
+                        .build())
+                .isNot(validWithStrict)
+                .is(validWithLenient);
     }
 
     @Test
     public void testComment() {
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("A\n#B,C\nD")
-                .rowFields("A").rowComment("B,C").rowFields("D")
-                .build()
-        ).isNot(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("A\n#B,C\nD")
+                        .rowFields("A")
+                        .rowComment("B,C")
+                        .rowFields("D")
+                        .build())
+                .isNot(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("A\r#B,C\rD")
-                .rowFields("A").rowComment("B,C").rowFields("D")
-                .build()
-        ).isNot(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("A\r#B,C\rD")
+                        .rowFields("A")
+                        .rowComment("B,C")
+                        .rowFields("D")
+                        .build())
+                .isNot(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("A\r\n#B,C\r\nD")
-                .rowFields("A").rowComment("B,C").rowFields("D")
-                .build()
-        ).is(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("A\r\n#B,C\r\nD")
+                        .rowFields("A")
+                        .rowComment("B,C")
+                        .rowFields("D")
+                        .build())
+                .is(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("#A\n#B\nC")
-                .rowComment("A").rowComment("B").rowFields("C")
-                .build()
-        ).isNot(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("#A\n#B\nC")
+                        .rowComment("A")
+                        .rowComment("B")
+                        .rowFields("C")
+                        .build())
+                .isNot(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("#A\n #B\nC")
-                .rowComment("A").rowFields(" #B").rowFields("C")
-                .build()
-        ).isNot(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("#A\n #B\nC")
+                        .rowComment("A")
+                        .rowFields(" #B")
+                        .rowFields("C")
+                        .build())
+                .isNot(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("#")
-                .rowComment("")
-                .build()
-        ).is(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder().format(RFC4180).content("#").rowComment("").build())
+                .is(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("#\n#")
-                .rowComment("").rowComment("")
-                .build()
-        ).isNot(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("#\n#")
+                        .rowComment("")
+                        .rowComment("")
+                        .build())
+                .isNot(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("#A\n#")
-                .rowComment("A").rowComment("")
-                .build()
-        ).isNot(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("#A\n#")
+                        .rowComment("A")
+                        .rowComment("")
+                        .build())
+                .isNot(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("#\n#A")
-                .rowComment("").rowComment("A")
-                .build()
-        ).isNot(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("#\n#A")
+                        .rowComment("")
+                        .rowComment("A")
+                        .build())
+                .isNot(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("#\n#\r\n#")
-                .rowComment("").rowComment("").rowComment("")
-                .build()
-        ).isNot(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("#\n#\r\n#")
+                        .rowComment("")
+                        .rowComment("")
+                        .rowComment("")
+                        .build())
+                .isNot(validWithStrict)
+                .is(validWithLenient);
 
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content("A,#B")
-                .rowFields("A", "#B")
-                .build()
-        ).is(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content("A,#B")
+                        .rowFields("A", "#B")
+                        .build())
+                .is(validWithStrict)
+                .is(validWithLenient);
     }
 
     @Test
@@ -532,14 +589,16 @@ public class CsvReaderTest {
         Sample sample = Sample.COMMENTED;
 
         QuickReader.Parser<Boolean> isCommentBeforeLine = Csv.Reader::isComment;
-        assertThat(QuickReader.readValue(isCommentBeforeLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
+        assertThat(QuickReader.readValue(
+                        isCommentBeforeLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
                 .isFalse();
 
         QuickReader.Parser<Boolean> isCommentAfterLine = reader -> {
             reader.readLine();
             return reader.isComment();
         };
-        assertThat(QuickReader.readValue(isCommentAfterLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
+        assertThat(QuickReader.readValue(
+                        isCommentAfterLine, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
                 .isTrue();
 
         QuickReader.Parser<Boolean> isCommentAfterField = reader -> {
@@ -547,42 +606,50 @@ public class CsvReaderTest {
             reader.readField();
             return reader.isComment();
         };
-        assertThat(QuickReader.readValue(isCommentAfterField, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
+        assertThat(QuickReader.readValue(
+                        isCommentAfterField, sample.getContent(), sample.getFormat(), Csv.ReaderOptions.DEFAULT))
                 .isTrue();
     }
 
     @Test
     public void testIsQuoted() throws IOException {
         String sample = "\"A\",B";
-        QuickReader.read(r -> {
-            assertThat(r.readLine()).isTrue();
-            assertThat(r.readField()).isTrue();
-            assertThat(r.isQuoted()).isTrue();
-            assertThat(r.readField()).isTrue();
-            assertThat(r.isQuoted()).isFalse();
-            assertThat(r.readField()).isFalse();
-            assertThat(r.readLine()).isFalse();
-        }, sample, RFC4180, Csv.ReaderOptions.DEFAULT);
+        QuickReader.read(
+                r -> {
+                    assertThat(r.readLine()).isTrue();
+                    assertThat(r.readField()).isTrue();
+                    assertThat(r.isQuoted()).isTrue();
+                    assertThat(r.readField()).isTrue();
+                    assertThat(r.isQuoted()).isFalse();
+                    assertThat(r.readField()).isFalse();
+                    assertThat(r.readLine()).isFalse();
+                },
+                sample,
+                RFC4180,
+                Csv.ReaderOptions.DEFAULT);
     }
 
     @Test
     public void testSurrogatePair() {
         String grinning = "";
         String wink = "";
-        assertThat(Sample
-                .builder()
-                .format(RFC4180)
-                .content(grinning + ",hello\r\nworld," + wink + "\r\n")
-                .rowFields(grinning, "hello").rowFields("world", wink)
-                .build()
-        ).is(validWithStrict).is(validWithLenient);
+        assertThat(Sample.builder()
+                        .format(RFC4180)
+                        .content(grinning + ",hello\r\nworld," + wink + "\r\n")
+                        .rowFields(grinning, "hello")
+                        .rowFields("world", wink)
+                        .build())
+                .is(validWithStrict)
+                .is(validWithLenient);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2, DEFAULT_CHAR_BUFFER_SIZE})
     public void testEndOfLine(int charBufferSize) throws IOException {
-        Csv.ReaderOptions strict = Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(false).build();
-        Csv.ReaderOptions lenient = Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(true).build();
+        Csv.ReaderOptions strict =
+                Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(false).build();
+        Csv.ReaderOptions lenient =
+                Csv.ReaderOptions.DEFAULT.toBuilder().lenientSeparator(true).build();
 
         Csv.Format single = RFC4180.toBuilder().separator(UNIX_SEPARATOR).build();
         Csv.Format dual = RFC4180.toBuilder().separator(WINDOWS_SEPARATOR).build();
@@ -691,7 +758,10 @@ public class CsvReaderTest {
         Sample sample = FastCsvEntryConverter.toSample(entry);
         QuickReader.Parser<List<Row>> rowsParser = new FastCsvEntryRowsParser(entry);
 
-        assertThat(readRows(sample, Csv.ReaderOptions.builder().lenientSeparator(true).build(), rowsParser))
+        assertThat(readRows(
+                        sample,
+                        Csv.ReaderOptions.builder().lenientSeparator(true).build(),
+                        rowsParser))
                 .containsExactlyElementsOf(sample.getRows());
     }
 
@@ -716,7 +786,8 @@ public class CsvReaderTest {
     public void testBufferRelocationBufferLength() throws IOException {
         String content = Resources.contentOf(CsvReaderTest.class, "/Top5Stmt.tsv", UTF_8);
         Csv.Format format = Csv.Format.builder().delimiter('\t').build();
-        Csv.ReaderOptions options = Csv.ReaderOptions.builder().lenientSeparator(true).build();
+        Csv.ReaderOptions options =
+                Csv.ReaderOptions.builder().lenientSeparator(true).build();
 
         assertThat(QuickReader.readValue(RowParser.READ_ALL, content, format, options))
                 .hasSize(332)
@@ -725,8 +796,10 @@ public class CsvReaderTest {
                 .allMatch(fieldsCount -> fieldsCount == 4);
     }
 
-    private final Condition<Sample> validWithStrict = validWith(Csv.ReaderOptions.builder().lenientSeparator(false).build());
-    private final Condition<Sample> validWithLenient = validWith(Csv.ReaderOptions.builder().lenientSeparator(true).build());
+    private final Condition<Sample> validWithStrict =
+            validWith(Csv.ReaderOptions.builder().lenientSeparator(false).build());
+    private final Condition<Sample> validWithLenient =
+            validWith(Csv.ReaderOptions.builder().lenientSeparator(true).build());
 
     private static Condition<Sample> validWith(Csv.ReaderOptions options) {
         Function<Sample, List<Row>> rowFunc = sample -> {
@@ -739,28 +812,29 @@ public class CsvReaderTest {
         return VerboseCondition.verboseCondition(
                 sample -> rowFunc.apply(sample).equals(sample.getRows()),
                 "generating the expected rows",
-                o -> " but generated '" + rowFunc.apply(o) + "' instead"
-        );
+                o -> " but generated '" + rowFunc.apply(o) + "' instead");
     }
 
-    private static List<Row> readRows(Sample sample, Csv.ReaderOptions options, QuickReader.Parser<List<Row>> rowsParser) throws IOException {
+    private static List<Row> readRows(
+            Sample sample, Csv.ReaderOptions options, QuickReader.Parser<List<Row>> rowsParser) throws IOException {
         return QuickReader.readValue(rowsParser, sample.getContent(), sample.getFormat(), options);
     }
 
     private enum RowParser implements QuickReader.Parser<List<Row>> {
-
         READ_ALL {
             @Override
             public List<Row> accept(Csv.Reader reader) throws IOException {
                 return Row.readAll(reader, Row::appendEmpty, Row::appendComment, Row::appendFields);
             }
-        }, SKIP_FIRST {
+        },
+        SKIP_FIRST {
             @Override
             public List<Row> accept(Csv.Reader reader) throws IOException {
                 reader.readLine();
                 return Row.readAll(reader, Row::appendEmpty, Row::appendComment, Row::appendFields);
             }
-        }, SKIP_NOT_LAST {
+        },
+        SKIP_NOT_LAST {
             @Override
             public List<Row> accept(Csv.Reader reader) throws IOException {
                 reader.readLine();
@@ -783,20 +857,11 @@ public class CsvReaderTest {
         }
 
         private static String fromSymbols(String input) {
-            return input
-                    .replace('!', '#')
-                    .replace('=', '"')
-                    .replace('␍', '\r')
-                    .replace('␊', '\n');
+            return input.replace('!', '#').replace('=', '"').replace('␍', '\r').replace('␊', '\n');
         }
 
-
         private static String toSymbols(String input) {
-            return input
-                    .replace('#', '!')
-                    .replace('"', '=')
-                    .replace('\r', '␍')
-                    .replace('\n', '␊');
+            return input.replace('#', '!').replace('"', '=').replace('\r', '␍').replace('\n', '␊');
         }
 
         private static String parse(Csv.Reader reader) throws IOException {
@@ -810,7 +875,10 @@ public class CsvReaderTest {
         }
 
         private static String parse(Csv.LineReader lineReader) throws IOException {
-            return (lineReader.isComment() ? "…" : "") + Stream.of(Cookbook.readLineOfUnknownSize(lineReader)).map(SymbolParser::toSymbols).collect(joining("↷"));
+            return (lineReader.isComment() ? "…" : "")
+                    + Stream.of(Cookbook.readLineOfUnknownSize(lineReader))
+                            .map(SymbolParser::toSymbols)
+                            .collect(joining("↷"));
         }
     }
 }

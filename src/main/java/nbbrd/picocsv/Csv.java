@@ -855,7 +855,7 @@ public final class Csv {
                 System.arraycopy(buffer, bufferIndex, buffer, 0, remainingChars);
                 int newChars = charReader.read(buffer, remainingChars, bufferIndex);
                 bufferIndex = 0;
-                bufferLength = remainingChars + newChars;
+                bufferLength = newChars == EOF_CODE ? remainingChars : remainingChars + newChars;
             }
         }
 
