@@ -1,1 +1,1 @@
-packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"m":"nbbrd.picocsv","l":"nbbrd.picocsv"}];updateSearchResults();
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html","k":"18"},{"m":"nbbrd.picocsv","l":"nbbrd.picocsv"}];updateSearchResults();
