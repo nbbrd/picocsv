@@ -314,6 +314,7 @@
                         <importOrder/>
                         <removeUnusedImports />
                         <formatAnnotations />
+                        <toggleOffOn/>
                     </java>
                     <ratchetFrom>origin/develop</ratchetFrom>
                 </configuration>

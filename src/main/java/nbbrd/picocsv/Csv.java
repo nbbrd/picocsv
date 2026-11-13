@@ -105,7 +105,8 @@ public final class Csv {
         /**
          * Predefined format as defined by <a href="https://tools.ietf.org/html/rfc4180">RFC 4180</a>.
          */
-        public static final Format RFC4180 = new Format(DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE, DEFAULT_COMMENT, DEFAULT_ACCEPT_MISSING_FIELD);
+        public static final Format RFC4180 = new Format(
+                DEFAULT_SEPARATOR, DEFAULT_DELIMITER, DEFAULT_QUOTE, DEFAULT_COMMENT, DEFAULT_ACCEPT_MISSING_FIELD);
 
         /**
          * Predefined format as alias to {@link Format#RFC4180}.
@@ -266,8 +267,8 @@ public final class Csv {
                     return "\\r";
                 case '\f':
                     return "\\f";
-//            case '\'':
-//                return "\\'";
+                //            case '\'':
+                //                return "\\'";
                 case '\"':
                     return "\\\"";
                 case '\\':
@@ -311,8 +312,7 @@ public final class Csv {
             private char comment;
             private boolean acceptMissingField;
 
-            private Builder() {
-            }
+            private Builder() {}
 
             /**
              * Sets the {@link Format#getSeparator() separator} parameter of {@link Format}.
@@ -397,7 +397,8 @@ public final class Csv {
         /**
          * Default reader options.
          */
-        public static final ReaderOptions DEFAULT = new ReaderOptions(DEFAULT_LENIENT_SEPARATOR, DEFAULT_MAX_CHARS_PER_FIELD);
+        public static final ReaderOptions DEFAULT =
+                new ReaderOptions(DEFAULT_LENIENT_SEPARATOR, DEFAULT_MAX_CHARS_PER_FIELD);
 
         private final boolean lenientSeparator;
         private final int maxCharsPerField;
@@ -493,9 +494,7 @@ public final class Csv {
          * @return a non-null builder
          */
         public Builder toBuilder() {
-            return new Builder()
-                    .lenientSeparator(lenientSeparator)
-                    .maxCharsPerField(maxCharsPerField);
+            return new Builder().lenientSeparator(lenientSeparator).maxCharsPerField(maxCharsPerField);
         }
 
         /**
@@ -515,8 +514,7 @@ public final class Csv {
             private boolean lenientSeparator;
             private int maxCharsPerField;
 
-            private Builder() {
-            }
+            private Builder() {}
 
             /**
              * Sets the {@link ReaderOptions#isLenientSeparator() lenientSeparator} parameter of {@link ReaderOptions}.
@@ -612,7 +610,8 @@ public final class Csv {
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Reader of(Format format, ReaderOptions options, java.io.Reader charReader) throws IllegalArgumentException, IOException {
+        public static Reader of(Format format, ReaderOptions options, java.io.Reader charReader)
+                throws IllegalArgumentException, IOException {
             return of(format, options, charReader, DEFAULT_CHAR_BUFFER_SIZE);
         }
 
@@ -628,7 +627,8 @@ public final class Csv {
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Reader of(Format format, ReaderOptions options, java.io.Reader charReader, int charBufferSize) throws IllegalArgumentException, IOException {
+        public static Reader of(Format format, ReaderOptions options, java.io.Reader charReader, int charBufferSize)
+                throws IllegalArgumentException, IOException {
             Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
             Objects.requireNonNull(charReader, "charReader");
@@ -653,11 +653,16 @@ public final class Csv {
             }
 
             return new Reader(
-                    charReader, charBuffer,
-                    format.getQuote(), format.getDelimiter(), format.getComment(), format.isAcceptMissingField() ? STATE_5_MISSING : STATE_4_SINGLE,
+                    charReader,
+                    charBuffer,
+                    format.getQuote(),
+                    format.getDelimiter(),
+                    format.getComment(),
+                    format.isAcceptMissingField() ? STATE_5_MISSING : STATE_4_SINGLE,
                     new char[options.getMaxCharsPerField()],
-                    eolType, eolCode0, eolCode1
-            );
+                    eolType,
+                    eolCode0,
+                    eolCode1);
         }
 
         private final java.io.Reader charReader;
@@ -677,7 +682,17 @@ public final class Csv {
         private byte fieldType = FIELD_TYPE_NORMAL;
         private byte state = STATE_0_READY;
 
-        private Reader(java.io.Reader charReader, char[] buffer, int quoteCode, int delimiterCode, int commentCode, byte emptyLineState, char[] fieldChars, byte eolType, int eolCode0, int eolCode1) {
+        private Reader(
+                java.io.Reader charReader,
+                char[] buffer,
+                int quoteCode,
+                int delimiterCode,
+                int commentCode,
+                byte emptyLineState,
+                char[] fieldChars,
+                byte eolType,
+                int eolCode0,
+                int eolCode1) {
             this.charReader = charReader;
             this.buffer = buffer;
             this.quoteCode = quoteCode;
@@ -844,6 +859,7 @@ public final class Csv {
             }
         }
 
+        // spotless:off
         // WARNING: main loop; lots of duplication to maximize performances
         // WARNING: comparing ints more performant than comparing chars
         // WARNING: local var access slightly quicker that field access
@@ -1061,6 +1077,7 @@ public final class Csv {
                 this.bufferIndex = i;
             }
         }
+        // spotless:on
 
         @Override
         public String toString() {
@@ -1146,9 +1163,7 @@ public final class Csv {
 
         @Override
         public String toString() {
-            return "WriterOptions("
-                    + "maxCharsPerField=" + maxCharsPerField
-                    + ')';
+            return "WriterOptions(" + "maxCharsPerField=" + maxCharsPerField + ')';
         }
 
         /**
@@ -1157,8 +1172,7 @@ public final class Csv {
          * @return a non-null builder
          */
         public Builder toBuilder() {
-            return new Builder()
-                    .maxCharsPerField(maxCharsPerField);
+            return new Builder().maxCharsPerField(maxCharsPerField);
         }
 
         /**
@@ -1177,8 +1191,7 @@ public final class Csv {
 
             private int maxCharsPerField;
 
-            private Builder() {
-            }
+            private Builder() {}
 
             /**
              * Sets the {@link WriterOptions#getMaxCharsPerField() maxCharsPerField} parameter of {@link WriterOptions}.
@@ -1265,7 +1278,8 @@ public final class Csv {
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Writer of(Format format, WriterOptions options, java.io.Writer charWriter) throws IllegalArgumentException, IOException {
+        public static Writer of(Format format, WriterOptions options, java.io.Writer charWriter)
+                throws IllegalArgumentException, IOException {
             return of(format, options, charWriter, DEFAULT_CHAR_BUFFER_SIZE);
         }
 
@@ -1281,7 +1295,8 @@ public final class Csv {
          *                                  combination of options
          * @throws IOException              if an I/O error occurs
          */
-        public static Writer of(Format format, WriterOptions options, java.io.Writer charWriter, int charBufferSize) throws IllegalArgumentException, IOException {
+        public static Writer of(Format format, WriterOptions options, java.io.Writer charWriter, int charBufferSize)
+                throws IllegalArgumentException, IOException {
             Objects.requireNonNull(format, "format");
             Objects.requireNonNull(options, "options");
             Objects.requireNonNull(charWriter, "charWriter");
@@ -1289,10 +1304,16 @@ public final class Csv {
             requireArgument(format.isValid(), "Invalid format: %s", format);
 
             return new Writer(
-                    charWriter, new char[charBufferSize], new char[options.getMaxCharsPerField()],
-                    format.getQuote(), format.getDelimiter(), format.getComment(),
-                    format.getSeparator().charAt(0), format.getSeparator().length() == 1 ? NO_SECOND_EOL : format.getSeparator().charAt(1)
-            );
+                    charWriter,
+                    new char[charBufferSize],
+                    new char[options.getMaxCharsPerField()],
+                    format.getQuote(),
+                    format.getDelimiter(),
+                    format.getComment(),
+                    format.getSeparator().charAt(0),
+                    format.getSeparator().length() == 1
+                            ? NO_SECOND_EOL
+                            : format.getSeparator().charAt(1));
         }
 
         private final java.io.Writer charWriter;
@@ -1308,7 +1329,15 @@ public final class Csv {
         private int fieldLength = 0;
         private int state = STATE_0_NO_FIELD;
 
-        private Writer(java.io.Writer charWriter, char[] buffer, char[] fieldChars, char quote, char delimiter, char comment, char eol0, char eol1) {
+        private Writer(
+                java.io.Writer charWriter,
+                char[] buffer,
+                char[] fieldChars,
+                char quote,
+                char delimiter,
+                char comment,
+                char eol0,
+                char eol1) {
             this.charWriter = charWriter;
             this.buffer = buffer;
             this.fieldChars = fieldChars;
@@ -1650,8 +1679,7 @@ public final class Csv {
                 final int limit = this.fieldLength;
                 final java.io.Writer t = this.charWriter;
 
-                if (!firstField)
-                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ delimiter;
+                if (!firstField) b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ delimiter;
 
                 b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ quote;
 
@@ -1679,8 +1707,7 @@ public final class Csv {
                 final char eol1 = this.eol1;
                 final java.io.Writer t = this.charWriter;
 
-                if (!firstField)
-                    b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ delimiter;
+                if (!firstField) b[l == b.length ? (l = write(t, b)) - 1 : l++] = /*push*/ delimiter;
 
                 char character;
                 for (int i = 0; i < limit; i++) {
