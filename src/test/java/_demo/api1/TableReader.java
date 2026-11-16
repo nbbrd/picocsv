@@ -40,8 +40,8 @@ public class TableReader<T> {
     @lombok.Builder.Default
     int skipLines = 0;
 
-    public static <X> @NonNull TableReaderBuilder<X> builder(@NonNull Function<String[], LineParser<X>> factory) {
-        return new TableReaderBuilder<X>().rowFactory(factory);
+    public static <X> @NonNull TableReader.Builder<X> builder(@NonNull Function<String[], LineParser<X>> factory) {
+        return new TableReader.Builder<X>().rowFactory(factory);
     }
 
     public static @NonNull TableReader<String[]> byColumnIndex(@NonNull int... indexes) {

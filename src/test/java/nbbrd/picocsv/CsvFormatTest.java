@@ -77,6 +77,18 @@ public class CsvFormatTest {
         assertThat(Csv.Format.DEFAULT.equals(Csv.Format.DEFAULT)).isTrue();
         assertThat(Csv.Format.DEFAULT.equals(null)).isFalse();
         assertThat(Csv.Format.DEFAULT.equals(Csv.Format.DEFAULT.toBuilder().build())).isTrue();
+
+        // Exact hashCode value pins all MathMutator and NegateConditionals mutations in hashCode()
+        // Computed from: hash=7 → *37+sep("\r\n".hashCode()=413)=672 → *37+','=24908
+        //                      → *37+'"'=921630 → *37+'#'=34100345 → *37+(true?1:0)=1261712766
+        assertThat(Csv.Format.DEFAULT.hashCode())
+                .isEqualTo(1261712766)
+                .isNotZero()
+                .isNotEqualTo(other.hashCode())
+                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().quote('x').build().hashCode())
+                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().separator(Csv.Format.UNIX_SEPARATOR).build().hashCode())
+                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().comment('x').build().hashCode())
+                .isNotEqualTo(Csv.Format.DEFAULT.toBuilder().acceptMissingField(false).build().hashCode());
     }
 
     @Test

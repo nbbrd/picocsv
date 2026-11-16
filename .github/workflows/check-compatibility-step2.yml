@@ -1,4 +1,4 @@
-name: Check compatibility step 2
+name: 📋 Check compatibility step 2
 
 on:
   workflow_run:
@@ -14,7 +14,7 @@ jobs:
       pull-requests: write
     steps:
       - name: ⬇️ Download compatibility report and PR number
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           run-id: ${{github.event.workflow_run.id }}
           merge-multiple: true
@@ -30,7 +30,7 @@ jobs:
 
       - if: ${{ hashFiles('continue') != '' }}
         name: 🔔 Notify PR with compatibility report
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ steps.pr_number.outputs.number }}
           body-path: 'report.md'

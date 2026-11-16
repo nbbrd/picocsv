@@ -63,6 +63,8 @@ public class FastCsvEntryConverter {
                 .fieldSeparator('↷')
                 .commentCharacter(';')
                 .commentStrategy(commentStrategy)
+                .allowExtraFields(true)
+                .allowMissingFields(true)
                 .ofCsvRecord(new StringReader(content))
                 .stream()
                 .map(FastCsvEntryConverter::toRow)

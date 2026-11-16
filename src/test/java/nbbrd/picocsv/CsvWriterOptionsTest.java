@@ -47,6 +47,13 @@ public class CsvWriterOptionsTest {
         assertThat(auto.equals(auto)).isTrue();
         assertThat(auto.equals(null)).isFalse();
         assertThat(auto.equals(auto.toBuilder().build())).isTrue();
+
+        // Exact hashCode value pins all MathMutator mutations in hashCode()
+        // Computed from: hash=7 → *37+4096=4355
+        assertThat(auto.hashCode())
+                .isEqualTo(4355)
+                .isNotZero()
+                .isNotEqualTo(auto.toBuilder().maxCharsPerField(123).build().hashCode());
     }
 
     @Test

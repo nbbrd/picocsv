@@ -20,30 +20,21 @@ import _test.Top5GridMonthly;
 import nbbrd.picocsv.Csv;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.io.UncheckedIOException;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * @author Philippe Charles
  */
-public class ReadIgnoringEmptyLinesDemo {
+public class ReadAsStreamDemo {
 
     public static void main(String[] args) throws IOException {
         try (Csv.Reader reader = Top5GridMonthly.open()) {
-            readIgnoringEmptyLines(reader)
-                    .forEach(item -> System.out.println(Arrays.toString(item)));
+            Cookbook.asStream(reader)
+                    .map(Cookbook.LineParser.unchecked(Cookbook::readLineOfUnknownSize))
+                    .forEach(fields -> System.out.println(Arrays.toString(fields)));
+        } catch (UncheckedIOException ex) {
+            throw ex.getCause();
         }
-    }
-
-    private static List<String[]> readIgnoringEmptyLines(Csv.Reader reader) throws IOException {
-        List<String[]> result = new ArrayList<>();
-        while (reader.readLine()) {
-            String[] values = Cookbook.readLineOfUnknownSize(reader);
-            if (values.length > 0) {
-                result.add(values);
-            }
-        }
-        return result;
     }
 }

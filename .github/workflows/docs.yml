@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Check jbang-action
-        uses: jbangdev/jbang-action@v0.126.2
+        uses: jbangdev/jbang-action@v0.143.0
         with:
           trust: https://github.com/nbbrd/jbang-catalog/
           script: heylogs@nbbrd
@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: true
           fetch-depth: 0
@@ -56,11 +56,11 @@ jobs:
 
     steps:
       - name: Checkout pages
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: 'gh-pages'
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: /root/.jbang
           key: $-jbang-$
@@ -68,7 +68,7 @@ jobs:
             $-jbang-
 
       - name: Create index.html
-        uses: jbangdev/jbang-action@v0.126.2
+        uses: jbangdev/jbang-action@v0.143.0
         with:
           trust: https://gist.github.com/charphi/
           script: https://gist.github.com/charphi/f44a24eb35dbd61b9f1d7759f0e561bd

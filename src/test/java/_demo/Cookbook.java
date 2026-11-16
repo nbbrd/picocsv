@@ -10,6 +10,7 @@ import java.io.UncheckedIOException;
 import java.nio.CharBuffer;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -29,11 +30,14 @@ public class Cookbook {
         return true;
     }
 
+    public static boolean skipFields(@NonNull Csv.LineReader reader, int skipFields) throws IOException {
+        for (int i = 0; i < skipFields; i++) if (!reader.readField()) return false;
+        return true;
+    }
+
     public static @NonNull String[] readHeader(@NonNull Csv.Reader reader) throws IOException {
-        if (!skipComments(reader)) {
-            throw new IOException("Missing header");
-        }
-        return readLineOfUnknownSize(reader);
+        if (skipComments(reader)) return readLineOfUnknownSize(reader);
+        throw new IOException("Missing header");
     }
 
     public static @NonNull String[] readLineOfUnknownSize(@NonNull Csv.LineReader reader) throws IOException {
@@ -76,8 +80,12 @@ public class Cookbook {
         return new LineIterator(reader);
     }
 
+    public static @NonNull Spliterator<Csv.LineReader> asSpliterator(@NonNull Csv.Reader reader) {
+        return new LineSpliterator(reader);
+    }
+
     public static @NonNull Stream<Csv.LineReader> asStream(@NonNull Csv.Reader reader) {
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(asIterator(reader), Spliterator.ORDERED | Spliterator.NONNULL), false);
+        return StreamSupport.stream(asSpliterator(reader), false);
     }
 
     public static @NonNull <T> Stream<T> asStream(@NonNull Csv.Reader reader, @NonNull LineParser<T> lineParser) {
@@ -179,10 +187,45 @@ public class Cookbook {
         }
     }
 
+    @lombok.RequiredArgsConstructor
+    private static class LineSpliterator implements Spliterator<Csv.LineReader> {
+
+        private final Csv.Reader reader;
+
+        @Override
+        public boolean tryAdvance(Consumer<? super Csv.LineReader> action) {
+            try {
+                if (reader.readLine()) {
+                    action.accept(reader);
+                    return true;
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            return false;
+        }
+
+        @Override
+        public Spliterator<Csv.LineReader> trySplit() {
+            return null;
+        }
+
+        @Override
+        public long estimateSize() {
+            return Long.MAX_VALUE;
+        }
+
+        @Override
+        public int characteristics() {
+            return Spliterator.ORDERED | Spliterator.NONNULL;
+        }
+    }
+
     @FunctionalInterface
     public interface LineParser<T> {
 
-        @NonNull T parse(@NonNull Csv.LineReader line) throws IOException;
+        @NonNull
+        T parse(@NonNull Csv.LineReader line) throws IOException;
 
         default @NonNull Function<Csv.LineReader, T> asUnchecked() {
             return line -> {
