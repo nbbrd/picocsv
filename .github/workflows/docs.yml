@@ -47,7 +47,7 @@ jobs:
           destination_dir: ./docs/${{ env.DOC_SLUG }}
 
       - name: Create summary
-        run: echo "Documentation available at ${{ env.DOC_URL }}" >> $GITHUB_STEP_SUMMARY
+        run: echo "Documentation available at ${{ env.DOC_URL }}" >> "$GITHUB_STEP_SUMMARY"
 
   index-dir:
     needs: deploy
